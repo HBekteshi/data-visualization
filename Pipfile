@@ -6,6 +6,8 @@ name = "pypi"
 [packages]
 networkx = "*"
 pydot = "*"
+pyside6 = "*"
+numpy = "*"
 
 [dev-packages]
 
