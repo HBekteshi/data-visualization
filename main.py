@@ -27,23 +27,34 @@ def create_coordinates(width, height, adjancency_dict):
     coordinates = {}
     adjacencies = adjacency_dict 
 
-    #if dictionary is empty return the coordinates
-    if(not adjacencies):
-        return coordinates
-
     for id, adj_nodes in adjacencies: #create dictionary with the size of the number of edges per node
         adjacencies.update(id=len(adj_nodes))
 
     max_adjancency = max(adjacencies.values()) #retrieve the max adjacency
-    max_adjacencies = [n for n,v in adjacencies.items() if v == max_adjancency] #make list of all nodes with the max adjacency
+    nr_rings = len(set(adjacencies.values())) #calculate # of rings based on the # of unique values
 
-    if(len(max_adajacencies) == 1): #still have to figure out how to do this part exactly with determining rings/coordinates etc.
+    if(len(max_adjacencies) == 1): #still have to figure out how to do this part exactly with determining rings/coordinates etc.
         ...
+        #calculate centre coordinates here for max adjacency nodes
+        #add coordinates to dictionary
     else:
-        ...
+        ...   
+        #make first ring here
+        #for loop to assign coordinates on the ring? --> random assignment for each node?
 
-    #generate dictionary without the keys from the previous maximum adjacencies
-    for id in max_adjacencies:
-        adjacencies.pop(key)
-    
-    create_coordinates(width, heigh, adjacencies) #recurse until empty dictionary
+    for i in range(0,max_adjancency):
+        max_adjacencies = [n for n,v in adjacencies.items() if v == i] #make list of all nodes with the current adjacency
+        
+        if(len(max_adjacencies) == 1):
+            #give random place to this node
+            ...
+        else:
+            #add to a ring?
+            #how to determine coordinates of the ring?
+            ...
+
+    return coordinates
+
+def calc_radius(height, width, size):
+    #calculate the radius of a ring based on the height, width and number of nodes on the ring 
+    return
