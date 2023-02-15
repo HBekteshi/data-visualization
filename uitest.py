@@ -3,7 +3,7 @@ import sys
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from PySide6.QtCore import Slot, QRectF, Qt
+from PySide6.QtCore import Slot, QRectF, Qt, QLineF
 from PySide6.QtGui import QAction, QKeySequence, QPainter, QPen, QColor, QBrush
 from PySide6.QtWidgets import QMainWindow, QApplication, QLabel, QPushButton, QGraphicsScene, QGraphicsView, QGraphicsObject, QGraphicsItem, QStyleOptionGraphicsItem, QHBoxLayout, QWidget
 
@@ -21,6 +21,7 @@ class Vertex(QGraphicsObject):
 
 
         self.edges = []
+
 
     def addEdge(self, edge):
         self.edges.append(edge)
@@ -45,6 +46,16 @@ class Vertex(QGraphicsObject):
         painter.setPen(QPen(QColor("black")))
         painter.drawText(self.boundingRect(), Qt.AlignCenter, self.id)
 
+        self.setFlag(QGraphicsItem.ItemIsMovable)
+        self.setFlag(QGraphicsItem.ItemSendsGeometryChanges)
+
+    # recalculate edges after change in location
+    def itemChange(self, change: QGraphicsItem.GraphicsItemChange, value):
+        if change == QGraphicsItem.ItemPositionHasChanged:
+            for edge in self.edges:
+                edge.calculate_location()
+
+        return super().itemChange(change, value)
 
 class Edge(QGraphicsItem):
     def __init__(self, start: Vertex, end: Vertex) -> None:
@@ -52,11 +63,50 @@ class Edge(QGraphicsItem):
 
         self.start = start
         self.end = end
+        self.start.addEdge(self)
+        self.end.addEdge(self)
 
+        self.line = QLineF()
+        self.color = "black"
+        self.thickness = 2
+
+        self.calculate_location()
+
+    def calculate_location(self):
+        self.prepareGeometryChange()
+        self.line = QLineF(
+            self.start.pos() + self.start.boundingRect().center(),
+            self.end.pos() + self.end.boundingRect().center(),
+        )
+    
+    def boundingRect(self) -> QRectF:
+        return (
+            QRectF(self.line.p1(), self.line.p2())
+            .normalized()
+        )
+
+    def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget=None):
+        if self.start and self.end:
+            painter.setRenderHints(QPainter.Antialiasing)
+
+            painter.setPen(
+                QPen(
+                    QColor(self.color),
+                    self.thickness,
+                    Qt.SolidLine,
+                    Qt.RoundCap,
+                    Qt.RoundJoin,
+                )
+            )
+            painter.drawLine(self.line)
+        
+            
 # right now this just contains the example
-def load_vertices():
-    return [Vertex("12", 25, 25), Vertex("999", -50,-45)]
 
+vertices = [Vertex("12", 25, 25), Vertex("999", -50,-45)]
+
+
+edges = [Edge(vertices[0],vertices[1])]
 
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
@@ -65,8 +115,6 @@ class MainWindow(QMainWindow):
 
         # Scene
         self.scene = QGraphicsScene()
-#        self.graphicsview = QtWidgets.QGraphicsview(scene)
-
 
          # Menu
         self.menu = self.menuBar()
@@ -89,9 +137,13 @@ class MainWindow(QMainWindow):
 
         
         # here is where the code will be added to load in all the nodes
-        vertices = load_vertices()
+        for e in edges:
+            self.scene.addItem(e)
+        
         for v in vertices:
             self.scene.addItem(v)
+
+        
 
         self.view = QGraphicsView(self.scene)
         self.view.show()
