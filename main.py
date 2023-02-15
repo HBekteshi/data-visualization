@@ -1,5 +1,6 @@
 import networkx
 import pydot
+import numpy as np
 G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 
 print("Data loaded")
@@ -22,6 +23,16 @@ for e in G.edges():
 #print(G.edges('0'))
 print(adjacency_dict)
 
+def create_random_coordinates(width, height):
+    coordinates = {}
+    for n in G.nodes():
+        x_val = np.random.uniform(-width/2, width/2)
+        y_val = np.random.uniform(-height/2, height/2)
+        coordinates[n] = (x_val, y_val)
+    return coordinates
+
+random_coordinates = create_random_coordinates(100, 100)
+print(random_coordinates)
 
 def create_coordinates(width, height, adjancency_dict):
     coordinates = {}
