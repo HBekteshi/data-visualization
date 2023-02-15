@@ -12,6 +12,7 @@ class Vertex(QGraphicsObject):
     def __init__(self, id, x_coord, y_coord, radius = 25, ) -> None:
         super().__init__()
 
+        self.__name__ = 'Vertex'
         self.id = id
         self.radius = radius
         self.x_coord = x_coord
@@ -22,6 +23,9 @@ class Vertex(QGraphicsObject):
 
         self.edges = []
 
+        self.canMove = False
+
+        self.setFlag(QGraphicsItem.ItemSendsGeometryChanges)
 
     def addEdge(self, edge):
         self.edges.append(edge)
@@ -46,8 +50,11 @@ class Vertex(QGraphicsObject):
         painter.setPen(QPen(QColor("black")))
         painter.drawText(self.boundingRect(), Qt.AlignCenter, self.id)
 
-        self.setFlag(QGraphicsItem.ItemIsMovable)
-        self.setFlag(QGraphicsItem.ItemSendsGeometryChanges)
+
+    def toggle_movability(self):
+        self.canMove = not self.canMove
+        self.setFlag(QGraphicsItem.ItemIsMovable, enabled = self.canMove)
+        
 
     # recalculate edges after change in location
     def itemChange(self, change: QGraphicsItem.GraphicsItemChange, value):
@@ -60,6 +67,8 @@ class Vertex(QGraphicsObject):
 class Edge(QGraphicsItem):
     def __init__(self, start: Vertex, end: Vertex) -> None:
         super().__init__()
+
+        self.__name__ = 'Edge'
 
         self.start = start
         self.end = end
@@ -101,12 +110,6 @@ class Edge(QGraphicsItem):
             painter.drawLine(self.line)
         
             
-# right now this just contains the example
-
-vertices = [Vertex("12", 25, 25), Vertex("999", -50,-45)]
-
-
-edges = [Edge(vertices[0],vertices[1])]
 
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
@@ -127,6 +130,11 @@ class MainWindow(QMainWindow):
 
         self.file_menu.addAction(exit_action)
 
+        
+        movability_action = QAction("Manual moving", self)
+        movability_action.triggered.connect(self.vertices_toggle_movability)
+        self.file_menu.addAction(movability_action)
+
          # Status Bar
         self.status = self.statusBar()
         self.status.showMessage("Graph loaded and displayed")
@@ -137,13 +145,12 @@ class MainWindow(QMainWindow):
 
         
         # here is where the code will be added to load in all the nodes
-        for e in edges:
-            self.scene.addItem(e)
-        
-        for v in vertices:
-            self.scene.addItem(v)
+        self.vertices = [Vertex("12", 25, 25), Vertex("999", -50,-45), Vertex("Static", 0, 0)]
 
-        
+        self.edges = [Edge(self.vertices[0],self.vertices[1])]
+
+
+        self.load_to_scene()
 
         self.view = QGraphicsView(self.scene)
         self.view.show()
@@ -152,6 +159,22 @@ class MainWindow(QMainWindow):
         # graphics displayed in the center
         self.setCentralWidget(self.view)
 
+        
+
+    def load_to_scene(self):
+
+        for e in self.edges:
+            self.scene.addItem(e)
+        
+        for v in self.vertices:
+            self.scene.addItem(v)
+
+
+        
+    def vertices_toggle_movability(self):
+        for v in self.scene.items():
+            if v.__name__ == 'Vertex':
+                v.toggle_movability()
 
 
 
