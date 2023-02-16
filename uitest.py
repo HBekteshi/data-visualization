@@ -7,9 +7,10 @@ from PySide6.QtCore import Slot, QRectF, Qt, QLineF
 from PySide6.QtGui import QAction, QKeySequence, QPainter, QPen, QColor, QBrush
 from PySide6.QtWidgets import QMainWindow, QApplication, QLabel, QPushButton, QGraphicsScene, QGraphicsView, QGraphicsObject, QGraphicsItem, QStyleOptionGraphicsItem, QHBoxLayout, QWidget
 
+import numpy as np
 
 class Vertex(QGraphicsObject):
-    def __init__(self, id, x_coord, y_coord, radius = 25, ) -> None:
+    def __init__(self, id, x_coord, y_coord, radius = 25) -> None:
         super().__init__()
 
         self.__name__ = 'Vertex'
@@ -26,6 +27,12 @@ class Vertex(QGraphicsObject):
         self.canMove = False
 
         self.setFlag(QGraphicsItem.ItemSendsGeometryChanges)
+
+    def moveVertex(self, x, y):
+        self.setPos(x, y)
+        self.x_coord = x
+        self.y_coord = y
+        self.update_edges()
 
     def addEdge(self, edge):
         self.edges.append(edge)
@@ -55,12 +62,14 @@ class Vertex(QGraphicsObject):
         self.canMove = not self.canMove
         self.setFlag(QGraphicsItem.ItemIsMovable, enabled = self.canMove)
         
-
+    def update_edges(self):
+        for edge in self.edges:
+                edge.calculate_location()
+        
     # recalculate edges after change in location
     def itemChange(self, change: QGraphicsItem.GraphicsItemChange, value):
         if change == QGraphicsItem.ItemPositionHasChanged:
-            for edge in self.edges:
-                edge.calculate_location()
+            self.update_edges()
 
         return super().itemChange(change, value)
 
@@ -72,8 +81,11 @@ class Edge(QGraphicsItem):
 
         self.start = start
         self.end = end
+        
         self.start.addEdge(self)
         self.end.addEdge(self)
+
+        self.setZValue(-0.5)
 
         self.line = QLineF()
         self.color = "black"
@@ -109,12 +121,17 @@ class Edge(QGraphicsItem):
             )
             painter.drawLine(self.line)
         
-            
+
+
 
 class MainWindow(QMainWindow):
-    def __init__(self) -> None:
+    def __init__(self, adjacency_dict) -> None:
         super().__init__()
         self.setWindowTitle("Graph viewer app")
+
+        self.adjacency_dict = adjacency_dict
+
+        
 
         # Scene
         self.scene = QGraphicsScene()
@@ -122,6 +139,7 @@ class MainWindow(QMainWindow):
          # Menu
         self.menu = self.menuBar()
         self.file_menu = self.menu.addMenu("File")
+        self.actions_menu = self.menu.addMenu("Actions")
 
         # Exit QAction
         exit_action = QAction("Exit", self)
@@ -130,27 +148,43 @@ class MainWindow(QMainWindow):
 
         self.file_menu.addAction(exit_action)
 
-        
-        movability_action = QAction("Manual moving", self)
+        # manual movement
+        movability_action = QAction("Toggle Manual Movement", self)
         movability_action.triggered.connect(self.vertices_toggle_movability)
-        self.file_menu.addAction(movability_action)
+        movability_action.setCheckable(True)
+        self.actions_menu.addAction(movability_action)
+
+        
+
+            # graph regeneration
+        random_regeneration_action = QAction("Regenerate Random Graph", self)
+        random_regeneration_action.triggered.connect(self.regenerate)
+        # self.actions_menu.addAction(random_regeneration_action)
+        self.actions_menu.addAction(random_regeneration_action)
+
 
          # Status Bar
         self.status = self.statusBar()
         self.status.showMessage("Graph loaded and displayed")
 
         # Window dimensions
-        geometry = self.screen().availableGeometry()
-        self.setFixedSize(geometry.width() * 0.7, geometry.height() * 0.7)
-
+        geometry = self.screen().availableSize()
+        self.screenwidth = geometry.width() * 0.7
+        self.screenheight = geometry.height() * 0.7
+        self.setFixedSize(self.screenwidth, self.screenheight)
+        #self.scene.setSceneRect(-self.screenwidth/2, -self.screenheight/2, self.screenwidth, self.screenheight)
+        #print(self.scene.sceneRect)
         
-        # here is where the code will be added to load in all the nodes
-        self.vertices = [Vertex("12", 25, 25), Vertex("999", -50,-45), Vertex("Static", 0, 0)]
+        # random coordinates for now
+        self.default_layout = "random"
+        self.default_radius = 25
 
-        self.edges = [Edge(self.vertices[0],self.vertices[1])]
+        self.generate(self.default_layout)
 
+        self.vertices = {}
 
-        self.load_to_scene()
+        self.add_to_scene(self.coordinates)
+
 
         self.view = QGraphicsView(self.scene)
         self.view.show()
@@ -159,22 +193,93 @@ class MainWindow(QMainWindow):
         # graphics displayed in the center
         self.setCentralWidget(self.view)
 
+
+
+
+# coords for layout = "random"
+    def create_random_coordinates(self):
+        width = self.screenwidth - self.default_radius * 2
+        height = self.screenheight - self.default_radius * 2
+        coordinates = {}
+        for n in self.adjacency_dict.keys():
+            x_val = np.random.uniform(-width/2, width/2)
+            y_val = np.random.uniform(-height/2, height/2)
+            if n == "Static":
+                x_val,y_val = (0,-314)
+            elif n == "Static High":
+                x_val,y_val = (0, 314)
+            coordinates[n] = (x_val, y_val)
+        return coordinates
+
+# layout selector             
+    def generate(self, layout):
+        self.layout = layout
+        if self.layout == "random":
+            self.coordinates = self.create_random_coordinates()
+        else:
+            print("asked for layout", layout)
+            raise ValueError ("Unsupported layout requested")
+
+# recreate the graph
+    def regenerate(self):
+        print("calling regenerate")
+        #self.layout = layout
+        print("asking for layout", self.layout)
+        self.generate(self.layout)
+        for vertex_id in self.coordinates.keys():
+            x,y = self.coordinates[vertex_id]
+            print("reset vertex",vertex_id,"at x_val",x,"and y_val",y)
+            self.vertices[vertex_id].moveVertex(x,y)
         
 
-    def load_to_scene(self):
-
-        for e in self.edges:
-            self.scene.addItem(e)
+            
+# part of graph initialization:
+            
+    def add_to_scene(self, coordinates):
+        self.add_vertices(coordinates)
+        self.add_edges()
         
-        for v in self.vertices:
-            self.scene.addItem(v)
+    def add_vertices(self, coordinates):
+        for vertex_id in coordinates.keys():
+            x,y = coordinates[vertex_id]
 
+            # modifying y to negative y to have the graph treat (0,0) as center instead of top left
+            new_vertex = Vertex(vertex_id, x, -y, radius = self.default_radius)
+            print("set vertex",vertex_id,"at x_val",x,"and y_val",y)
+            self.vertices[vertex_id] = new_vertex
+            self.scene.addItem(new_vertex)
 
-        
+    def add_edges(self):
+        for start_id in self.adjacency_dict.keys():        
+            for e_tuple in self.adjacency_dict[start_id]:
+                end_id, to_create = e_tuple
+                if to_create == True:
+                    self.scene.addItem(Edge(self.vertices[start_id],self.vertices[end_id]))
+                    
+
     def vertices_toggle_movability(self):
         for v in self.scene.items():
             if v.__name__ == 'Vertex':
                 v.toggle_movability()
+
+
+
+            
+# create fake adjacency dict for example
+adjacency_dict = {}
+
+
+example_vertices = ["12","999","Static","Static High"]
+example_edges = [("12","999")]
+
+
+for n in example_vertices:
+    adjacency_dict[n] = []
+
+for e in example_edges:
+    u, v = e
+    adjacency_dict[u].append((v,True))
+    adjacency_dict[v].append((u,False))
 
 
 
@@ -184,7 +289,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow()
+    window = MainWindow(adjacency_dict)
     window.show()
 
     

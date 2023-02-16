@@ -13,10 +13,14 @@ for n in G.nodes():
 
 # the les miserables import has a node with id '\\n' and no connections
 
+    
+# the first time an edge appears it is marked True, and it will be rendered
+# the second time the same edge appears it is marked False, so it will not be rendered
+    
 for e in G.edges():
     u, v = e
-    adjacency_dict[u].append(v)
-    adjacency_dict[v].append(u)
+    adjacency_dict[u].append((v,True))
+    adjacency_dict[v].append((u,False))
     print(f"Added edge from {u} to {v}")
 
 
@@ -25,7 +29,7 @@ print(adjacency_dict)
 
 def create_random_coordinates(width, height):
     coordinates = {}
-    for n in G.nodes():
+    for n in adjacency_dict.keys():
         x_val = np.random.uniform(-width/2, width/2)
         y_val = np.random.uniform(-height/2, height/2)
         coordinates[n] = (x_val, y_val)
