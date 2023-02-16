@@ -30,7 +30,7 @@ print(adjacency_dict)
 
 def create_random_coordinates(width, height):
     coordinates = {}
-    for n in G.nodes():
+    for n in adjacency_dict.keys():
         x_val = np.random.uniform(-width/2, width/2)
         y_val = np.random.uniform(-height/2, height/2)
         coordinates[n] = (x_val, y_val)
@@ -38,18 +38,18 @@ def create_random_coordinates(width, height):
 
 random_coordinates = create_random_coordinates(100, 100)
 
-def create_coordinates(width, height, adjancency_dict):
+def create_solar_coordinates(width, height, adjacency_dict):
     coordinates = {}
-    adjacencies = adjacency_dict 
+    adjacencies = {}
 
-    for id, adj_nodes in list(adjacencies.items()): #create dictionary with the size of the number of edges per node
+    for id, adj_nodes in list(adjacency_dict.items()): #create dictionary with the size of the number of edges per node
         adjacencies[id] = len(adj_nodes)
 
-    max_adjancency = max(adjacencies.values()) #retrieve the max adjacency
-    max_adjacencies = [n for n,v in adjacencies.items() if v == max_adjancency] #make a list of all the nodes with the max adjacency
+    max_adjacency = max(adjacencies.values()) #retrieve the max adjacency
+    max_adjacencies = [n for n,v in adjacencies.items() if v == max_adjacency] #make a list of all the nodes with the max adjacency
     nr_rings = len(set(adjacencies.values())) #calculate # of rings based on the # of unique values in adjacency numbers
-    rings_dict = assign_to_rings(adjacencies, max_adjancency)
-    coordinates = convert_to_coordinates(rings_dict, nr_rings, max_adjancency, height, width)
+    rings_dict = assign_to_rings(adjacencies, max_adjacency)
+    coordinates = convert_to_solar_coordinates(rings_dict, nr_rings, max_adjacency, height, width)
 
     print("Which nodes belong to which ring")
     print(rings_dict)
@@ -59,7 +59,7 @@ def create_coordinates(width, height, adjancency_dict):
 
     return coordinates
 
-def assign_to_rings(adjacencies, max_adjancency):
+def assign_to_rings(adjacencies, max_adjacency):
 
     #create dictionary with rings, based on the # of rings
     rings_dict = {}
@@ -77,9 +77,9 @@ def calc_radius(height, width, size, nr_rings):
     #calculate the radius of a ring based on the height, width, the # of nodes on the ring and the # of rings 
     #TODO see if we can come up with a better function for this, this is just a test
     if(height<width):
-        radius = height/2/nr_rings
+        radius = (height/2) / nr_rings
     else:
-        radius = width/2/nr_rings
+        radius = (width/2) / nr_rings
     return radius
 
 def polar_to_cartesian(angle, radius, center_x, center_y):
@@ -88,7 +88,7 @@ def polar_to_cartesian(angle, radius, center_x, center_y):
     return (x_val, y_val)   
 
 
-def convert_to_coordinates(rings_dict, nr_rings, max_adjacency, height, width):
+def convert_to_solar_coordinates(rings_dict, nr_rings, max_adjacency, height, width):
     coordinates = {}
 
     # if the ring with the highest adjacency has just one node, put this one in the middle of the screen.
@@ -114,4 +114,4 @@ def convert_to_coordinates(rings_dict, nr_rings, max_adjacency, height, width):
 
     return coordinates
 
-coordinates = create_coordinates(100,100, adjacency_dict)
+coordinates = create_solar_coordinates(100,100, adjacency_dict)
