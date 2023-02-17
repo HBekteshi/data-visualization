@@ -51,7 +51,6 @@ def create_solar_coordinates(width, height, adjacency_dict):
         adjacencies[id] = len(adj_nodes)
 
     max_adjacency = max(adjacencies.values()) #retrieve the max adjacency
-    max_adjacencies = [n for n,v in adjacencies.items() if v == max_adjacency] #make a list of all the nodes with the max adjacency
     nr_rings = len(set(adjacencies.values())) #calculate # of rings based on the # of unique values in adjacency numbers
     rings_dict = assign_to_rings(adjacencies, max_adjacency)
     coordinates = convert_to_solar_coordinates(rings_dict, nr_rings, max_adjacency, height, width)
@@ -60,8 +59,8 @@ def create_solar_coordinates(width, height, adjacency_dict):
         print("rings_dict - Which nodes belong to which ring")
         print(rings_dict)
 
-  #  print("the coordinates of each node")
-  #  print(coordinates)
+    print("the coordinates of each node")
+    print(coordinates)
 
     return coordinates
 
@@ -98,7 +97,6 @@ def convert_to_solar_coordinates(rings_dict, nr_rings, max_adjacency, height, wi
     coordinates = {}
 
     # if the ring with the highest adjacency has just one node, put this one in the middle of the screen.
-
     if(len(rings_dict[max_adjacency]) == 1):
         max_node_id = rings_dict[max_adjacency][0]
         coordinates[max_node_id] = (0,0)
@@ -106,7 +104,6 @@ def convert_to_solar_coordinates(rings_dict, nr_rings, max_adjacency, height, wi
     
         
     # then calculate the radius of the ring and coordinates of the nodes     
-        
     i = 0
     print("ring keys:", list(rings_dict.keys()))
     for ring_id in list(rings_dict.keys()):
@@ -118,11 +115,11 @@ def convert_to_solar_coordinates(rings_dict, nr_rings, max_adjacency, height, wi
 
     #generate random angle for each node --> convert polar coordinates (radius, angle) to cartesian coordinates
         for vertex_id in rings_dict[ring_id]:
-            angle = np.random.uniform(0,360) #generate random angle
+            angle = np.random.uniform(0, 2*math.pi) #generate random angle
             coordinates[vertex_id] = polar_to_cartesian(angle, radius,0,0)
         #    print("assigned to vertex",vertex_id,"a radius of",radius,"and angle of",angle)
         i += 1
 
     return coordinates
 
-#coordinates = create_solar_coordinates(100,100, adjacency_dict)
+coordinates = create_solar_coordinates(100,100, adjacency_dict)
