@@ -9,6 +9,7 @@ from PySide6.QtWidgets import QMainWindow, QApplication, QLabel, QPushButton, QG
 
 import numpy as np
 
+
 class Vertex(QGraphicsObject):
     def __init__(self, id, x_coord, y_coord, radius = 25) -> None:
         super().__init__()
@@ -131,6 +132,11 @@ class MainWindow(QMainWindow):
 
         self.adjacency_dict = adjacency_dict
 
+        
+
+        # Scene
+        self.scene = QGraphicsScene()
+
          # Menu
         self.menu = self.menuBar()
         self.file_menu = self.menu.addMenu("File")
@@ -167,18 +173,8 @@ class MainWindow(QMainWindow):
         self.screenwidth = geometry.width() * 0.7
         self.screenheight = geometry.height() * 0.7
         self.setFixedSize(self.screenwidth, self.screenheight)
-     #   print("fixed size set to:",self.screenwidth,self.screenheight)
-    #    print("scene set to",-self.screenwidth/2, -self.screenheight/2, self.screenwidth, self.screenheight)
-        # Scene
-        #self.area_view = QRectF(-self.screenwidth/2, -self.screenheight/2+250, self.screenwidth, self.screenheight)
-        #self.area_view = QRectF(100,100,100,100)
-        #self.area_scene = QRectF(-self.screenwidth/2, -self.screenheight/2, self.screenwidth, self.screenheight)
-        #self.scene = QGraphicsScene(self.area_scene)
-        self.scene = QGraphicsScene()
-
-        #self.scene.setSceneRect(-self.screenwidth - 25, -self.screenheight - 25, self.screenwidth*2 - 50 , self.screenheight*2 - 50)
-#        print(self.scene.sceneRect.size())
-
+        #self.scene.setSceneRect(-self.screenwidth/2, -self.screenheight/2, self.screenwidth, self.screenheight)
+        #print(self.scene.sceneRect)
         
         # random coordinates for now
         self.default_layout = "random"
@@ -192,8 +188,6 @@ class MainWindow(QMainWindow):
 
 
         self.view = QGraphicsView(self.scene)
-        self.view.setViewportUpdateMode(QGraphicsView.NoViewportUpdate)
-       # self.view.setSceneRect = self.area_view
         self.view.show()
 
 
@@ -205,18 +199,16 @@ class MainWindow(QMainWindow):
 
 # coords for layout = "random"
     def create_random_coordinates(self):
-        width = self.screenwidth - 2* self.default_radius
-        height = self.screenheight - 2* self.default_radius
+        width = self.screenwidth - self.default_radius * 2
+        height = self.screenheight - self.default_radius * 2
         coordinates = {}
         for n in self.adjacency_dict.keys():
             x_val = np.random.uniform(-width/2, width/2)
             y_val = np.random.uniform(-height/2, height/2)
-            if n == "Static Low":
-                x_val,y_val = (0,-height/2)
+            if n == "Static":
+                x_val,y_val = (0,-314)
             elif n == "Static High":
-                x_val,y_val = (0, height/2)
-            elif n == "Center":
-                x_val,y_val = (0,0)
+                x_val,y_val = (0, 314)
             coordinates[n] = (x_val, y_val)
         return coordinates
 
@@ -239,7 +231,6 @@ class MainWindow(QMainWindow):
             x,y = self.coordinates[vertex_id]
             print("reset vertex",vertex_id,"at x_val",x,"and y_val",y)
             self.vertices[vertex_id].moveVertex(x,y)
-        self.scene.update()
         
 
             
@@ -272,12 +263,6 @@ class MainWindow(QMainWindow):
             if v.__name__ == 'Vertex':
                 v.toggle_movability()
 
-    def mousePressEvent(self, QMouseEvent):
-        print(QMouseEvent.pos())
-    def mouseReleaseEvent(self, QMouseEvent):
-        cursor = QtGui.QCursor()
-        print(cursor.pos())
-
 
 
             
@@ -285,12 +270,8 @@ class MainWindow(QMainWindow):
 adjacency_dict = {}
 
 
-#example_vertices = ["12","999","Static","Static High"]
-example_vertices = ["Static Low","Static High", "Center", "node1", "node2"]
-#example_vertices = ["Center", "node1", "node2"]
-example_edges = [("node1","node2")]
-#example_edges = [("Static Low","Static High"),("node1","node2")]
-#example_edges = [("12","999")]
+example_vertices = ["12","999","Static","Static High"]
+example_edges = [("12","999")]
 
 
 for n in example_vertices:

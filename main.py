@@ -43,7 +43,7 @@ def create_random_coordinates(width, height, adjacency_dict):
 
 #random_coordinates = create_random_coordinates(100, 100)
 
-def create_solar_coordinates(width, height, adjacency_dict):
+def create_solar_coordinates(width, height, adjacency_dict, deterministic = False):
     coordinates = {}
     adjacencies = {}
 
@@ -52,8 +52,13 @@ def create_solar_coordinates(width, height, adjacency_dict):
 
     max_adjacency = max(adjacencies.values()) #retrieve the max adjacency
     nr_rings = len(set(adjacencies.values())) #calculate # of rings based on the # of unique values in adjacency numbers
+    
     rings_dict = assign_to_rings(adjacencies)
-    coordinates = convert_to_solar_coordinates(rings_dict, nr_rings, max_adjacency, height, width)
+
+    if deterministic == False:
+        coordinates = convert_to_solar_coordinates(rings_dict, nr_rings, max_adjacency, height, width)
+    else:
+        coordinates = convert_to_deterministic_solar_coordinates(rings_dict, nr_rings, max_adjacency, height, width)
 
     if printing_mode:
         print("rings_dict - Which nodes belong to which ring")
@@ -117,9 +122,44 @@ def convert_to_solar_coordinates(rings_dict, nr_rings, max_adjacency, height, wi
         for vertex_id in rings_dict[ring_id]:
             angle = np.random.uniform(0, 2*math.pi) #generate random angle
             coordinates[vertex_id] = polar_to_cartesian(angle, radius,0,0)
-        #    print("assigned to vertex",vertex_id,"a radius of",radius,"and angle of",angle)
+            if printing_mode:
+                print("assigned to vertex",vertex_id,"a radius of",radius,"and angle of",angle)
         i += 1
 
     return coordinates
 
-#coordinates = create_solar_coordinates(100,100, adjacency_dict)
+
+def convert_to_deterministic_solar_coordinates(rings_dict, nr_rings, max_adjacency, height, width, angle_change = 0.3):
+    coordinates = {}
+
+    # if the ring with the highest adjacency has just one node, put this one in the middle of the screen.
+
+    if(len(rings_dict[max_adjacency]) == 1):
+        max_node_id = rings_dict[max_adjacency][0]
+        coordinates[max_node_id] = (0,0)
+        nr_rings -= 1
+    
+        
+    # then calculate the radius of the ring and coordinates of the nodes     
+        
+    i = 0
+    print("ring keys:", list(rings_dict.keys()))
+    for ring_id in list(rings_dict.keys()):
+        if i == nr_rings:
+            break
+        radius = calc_radius(height, width, i, nr_rings)
+        if printing_mode:
+            print("ring", ring_id, "has nodes:", rings_dict[ring_id], "and is given radius",radius)
+
+    #generate random angle for each node --> convert polar coordinates (radius, angle) to cartesian coordinates
+        angle = 0
+        for vertex_id in rings_dict[ring_id]:
+            angle += angle_change
+            #angle = np.random.uniform(0,360) #generate random angle
+            coordinates[vertex_id] = polar_to_cartesian(angle, radius,0,0)
+            if printing_mode:
+                print("assigned to vertex",vertex_id,"a radius of",radius,"and angle of",angle)
+
+        i += 1
+
+    return coordinates

@@ -137,6 +137,7 @@ class MainWindow(QMainWindow):
         self.menu = self.menuBar()
         self.file_menu = self.menu.addMenu("File")
         self.actions_menu = self.menu.addMenu("Actions")
+        self.layouts_menu = self.menu.addMenu("Layout")
 
         # Exit QAction
         exit_action = QAction("Exit", self)
@@ -156,16 +157,19 @@ class MainWindow(QMainWindow):
             # graph regeneration
         layout_regeneration_action = QAction("Regenerate Layout", self) # will regenerate with same layout
         layout_regeneration_action.triggered.connect(self.regenerate)
-        self.actions_menu.addAction(layout_regeneration_action)
+        self.layouts_menu.addAction(layout_regeneration_action)
 
         random_regeneration_action = QAction("Generate Random Layout", self) # will regenerate with random layout
         random_regeneration_action.triggered.connect(self.regenerate_random)
-        self.actions_menu.addAction(random_regeneration_action)
+        self.layouts_menu.addAction(random_regeneration_action)
 
-        solar_regeneration_action = QAction("Generate Solar Layout", self) # will regenerate with solar layout
+        solar_regeneration_action = QAction("Generate Random Solar Layout", self) # will regenerate with solar layout, random angles
         solar_regeneration_action.triggered.connect(self.regenerate_solar)
-        self.actions_menu.addAction(solar_regeneration_action)
+        self.layouts_menu.addAction(solar_regeneration_action)
 
+        deterministic_solar_regeneration_action = QAction("Generate Deterministic Solar Layout", self) # will regenerate with solar layout, consistent angles
+        deterministic_solar_regeneration_action.triggered.connect(self.regenerate_solar_deterministic)
+        self.layouts_menu.addAction(deterministic_solar_regeneration_action)
 
          # Status Bar
         self.status = self.statusBar()
@@ -209,6 +213,8 @@ class MainWindow(QMainWindow):
             self.coordinates = main.create_random_coordinates(width, height, self.adjacency_dict)
         elif self.layout == "solar":
             self.coordinates = main.create_solar_coordinates(width, height, self.adjacency_dict)
+        elif self.layout == "solar deterministic":
+            self.coordinates = main.create_solar_coordinates(width, height, self.adjacency_dict, deterministic = True)
         else:
             print("asked for layout", layout)
             raise ValueError ("Unsupported layout requested")
@@ -222,8 +228,8 @@ class MainWindow(QMainWindow):
         for vertex_id in self.coordinates.keys():
             x,y = self.coordinates[vertex_id]
             if main.printing_mode:
-                print("reset vertex",vertex_id,"at x_val",x,"and y_val",y)
-            self.vertices[vertex_id].moveVertex(x,y)
+                print("reset vertex",vertex_id,"at x_val",x,"and y_val",-y)
+            self.vertices[vertex_id].moveVertex(x,-y)
         self.scene.update()
         
     def regenerate_random(self):
@@ -232,6 +238,10 @@ class MainWindow(QMainWindow):
 
     def regenerate_solar(self):
         self.layout = "solar"
+        self.regenerate()
+
+    def regenerate_solar_deterministic(self):
+        self.layout = "solar deterministic"
         self.regenerate()
             
 # part of graph initialization:
@@ -273,7 +283,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict, "solar")
+    window = MainWindow(main.adjacency_dict, "solar deterministic")
     window.show()
 
     
