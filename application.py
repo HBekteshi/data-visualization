@@ -127,16 +127,11 @@ class Edge(QGraphicsItem):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, given_adjacency_dict) -> None:
+    def __init__(self, given_adjacency_dict, initial_layout = "random", default_radius = 15) -> None:
         super().__init__()
         self.setWindowTitle("Graph viewer app")
 
         self.adjacency_dict = given_adjacency_dict
-
-        
-
-        # Scene
-        self.scene = QGraphicsScene()
 
          # Menu
         self.menu = self.menuBar()
@@ -159,10 +154,17 @@ class MainWindow(QMainWindow):
         
 
             # graph regeneration
-        random_regeneration_action = QAction("Regenerate Random Graph", self)
-        random_regeneration_action.triggered.connect(self.regenerate)
-        # self.actions_menu.addAction(random_regeneration_action)
+        layout_regeneration_action = QAction("Regenerate Layout", self) # will regenerate with same layout
+        layout_regeneration_action.triggered.connect(self.regenerate)
+        self.actions_menu.addAction(layout_regeneration_action)
+
+        random_regeneration_action = QAction("Generate Random Layout", self) # will regenerate with random layout
+        random_regeneration_action.triggered.connect(self.regenerate_random)
         self.actions_menu.addAction(random_regeneration_action)
+
+        solar_regeneration_action = QAction("Generate Solar Layout", self) # will regenerate with solar layout
+        solar_regeneration_action.triggered.connect(self.regenerate_solar)
+        self.actions_menu.addAction(solar_regeneration_action)
 
 
          # Status Bar
@@ -178,13 +180,15 @@ class MainWindow(QMainWindow):
         #print(self.scene.sceneRect)
         
         # random coordinates for now
-        self.default_layout = "random"
-        self.default_radius = 25
+        self.default_layout = initial_layout
+        self.default_radius = default_radius
+        
+        self.generate(self.default_layout)             
 
-        self.generate(self.default_layout)
-
+        
+        # Scene
+        self.scene = QGraphicsScene()
         self.vertices = {}
-
         self.add_to_scene(self.coordinates)
 
 
@@ -198,25 +202,37 @@ class MainWindow(QMainWindow):
 
 # layout selector             
     def generate(self, layout):
+        width = self.screenwidth - self.default_radius * 2
+        height = self.screenheight - self.default_radius * 2
         self.layout = layout
         if self.layout == "random":
-            self.coordinates = main.create_random_coordinates(width = self.screenwidth - self.default_radius * 2, height = self.screenheight - self.default_radius * 2)
+            self.coordinates = main.create_random_coordinates(width, height, self.adjacency_dict)
+        elif self.layout == "solar":
+            self.coordinates = main.create_solar_coordinates(width, height, self.adjacency_dict)
         else:
             print("asked for layout", layout)
             raise ValueError ("Unsupported layout requested")
 
 # recreate the graph
     def regenerate(self):
-        print("calling regenerate")
-        #self.layout = layout
-        print("asking for layout", self.layout)
+        if main.printing_mode:
+            print("calling regenerate")
+            print("asking for layout", self.layout)
         self.generate(self.layout)
         for vertex_id in self.coordinates.keys():
             x,y = self.coordinates[vertex_id]
-            print("reset vertex",vertex_id,"at x_val",x,"and y_val",y)
+            if main.printing_mode:
+                print("reset vertex",vertex_id,"at x_val",x,"and y_val",y)
             self.vertices[vertex_id].moveVertex(x,y)
+        self.scene.update()
         
+    def regenerate_random(self):
+        self.layout = "random"
+        self.regenerate()
 
+    def regenerate_solar(self):
+        self.layout = "solar"
+        self.regenerate()
             
 # part of graph initialization:
             
@@ -230,8 +246,9 @@ class MainWindow(QMainWindow):
 
             # modifying y to negative y to have the graph treat (0,0) as center instead of top left
             new_vertex = Vertex(vertex_id, x, -y, radius = self.default_radius)
-            print("set vertex",vertex_id,"at x_val",x,"and y_val",y)
-            self.vertices[vertex_id] = new_vertex
+            if main.printing_mode:
+                print("set vertex",vertex_id,"at x_val",x,"and y_val",y)
+            self.vertices[vertex_id] = new_vertex           
             self.scene.addItem(new_vertex)
 
     def add_edges(self):
@@ -256,7 +273,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict)
+    window = MainWindow(main.adjacency_dict, "solar")
     window.show()
 
     
