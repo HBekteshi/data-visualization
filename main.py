@@ -52,19 +52,19 @@ def create_solar_coordinates(width, height, adjacency_dict):
 
     max_adjacency = max(adjacencies.values()) #retrieve the max adjacency
     nr_rings = len(set(adjacencies.values())) #calculate # of rings based on the # of unique values in adjacency numbers
-    rings_dict = assign_to_rings(adjacencies, max_adjacency)
+    rings_dict = assign_to_rings(adjacencies)
     coordinates = convert_to_solar_coordinates(rings_dict, nr_rings, max_adjacency, height, width)
 
     if printing_mode:
         print("rings_dict - Which nodes belong to which ring")
         print(rings_dict)
 
-    print("the coordinates of each node")
-    print(coordinates)
+    #print("the coordinates of each node")
+    #print(coordinates)
 
     return coordinates
 
-def assign_to_rings(adjacencies, max_adjacency):
+def assign_to_rings(adjacencies):
 
     #create dictionary with rings, based on the # of rings
     rings_dict = {}
@@ -122,4 +122,4 @@ def convert_to_solar_coordinates(rings_dict, nr_rings, max_adjacency, height, wi
 
     return coordinates
 
-coordinates = create_solar_coordinates(100,100, adjacency_dict)
+#coordinates = create_solar_coordinates(100,100, adjacency_dict)
