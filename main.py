@@ -4,7 +4,7 @@ import numpy as np
 import math
 G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 
-printing_mode = True
+printing_mode = False
 
 print("Data loaded")
 
@@ -52,7 +52,7 @@ def create_solar_coordinates(width, height, adjacency_dict, deterministic = Fals
 
     max_adjacency = max(adjacencies.values()) #retrieve the max adjacency
     nr_rings = len(set(adjacencies.values())) #calculate # of rings based on the # of unique values in adjacency numbers
-    
+
     rings_dict = assign_to_rings(adjacencies)
 
     if deterministic == False:
@@ -110,8 +110,9 @@ def convert_to_solar_coordinates(rings_dict, nr_rings, max_adjacency, height, wi
         
     # then calculate the radius of the ring and coordinates of the nodes     
     i = 0
-    print("ring keys:", list(rings_dict.keys()))
-    for ring_id in list(rings_dict.keys()):
+    if printing_mode:
+        print("ring keys:", rings_dict.keys())
+    for ring_id in rings_dict.keys():
         if i == nr_rings:
             break
         radius = calc_radius(height, width, i, nr_rings)
@@ -143,8 +144,9 @@ def convert_to_deterministic_solar_coordinates(rings_dict, nr_rings, max_adjacen
     # then calculate the radius of the ring and coordinates of the nodes     
         
     i = 0
-    print("ring keys:", list(rings_dict.keys()))
-    for ring_id in list(rings_dict.keys()):
+    if printing_mode:
+        print("ring keys:", rings_dict.keys())
+    for ring_id in rings_dict.keys():
         if i == nr_rings:
             break
         radius = calc_radius(height, width, i, nr_rings)

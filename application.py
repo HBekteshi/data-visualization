@@ -20,17 +20,20 @@ class Vertex(QGraphicsObject):
         self.radius = radius
         self.x_coord = x_coord
         self.y_coord = y_coord
-
+        
         self.color = "#f3f6f4"
 
-
         self.edges = []
+        self.setPos(x_coord,y_coord)
 
-        self.canMove = False
-
+        self.canMove = False        # default behavior for mouse dragging
+        
         self.setFlag(QGraphicsItem.ItemSendsGeometryChanges)
-
+      
     def moveVertex(self, x, y):
+        # print("node is currently at", self.pos())
+        # print("moving node",self.id,"from",self.x_coord,self.y_coord,"to",x,y)
+        
         self.setPos(x, y)
         self.x_coord = x
         self.y_coord = y
@@ -40,7 +43,8 @@ class Vertex(QGraphicsObject):
         self.edges.append(edge)
         
     def boundingRect(self) -> QRectF:
-        return QRectF(self.x_coord,self.y_coord, self.radius*2, self.radius*2)
+        return QRectF(0,0,self.radius*2,self.radius*2)        
+
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget = None):
 
@@ -180,8 +184,6 @@ class MainWindow(QMainWindow):
         self.screenwidth = geometry.width() * 0.7
         self.screenheight = geometry.height() * 0.7
         self.setFixedSize(self.screenwidth, self.screenheight)
-        #self.scene.setSceneRect(-self.screenwidth/2, -self.screenheight/2, self.screenwidth, self.screenheight)
-        #print(self.scene.sceneRect)
         
         # random coordinates for now
         self.default_layout = initial_layout
@@ -192,22 +194,46 @@ class MainWindow(QMainWindow):
         
         # Scene
         self.scene = QGraphicsScene()
+        self.view = QGraphicsView(self.scene)
+
+        #self.scene.setSceneRect(-self.screenwidth/2, -self.screenheight/2+25, self.screenwidth, self.screenheight - 25)
+     #   self.scene.setSceneRect(-700,-700, 700, 700)
         self.vertices = {}
         self.add_to_scene(self.coordinates)
 
+        
+        print("window width and height:", self.screenwidth, self.screenheight)
+        print("scene width:", self.scene.width(), "scene height:", self.scene.height())
 
-        self.view = QGraphicsView(self.scene)
+
+        
+        #self.view.setViewportUpdateMode(QGraphicsView.NoViewportUpdate)        # this doesn't seem to do anything
+        #self.view.setViewportUpdateMode(QGraphicsView.FullViewportUpdate)        # this doesn't seem to do anything either
+        #print("viewportupdate is:",self.view.viewportUpdateMode())
+      #  self.view.setSceneRect(QRectF(-self.screenwidth/2, -self.screenheight/2+25, self.screenwidth, self.screenheight - 25))
+        
+        
+        print("view width:", self.view.width(), "view height:", self.view.height())
         self.view.show()
 
+        print("this is after doing view.show")
+        print("window width and height:", self.screenwidth, self.screenheight)
+        print("scene width:", self.scene.width(), "scene height:", self.scene.height())
+        print("view width:", self.view.width(), "view height:", self.view.height())
 
         # graphics displayed in the center
         self.setCentralWidget(self.view)
+
+        print("this is after setting central widget")
+        print("window width and height:", self.screenwidth, self.screenheight)
+        print("scene width:", self.scene.width(), "scene height:", self.scene.height())
+        print("view width:", self.view.width(), "view height:", self.view.height())
 
 
 # layout selector             
     def generate(self, layout):
         width = self.screenwidth - self.default_radius * 2
-        height = self.screenheight - self.default_radius * 2
+        height = self.screenheight - self.default_radius * 2       
         self.layout = layout
         if self.layout == "random":
             self.coordinates = main.create_random_coordinates(width, height, self.adjacency_dict)
@@ -224,13 +250,29 @@ class MainWindow(QMainWindow):
         if main.printing_mode:
             print("calling regenerate")
             print("asking for layout", self.layout)
+        print("this is just before generate")
+        print("window width and height:", self.screenwidth, self.screenheight)
+        print("scene width:", self.scene.width(), "scene height:", self.scene.height())
+        print("view width:", self.view.width(), "view height:", self.view.height())
         self.generate(self.layout)
+        print("this is after generate but before moving vertices")
+        print("window width and height:", self.screenwidth, self.screenheight)
+        print("scene width:", self.scene.width(), "scene height:", self.scene.height())
+        print("view width:", self.view.width(), "view height:", self.view.height())
         for vertex_id in self.coordinates.keys():
             x,y = self.coordinates[vertex_id]
             if main.printing_mode:
                 print("reset vertex",vertex_id,"at x_val",x,"and y_val",-y)
             self.vertices[vertex_id].moveVertex(x,-y)
+        print("this is before scene update but after moving vertices")
+        print("window width and height:", self.screenwidth, self.screenheight)
+        print("scene width:", self.scene.width(), "scene height:", self.scene.height())
+        print("view width:", self.view.width(), "view height:", self.view.height())            
         self.scene.update()
+        print("this is after scene update")
+        print("window width and height:", self.screenwidth, self.screenheight)
+        print("scene width:", self.scene.width(), "scene height:", self.scene.height())
+        print("view width:", self.view.width(), "view height:", self.view.height())
         
     def regenerate_random(self):
         self.layout = "random"
@@ -241,6 +283,10 @@ class MainWindow(QMainWindow):
         self.regenerate()
 
     def regenerate_solar_deterministic(self):
+        print("this is when calling regen solar deterministic")
+        print("window width and height:", self.screenwidth, self.screenheight)
+        print("scene width:", self.scene.width(), "scene height:", self.scene.height())
+        print("view width:", self.view.width(), "view height:", self.view.height())
         self.layout = "solar deterministic"
         self.regenerate()
             
