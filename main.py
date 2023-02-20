@@ -9,6 +9,7 @@ printing_mode = False
 print("Data loaded")
 
 adjacency_dict = {}
+adjacencies = {}
 
 for n in G.nodes():
     if printing_mode:
@@ -33,6 +34,9 @@ for e in G.edges():
 if printing_mode:
     print("adjacency_dict:",adjacency_dict)
 
+for id, adj_nodes in list(adjacency_dict.items()): #create dictionary with the size of the number of edges per node
+    adjacencies[id] = len(adj_nodes)
+
 def create_random_coordinates(width, height, adjacency_dict):
     coordinates = {}
     for n in adjacency_dict.keys():
@@ -40,15 +44,12 @@ def create_random_coordinates(width, height, adjacency_dict):
         y_val = np.random.uniform(-height/2, height/2)
         coordinates[n] = (x_val, y_val)
     return coordinates
+    
 
 #random_coordinates = create_random_coordinates(100, 100)
 
 def create_solar_coordinates(width, height, adjacency_dict, deterministic = False):
     coordinates = {}
-    adjacencies = {}
-
-    for id, adj_nodes in list(adjacency_dict.items()): #create dictionary with the size of the number of edges per node
-        adjacencies[id] = len(adj_nodes)
 
     max_adjacency = max(adjacencies.values()) #retrieve the max adjacency
     nr_rings = len(set(adjacencies.values())) #calculate # of rings based on the # of unique values in adjacency numbers
