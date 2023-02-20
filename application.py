@@ -26,8 +26,9 @@ class Vertex(QGraphicsObject):
         self.edges = []
         self.setPos(x_coord,y_coord)
 
-        self.canMove = False        # default behavior for mouse dragging
-        
+        self.canMove = True        # default behavior for mouse dragging
+        self.setFlag(QGraphicsItem.ItemIsMovable, enabled = self.canMove)
+
         self.setFlag(QGraphicsItem.ItemSendsGeometryChanges)
       
     def moveVertex(self, x, y):
@@ -69,7 +70,7 @@ class Vertex(QGraphicsObject):
         self.setFlag(QGraphicsItem.ItemIsMovable, enabled = self.canMove)
         
     def update_edges(self):
-        for edge in self.edges:
+        for (edge, next) in self.edges:
                 edge.calculate_location()
         
     # recalculate edges after change in location
@@ -80,16 +81,17 @@ class Vertex(QGraphicsObject):
         return super().itemChange(change, value)
 
 class Edge(QGraphicsItem):
-    def __init__(self, start: Vertex, end: Vertex) -> None:
+    def __init__(self, start: Vertex, end: Vertex, weight) -> None:
         super().__init__()
 
         self.__name__ = 'Edge'
 
         self.start = start
         self.end = end
+        self.weight = weight
         
-        self.start.addEdge(self)
-        self.end.addEdge(self)
+        self.start.addEdge((self, end))
+        self.end.addEdge((self, start))
 
         self.setZValue(-0.5)
 
@@ -140,8 +142,9 @@ class MainWindow(QMainWindow):
          # Menu
         self.menu = self.menuBar()
         self.file_menu = self.menu.addMenu("File")
-        self.actions_menu = self.menu.addMenu("Actions")
         self.layouts_menu = self.menu.addMenu("Layout")
+        self.actions_menu = self.menu.addMenu("Actions")
+        
 
         # Exit QAction
         exit_action = QAction("Exit", self)
@@ -154,6 +157,7 @@ class MainWindow(QMainWindow):
         movability_action = QAction("Toggle Manual Movement", self)
         movability_action.triggered.connect(self.vertices_toggle_movability)
         movability_action.setCheckable(True)
+        movability_action.setChecked(True)
         self.actions_menu.addAction(movability_action)
 
         
@@ -212,6 +216,10 @@ class MainWindow(QMainWindow):
         
         # graphics displayed in the center
         self.setCentralWidget(self.view)
+
+        # self.depth_first_search()
+        # for v in self.dfs:
+        #     print(v.id)
 
     
 
@@ -286,15 +294,37 @@ class MainWindow(QMainWindow):
     def add_edges(self):
         for start_id in self.adjacency_dict.keys():        
             for e_tuple in self.adjacency_dict[start_id]:
-                end_id, to_create = e_tuple
+                end_id, to_create, weight = e_tuple
                 if to_create == True:
-                    self.scene.addItem(Edge(self.vertices[start_id],self.vertices[end_id]))
+                    self.scene.addItem(Edge(self.vertices[start_id],self.vertices[end_id], weight))
+                    if main.printing_mode:
+                        print ("added edge from", start_id, "to", end_id,"with weight",weight)
                     
 
     def vertices_toggle_movability(self):
         for v in self.scene.items():
             if v.__name__ == 'Vertex':
                 v.toggle_movability()
+
+
+    def depth_first_search(self, root = "most connected"):
+        if root == "most connected":
+            root_id = main.most_connected_node_id
+        self.dfs = []
+        self.depth_first_search_next(self.vertices[root_id])
+        return self.dfs
+        
+
+    def depth_first_search_next(self, vertex):
+        self.dfs.append(vertex)
+        for (edge, next) in vertex.edges:
+            if next not in self.dfs:
+                self.depth_first_search_next(next)
+
+            
+
+
+
 
 
 

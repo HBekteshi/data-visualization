@@ -3,6 +3,10 @@ import pydot
 import numpy as np
 import math
 G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
+#G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
+#G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
+
+
 
 printing_mode = False
 
@@ -22,10 +26,25 @@ for n in G.nodes():
 # the first time an edge appears it is marked True, and it will be rendered
 # the second time the same edge appears it is marked False, so it will not be rendered
     
+weightcheck = True
+weighted = True
 for e in G.edges():
     u, v = e
-    adjacency_dict[u].append((v,True))          # for directed graph, make sure direction is u-->v for True 
-    adjacency_dict[v].append((u,False))
+    if weightcheck:
+        try:
+            weight = G[u][v]["weight"]
+        except:
+            weighted = False
+        finally:
+            weightcheck = False
+    if weighted:
+        weight = G[u][v]["weight"]
+        adjacency_dict[u].append((v,True, weight))          # True = will be rendered graphically; False = has already been rendered graphically
+        adjacency_dict[v].append((u,False, weight))         # for directed graph, make sure direction is u-->v for True 
+    
+    else:
+        adjacency_dict[u].append((v,True, 1))          # True = will be rendered graphically; False = has already been rendered graphically
+        adjacency_dict[v].append((u,False,1))         # for directed graph, make sure direction is u-->v for True 
     if printing_mode:
         print(f"Added edge from {u} to {v}")
 
@@ -34,8 +53,14 @@ for e in G.edges():
 if printing_mode:
     print("adjacency_dict:",adjacency_dict)
 
+max_edges = 0
+most_connected_node_id = None
+
 for id, adj_nodes in list(adjacency_dict.items()): #create dictionary with the size of the number of edges per node
     adjacencies[id] = len(adj_nodes)
+    if len(adj_nodes) > max_edges:
+        max_edges = len(adj_nodes)
+        most_connected_node_id = id
 
 def create_random_coordinates(width, height, adjacency_dict):
     coordinates = {}
