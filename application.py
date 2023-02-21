@@ -220,7 +220,9 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.view)
 
         self.depth_first_search()
-        print(self.dfs)
+        print("dfs order:",self.dfs)
+        self.prims_algorithm()
+        print("prims order:", self.prims)
 
     
 
@@ -308,7 +310,7 @@ class MainWindow(QMainWindow):
                 v.toggle_movability()
 
 
-    def depth_first_search(self, root = "most connected"):
+    def depth_first_search(self, root = "most connected"):      # time complexity of DFS is O(2E) = O(E)
         if root == "most connected":
             root_id = main.most_connected_node_id
         self.dfs = []
@@ -316,19 +318,46 @@ class MainWindow(QMainWindow):
         return self.dfs
         
 
-    def depth_first_search_next(self, vertex):
+    def depth_first_search_next(self, vertex):  
         self.dfs.append(vertex.id)
         for (edge, next) in vertex.edges:
             if next.id not in self.dfs:
                 self.depth_first_search_next(next)
 
-            
+    def prims_algorithm(self, root = "most connected"):
+        if root == "most connected":
+            root_id = main.most_connected_node_id
+        self.prims = [root_id]
+        distances = {}
+        #distances = queue.PriorityQueue()  maybe change it to priorityqueue after it's done for performance reasons
+        for (edge, next) in self.vertices[root_id].edges:
+            distances[next.id] = edge.weight
+        while (len(self.prims) != len(self.vertices.keys())):       # make sure no duplicates go into self.prims
+            if len(distances.keys()) == 0:      # if there are no more vertices to check (dictionary is empty)
+                print("WARNING: There are nodes in the graph that are not connected with the rest")
+                break
+                #raise ValueError ("There are nodes in the graph that are not connected with the rest")
+                # TODO: handle this situation, maybe make a new tree with an unused node as new root
+
+            min_dist = None
+            min_node_id = None
+
+            for node_id, distance in distances.items():      # find minimum weight among nodes connected to MST
+                if (min_dist == None)  or (min_dist > distance):
+                    min_dist = distance
+                    min_node_id = node_id
+            self.prims.append(min_node_id)
+
+            del distances[min_node_id]
+
+            for (edge, next) in self.vertices[min_node_id].edges:   # add new neighbours of new mst node to checking dictionary
+                if next.id not in self.prims:
+                    distances[next.id] = edge.weight
+        return self.prims
 
 
 
-
-
-
+        
 
 
 if __name__ == "__main__":
