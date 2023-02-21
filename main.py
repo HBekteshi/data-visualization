@@ -191,3 +191,27 @@ def convert_to_deterministic_solar_coordinates(rings_dict, nr_rings, max_adjacen
         i += 1
 
     return coordinates
+
+def radial_layout(node_list):
+    coordinates = {}
+    wedge_angles = {} #store all the annulus wedges per node id in here
+    distance_between_layers = 50 #play with this number, this is for the distance between the C layers, later make it into a function maybe
+    start_radius = 100 # initialize the radius of the first layer
+
+    # base case:
+    # if the list consists of one node, we put it in the middle of the screen and done
+    if(len(node_list) == 1):
+        coordinates[node_list[0]] = (0,0)
+        return coordinates
+
+    # conquer case:
+    # first layer after the root
+    # put the child in the middle of the annulus wedge
+    #
+    # for other layers
+    # divide the annulus wedge angle of the parent by the number of children that vertex has
+
+    # divide case:
+    # recursively apply the conquer algorithm to the left and right side of the subtree until there are no children anymore
+
+    return coordinates
