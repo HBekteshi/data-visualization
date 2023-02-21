@@ -81,11 +81,13 @@ class Vertex(QGraphicsObject):
         return super().itemChange(change, value)
 
 class Edge(QGraphicsItem):
-    def __init__(self, start: Vertex, end: Vertex, weight) -> None:
+    def __init__(self, start: Vertex, end: Vertex, weight, displayed = True) -> None:
         super().__init__()
 
         self.__name__ = 'Edge'
 
+        self.displayed = displayed
+        
         self.start = start
         self.end = end
         self.weight = weight
@@ -115,7 +117,7 @@ class Edge(QGraphicsItem):
         )
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget=None):
-        if self.start and self.end:
+        if self.start and self.end and self.displayed:
             painter.setRenderHints(QPainter.Antialiasing)
 
             painter.setPen(
@@ -217,9 +219,8 @@ class MainWindow(QMainWindow):
         # graphics displayed in the center
         self.setCentralWidget(self.view)
 
-        # self.depth_first_search()
-        # for v in self.dfs:
-        #     print(v.id)
+        self.depth_first_search()
+        print(self.dfs)
 
     
 
@@ -316,9 +317,9 @@ class MainWindow(QMainWindow):
         
 
     def depth_first_search_next(self, vertex):
-        self.dfs.append(vertex)
+        self.dfs.append(vertex.id)
         for (edge, next) in vertex.edges:
-            if next not in self.dfs:
+            if next.id not in self.dfs:
                 self.depth_first_search_next(next)
 
             
