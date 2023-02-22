@@ -314,14 +314,20 @@ class MainWindow(QMainWindow):
         if root == "most connected":
             root_id = main.most_connected_node_id
         self.dfs = []
+        self.dfs_visited = [root_id]
+        self.dfs.append((root_id, root_id))
         self.depth_first_search_next(self.vertices[root_id])
+        if len(self.dfs) < len(self.vertices.keys()):
+            print("WARNING: There are nodes in the graph that are not connected with the rest, these are currently not displayed")
         return self.dfs
         
 
     def depth_first_search_next(self, vertex):  
-        self.dfs.append(vertex.id)
+       # self.dfs.append(vertex.id)
         for (edge, next) in vertex.edges:
-            if next.id not in self.dfs:
+            if next.id not in self.dfs_visited:
+                self.dfs.append((vertex.id, next.id))
+                self.dfs_visited.append(next.id)
                 self.depth_first_search_next(next)
 
     def prims_algorithm(self, root = "most connected"):
@@ -331,10 +337,13 @@ class MainWindow(QMainWindow):
         distances = {}
         #distances = queue.PriorityQueue()  maybe change it to priorityqueue after it's done for performance reasons
         for (edge, next) in self.vertices[root_id].edges:
-            distances[next.id] = edge.weight
+            try:
+                distances[next.id] = min(edge.weight, distances[next.id])
+            except:
+                distances[next.id] = edge.weight
         while (len(self.prims) != len(self.vertices.keys())):       # make sure no duplicates go into self.prims
             if len(distances.keys()) == 0:      # if there are no more vertices to check (dictionary is empty)
-                print("WARNING: There are nodes in the graph that are not connected with the rest")
+                print("WARNING: There are nodes in the graph that are not connected with the rest, these are currently not displayed")
                 break
                 #raise ValueError ("There are nodes in the graph that are not connected with the rest")
                 # TODO: handle this situation, maybe make a new tree with an unused node as new root
