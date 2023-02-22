@@ -313,34 +313,32 @@ class MainWindow(QMainWindow):
     def depth_first_search(self, root = "most connected"):      # time complexity of DFS is O(2E) = O(E)
         if root == "most connected":
             root_id = main.most_connected_node_id
-        self.dfs = []
-        self.dfs_visited = [root_id]
-        self.dfs.append((root_id, root_id))
-        self.depth_first_search_next(self.vertices[root_id])
+        self.dfs = [(root_id, root_id)]
+        visited = [root_id]
+        self.depth_first_search_next(self.vertices[root_id], visited)
         if len(self.dfs) < len(self.vertices.keys()):
             print("WARNING: There are nodes in the graph that are not connected with the rest, these are currently not displayed")
         return self.dfs
         
 
-    def depth_first_search_next(self, vertex):  
+    def depth_first_search_next(self, vertex, visited):  
        # self.dfs.append(vertex.id)
         for (edge, next) in vertex.edges:
-            if next.id not in self.dfs_visited:
+            if next.id not in visited:
                 self.dfs.append((vertex.id, next.id))
-                self.dfs_visited.append(next.id)
-                self.depth_first_search_next(next)
+                visited.append(next.id)
+                self.depth_first_search_next(next, visited)
 
     def prims_algorithm(self, root = "most connected"):
         if root == "most connected":
             root_id = main.most_connected_node_id
-        self.prims = [root_id]
+        self.prims = [(root_id, root_id)]
+        visited = [root_id] 
         distances = {}
         #distances = queue.PriorityQueue()  maybe change it to priorityqueue after it's done for performance reasons
         for (edge, next) in self.vertices[root_id].edges:
-            try:
-                distances[next.id] = min(edge.weight, distances[next.id])
-            except:
-                distances[next.id] = edge.weight
+            distances[next.id] = (edge.weight, root_id)     # (distance, parent)
+
         while (len(self.prims) != len(self.vertices.keys())):       # make sure no duplicates go into self.prims
             if len(distances.keys()) == 0:      # if there are no more vertices to check (dictionary is empty)
                 print("WARNING: There are nodes in the graph that are not connected with the rest, these are currently not displayed")
@@ -351,17 +349,18 @@ class MainWindow(QMainWindow):
             min_dist = None
             min_node_id = None
 
-            for node_id, distance in distances.items():      # find minimum weight among nodes connected to MST
+            for node_id, (distance, parent) in distances.items():      # find minimum weight among nodes connected to MST
                 if (min_dist == None)  or (min_dist > distance):
                     min_dist = distance
                     min_node_id = node_id
-            self.prims.append(min_node_id)
+            self.prims.append((parent, min_node_id))
+            visited.append(min_node_id)
 
             del distances[min_node_id]
 
             for (edge, next) in self.vertices[min_node_id].edges:   # add new neighbours of new mst node to checking dictionary
-                if next.id not in self.prims:
-                    distances[next.id] = edge.weight
+                if next.id not in visited:
+                    distances[next.id] = (edge.weight, min_node_id)
         return self.prims
 
 
