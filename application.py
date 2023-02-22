@@ -181,6 +181,14 @@ class MainWindow(QMainWindow):
         deterministic_solar_regeneration_action.triggered.connect(self.regenerate_solar_deterministic)
         self.layouts_menu.addAction(deterministic_solar_regeneration_action)
 
+        radial_dfs_regeneration_action = QAction("Generate Radial DFS Tree Layout", self)
+        radial_dfs_regeneration_action.triggered.connect(self.regenerate_radial_dfs)
+        self.layouts_menu.addAction(radial_dfs_regeneration_action)
+
+        radial_prims_regeneration_action = QAction("Generate Radial Prim's Tree Layout", self)
+        radial_prims_regeneration_action.triggered.connect(self.regenerate_radial_prims)
+        self.layouts_menu.addAction(radial_prims_regeneration_action)
+
          # Status Bar
         self.status = self.statusBar()
         self.status.showMessage("Graph loaded and displayed")
@@ -204,6 +212,8 @@ class MainWindow(QMainWindow):
 
         
         # Coordinates
+        self.dfs = []
+        self.prims = []
         self.generate(self.default_layout)             
         self.vertices = {}
         self.add_to_scene(self.coordinates)
@@ -218,11 +228,6 @@ class MainWindow(QMainWindow):
         
         # graphics displayed in the center
         self.setCentralWidget(self.view)
-
-        self.depth_first_search()
-        print("dfs order:",self.dfs)
-        self.prims_algorithm()
-        print("prims order:", self.prims)
 
     
 
@@ -239,6 +244,14 @@ class MainWindow(QMainWindow):
             self.coordinates = main.create_solar_coordinates(width, height, self.adjacency_dict)
         elif self.layout == "solar deterministic":
             self.coordinates = main.create_solar_coordinates(width, height, self.adjacency_dict, deterministic = True)
+        elif self.layout == "radial dfs":
+            if self.dfs == []:
+                self.depth_first_search()
+            self.coordinates = main.create_radial_coordinates(width, height, self.dfs)
+        elif self.layout == "radial prims":
+            if self.prims == []:
+                self.prims_algorithm()
+            self.coordinates = main.create_radial_coordinates(width, height, self.prims)
         else:
             print("asked for layout", layout)
             raise ValueError ("Unsupported layout requested")
@@ -275,6 +288,14 @@ class MainWindow(QMainWindow):
 
     def regenerate_solar_deterministic(self):
         self.layout = "solar deterministic"
+        self.regenerate()
+
+    def regenerate_radial_dfs(self):
+        self.layout = "radial dfs"
+        self.regenerate()
+
+    def regenerate_radial_prims(self):
+        self.layout = "radial prims"
         self.regenerate()
             
 # part of graph initialization:
@@ -317,7 +338,10 @@ class MainWindow(QMainWindow):
         visited = [root_id]
         self.depth_first_search_next(self.vertices[root_id], visited)
         if len(self.dfs) < len(self.vertices.keys()):
-            print("WARNING: There are nodes in the graph that are not connected with the rest, these are currently not displayed")
+            print("WARNING: There are", len(self.vertices.keys()) - len(self.dfs),"nodes in the graph that are not connected with the rest, these are currently not displayed")
+
+        if main.printing_mode:
+            print("dfs order:",self.dfs)
         return self.dfs
         
 
@@ -341,7 +365,7 @@ class MainWindow(QMainWindow):
 
         while (len(self.prims) != len(self.vertices.keys())):       # make sure no duplicates go into self.prims
             if len(distances.keys()) == 0:      # if there are no more vertices to check (dictionary is empty)
-                print("WARNING: There are nodes in the graph that are not connected with the rest, these are currently not displayed")
+                print("WARNING: There are",len(self.vertices.keys()) - len(self.prims),"nodes in the graph that are not connected with the rest, these are currently not displayed")
                 break
                 #raise ValueError ("There are nodes in the graph that are not connected with the rest")
                 # TODO: handle this situation, maybe make a new tree with an unused node as new root
@@ -361,6 +385,9 @@ class MainWindow(QMainWindow):
             for (edge, next) in self.vertices[min_node_id].edges:   # add new neighbours of new mst node to checking dictionary
                 if next.id not in visited:
                     distances[next.id] = (edge.weight, min_node_id)
+
+        if main.printing_mode:
+            print("prims order:", self.prims)
         return self.prims
 
 
