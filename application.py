@@ -32,8 +32,8 @@ class Vertex(QGraphicsObject):
         self.setFlag(QGraphicsItem.ItemSendsGeometryChanges)
       
     def moveVertex(self, x, y):
-        # print("node is currently at", self.pos())
-        # print("moving node",self.id,"from",self.x_coord,self.y_coord,"to",x,y)
+        print("node is currently at", self.pos())
+        print("moving node",self.id,"from",self.x_coord,self.y_coord,"to",x,y)
         
         self.setPos(x, y)
         self.x_coord = x

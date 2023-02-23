@@ -273,13 +273,14 @@ def calc_radial_coordinates_children(node_list, parent_node, annulus_wedge_angle
     for child in direct_children:
         #print("yes this for loop")
         child_id = child[1]
-        child_angle = calc_ann_wedge(node_list, parent_node, child_id, start_radius, start_radius + radius_distance)
+        new_radius = start_radius + radius_distance
+        child_angle = calc_ann_wedge(node_list, parent_node, child_id, start_radius, new_radius)
         annulus_wedge_angles[child_id] = child_angle
         parent_x = coordinates[parent_node][0]
         parent_y = coordinates[parent_node][1]
         coordinates[child_id] = polar_to_cartesian(child_angle/2, start_radius, parent_x, parent_y)
         #print("coordinates of child", coordinates[child_id])
-        calc_radial_coordinates_children(node_list, child, annulus_wedge_angles, coordinates, start_radius, radius_distance)
+        calc_radial_coordinates_children(node_list, child, annulus_wedge_angles, coordinates, new_radius, radius_distance)
 
 node_list_dfs = [('11','11'), ('11','2'), ('2','1'), ('2','3'), ('3','4'), ('2','5'), ('2','6'), ('2','7'), ('2','8'), ('2','9'),
                  ('2','10'), ('11','12'), ('11', '13'), ('13', '24'), ('24', '17'), ('17', '18'), ('18', '27'), ('27', '25'), ('25', '26'),
