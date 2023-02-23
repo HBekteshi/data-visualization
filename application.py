@@ -12,7 +12,7 @@ import numpy as np
 import main
 
 class Vertex(QGraphicsObject):
-    def __init__(self, id, x_coord, y_coord, radius = 25, displayed = False) -> None:
+    def __init__(self, id, x_coord, y_coord, radius = 25, displayed = False, id_visible = True) -> None:
         super().__init__()
 
         self.__name__ = 'Vertex'
@@ -22,6 +22,8 @@ class Vertex(QGraphicsObject):
         self.y_coord = y_coord
         
         self.color = "#f3f6f4"
+        self.id_visible = id_visible
+
         self.displayed = displayed
         if self.displayed == True:
             self.setZValue(1)
@@ -60,8 +62,9 @@ class Vertex(QGraphicsObject):
 
 
     def moveVertex(self, x, y):
-        print("node", self.id, "is currently at", self.pos())
-        print("moving node",self.id,"from",self.x_coord,self.y_coord,"to",x,y)
+        if main.printing_mode:
+            print("node", self.id, "is currently at", self.pos())
+            print("moving node",self.id,"from",self.x_coord,self.y_coord,"to",x,y)
         
         self.setPos(x, y)
         self.x_coord = x
@@ -92,12 +95,17 @@ class Vertex(QGraphicsObject):
             painter.setBrush(QBrush(QColor(self.color)))
             painter.drawEllipse(self.boundingRect())
             painter.setPen(QPen(QColor("black")))
-            painter.drawText(self.boundingRect(), Qt.AlignCenter, self.id)
+            if self.id_visible:
+                painter.drawText(self.boundingRect(), Qt.AlignCenter, self.id)
 
 
     def toggle_movability(self):
         self.canMove = not self.canMove
         self.setFlag(QGraphicsItem.ItemIsMovable, enabled = self.canMove)
+
+    def toggle_id_visibility(self):
+        self.id_visible = not self.id_visible
+        
         
     def update_edges(self):
         for (edge, next) in self.edges:
@@ -192,6 +200,11 @@ class MainWindow(QMainWindow):
         movability_action.setChecked(True)
         self.actions_menu.addAction(movability_action)
 
+        id_visibility_action = QAction("Toggle Node ID Visibility", self)
+        id_visibility_action.triggered.connect(self.vertices_toggle_id_visibility)
+        id_visibility_action.setCheckable(True)
+        id_visibility_action.setChecked(True)
+        self.actions_menu.addAction(id_visibility_action)
         
 
             # graph regeneration
@@ -355,6 +368,12 @@ class MainWindow(QMainWindow):
         for v in self.scene.items():
             if v.__name__ == 'Vertex':
                 v.toggle_movability()
+
+    def vertices_toggle_id_visibility(self):
+        for v in self.scene.items():
+            if v.__name__ == 'Vertex':
+                v.toggle_id_visibility()
+        self.scene.update()
 
 
     def depth_first_search(self, root = "most connected"):      # time complexity of DFS is O(2E) = O(E)
