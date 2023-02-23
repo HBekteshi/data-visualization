@@ -226,11 +226,11 @@ def create_radial_coordinates(width, height, node_list):
         coordinates[child_id] = polar_to_cartesian(child_angle/2, start_radius, parent_x, parent_y)
         children_of_child = calc_direct_children(node_list, child_id)
         print(child_id, "has children", children_of_child)
-        new_radius = start_radius + distance_between_layers
+        old_angle = child_angle
         child_angle += angle_difference
         #print("children", children_of_child)
         #recurse on children (divide case)
-        calc_radial_coordinates_children(node_list, child_id, new_radius, distance_between_layers)
+        calc_radial_coordinates_children(node_list, child_id, distance_between_layers, old_angle)
 
     return coordinates
 
@@ -272,7 +272,7 @@ def calc_direct_children(node_list, parent_id):
 
     return direct_children
 
-def calc_radial_coordinates_children(node_list, parent_node, start_radius, radius_distance):
+def calc_radial_coordinates_children(node_list, parent_node, radius_distance, parent_angle):
     #recursive function for calculating radial coordinates
     direct_children = calc_direct_children(node_list, parent_node)
     #print("direct children list in recursion", direct_children)
@@ -280,17 +280,19 @@ def calc_radial_coordinates_children(node_list, parent_node, start_radius, radiu
         #print("child list of parent", parent_node, "is empty")
         return
     
+    child_angle = calc_ann_wedge(node_list, parent_node, direct_children[0][1], radius_distance, radius_distance*2)
+    angle_increase = child_angle/len(direct_children)
+   
     for child in direct_children:
         child_id = child[1]
         #print("child", child_id, "from parent", child[0])
-        new_radius = start_radius + radius_distance
-        child_angle = calc_ann_wedge(node_list, parent_node, child_id, start_radius, new_radius)
         #print("angle of child", child_id, "is", child_angle)
         parent_x = coordinates[parent_node][0]
         parent_y = coordinates[parent_node][1]
-        coordinates[child_id] = polar_to_cartesian(child_angle/2, start_radius, parent_x, parent_y)
+        coordinates[child_id] = polar_to_cartesian(child_angle, radius_distance, parent_x, parent_y)
         #print("coordinates of child", coordinates[child_id])
-        calc_radial_coordinates_children(node_list, child_id, new_radius, radius_distance)
+        calc_radial_coordinates_children(node_list, child_id, radius_distance, child_angle)
+        child_angle += angle_increase
 
 node_list_dfs = [('11','11'), ('11','2'), ('2','1'), ('2','3'), ('3','4'), ('2','5'), ('2','6'), ('2','7'), ('2','8'), ('2','9'),
                  ('2','10'), ('11','12'), ('11', '13'), ('13', '24'), ('24', '17'), ('17', '18'), ('18', '27'), ('27', '25'), ('25', '26'),
