@@ -239,7 +239,7 @@ def calc_ann_wedge(node_list, parent_id, child_id, radius1, radius2):
     length_child = len(calc_all_children(node_list, child_id))
     length_parent = len(calc_all_children(node_list, parent_id))
     radius_angle = radius1 / radius2
-    length_angle = 2 * math.acos(length_child / (length_parent)) #change to length_parent - 1, had division by zero error
+    length_angle = 2 * math.acos(length_child / (length_parent)) # not -1 as in the slides because the parent itself is not in the list
     wedge_angle = min(radius_angle, length_angle)
 
     return wedge_angle
