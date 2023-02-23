@@ -12,7 +12,7 @@ import numpy as np
 import main
 
 class Vertex(QGraphicsObject):
-    def __init__(self, id, x_coord, y_coord, radius = 25) -> None:
+    def __init__(self, id, x_coord, y_coord, radius = 25, displayed = False) -> None:
         super().__init__()
 
         self.__name__ = 'Vertex'
@@ -22,17 +22,45 @@ class Vertex(QGraphicsObject):
         self.y_coord = y_coord
         
         self.color = "#f3f6f4"
+        self.displayed = displayed
+        if self.displayed == True:
+            self.setZValue(1)
+        else:
+            self.setZValue(-5)
 
         self.edges = []
+        
         self.setPos(x_coord,y_coord)
 
         self.canMove = True        # default behavior for mouse dragging
         self.setFlag(QGraphicsItem.ItemIsMovable, enabled = self.canMove)
 
         self.setFlag(QGraphicsItem.ItemSendsGeometryChanges)
-      
+    
+    def toggleVisibility(self):
+        if self.displayed == True:
+            self.displayed = False
+            self.setZValue(-5)
+        else:
+            self.displayed = True
+            self.setZValue(1)
+        self.updateEdgeVisibility()
+
+    def turnVisible(self):
+        self.displayed = True
+        self.setZValue(1)
+        self.updateEdgeVisibility()
+        
+    def updateEdgeVisibility(self):
+        for edge in self.edges:
+            if edge[1].displayed and self.displayed:
+                edge[0].displayed = True
+            else:
+                edge[0].displayed = False
+
+
     def moveVertex(self, x, y):
-        print("node is currently at", self.pos())
+        print("node", self.id, "is currently at", self.pos())
         print("moving node",self.id,"from",self.x_coord,self.y_coord,"to",x,y)
         
         self.setPos(x, y)
@@ -42,27 +70,29 @@ class Vertex(QGraphicsObject):
 
     def addEdge(self, edge):
         self.edges.append(edge)
+        edge[0].displayed = self.displayed
+
         
     def boundingRect(self) -> QRectF:
         return QRectF(0,0,self.radius*2,self.radius*2)        
 
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget = None):
-
-        painter.setRenderHints(QPainter.Antialiasing)
-        painter.setPen(
-            QPen(
-                QColor(self.color).darker(),
-                2,
-                Qt.SolidLine,
-                Qt.RoundCap,
-                Qt.RoundJoin,
+        if self.displayed:
+            painter.setRenderHints(QPainter.Antialiasing)
+            painter.setPen(
+                QPen(
+                    QColor(self.color).darker(),
+                    2,
+                    Qt.SolidLine,
+                    Qt.RoundCap,
+                    Qt.RoundJoin,
+                )
             )
-        )
-        painter.setBrush(QBrush(QColor(self.color)))
-        painter.drawEllipse(self.boundingRect())
-        painter.setPen(QPen(QColor("black")))
-        painter.drawText(self.boundingRect(), Qt.AlignCenter, self.id)
+            painter.setBrush(QBrush(QColor(self.color)))
+            painter.drawEllipse(self.boundingRect())
+            painter.setPen(QPen(QColor("black")))
+            painter.drawText(self.boundingRect(), Qt.AlignCenter, self.id)
 
 
     def toggle_movability(self):
@@ -81,7 +111,7 @@ class Vertex(QGraphicsObject):
         return super().itemChange(change, value)
 
 class Edge(QGraphicsItem):
-    def __init__(self, start: Vertex, end: Vertex, weight, displayed = True) -> None:
+    def __init__(self, start: Vertex, end: Vertex, weight, displayed = False) -> None:
         super().__init__()
 
         self.__name__ = 'Edge'
@@ -272,6 +302,8 @@ class MainWindow(QMainWindow):
             if main.printing_mode:
                 print("reset vertex",vertex_id,"at x_val",x,"and y_val",-y)
             self.vertices[vertex_id].moveVertex(x,-y)
+            self.vertices[vertex_id].turnVisible()
+            
 
         self.scene.update()
         if main.printing_mode:
