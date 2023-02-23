@@ -214,6 +214,7 @@ def create_radial_coordinates(width, height, node_list):
     # first layer after the root
     direct_root_children = calc_direct_children(node_list, root_node)
     nr_root_children = len(direct_root_children)
+    print("root children", direct_root_children)
     angle_difference = 2 * math.pi / nr_root_children
     child_angle = 0
     for child in direct_root_children:
@@ -261,8 +262,6 @@ def calc_all_children(node_list, parent_id):
     return all_children
 
 def calc_direct_children(node_list, parent_id):
-    print("print node list", node_list)
-    print("print parent id", parent_id)
     direct_children = []
     for tuple in node_list:
         if tuple[0] == parent_id and tuple[0] != tuple[1]:
