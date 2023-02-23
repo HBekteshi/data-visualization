@@ -195,8 +195,8 @@ def convert_to_deterministic_solar_coordinates(rings_dict, nr_rings, max_adjacen
 def create_radial_coordinates(width, height, node_list):
     coordinates = {}
     annulus_wedge_angles = {} #store each annulus_wedge_angle in here by node_id
-    distance_between_layers = 50 #play with this number, this is for the distance between the C layers, later make it into a function maybe
-    start_radius = 100 # initialize the radius of the first layer
+    distance_between_layers = 50 #play with this number, this is for the distance between the C layers, later make it into width/height function
+    start_radius = 100 # initialize the radius of the first layer, still make this into width/height function
     root_node = node_list[0][1]
 
     # base case:
@@ -210,46 +210,45 @@ def create_radial_coordinates(width, height, node_list):
 
     # conquer case:
     # first layer after the root
-    # put the child in the middle of the annulus wedge
     direct_root_children = calc_direct_children(node_list, root_node)
     print(direct_root_children)
-    for child_id in direct_root_children:
+    for child in direct_root_children:
+        child_id = child[1]
         child_angle = calc_ann_wedge(node_list, root_node, child_id, start_radius, start_radius + distance_between_layers)
         annulus_wedge_angles[child_id] = child_angle
         parent_x = coordinates[root_node][0]
         parent_y = coordinates[root_node][1]
-        coordinates[child_id] = polar_to_cartesian(child_angle, start_radius, parent_x, parent_y)
-
-    #
-    # for other layers
-    # use function in the slides for calculating the angle of each child
-
-    # divide case:
-    # recursively apply the conquer algorithm to the left and right side of the subtree until there are no children anymore
+        coordinates[child_id] = polar_to_cartesian(child_angle/2, start_radius, parent_x, parent_y)
+        children_of_child = calc_direct_children(node_list, child_id)
+        #print("children", children_of_child)
+        #recurse on children (divide case)
+        calc_radial_coordinates_children(children_of_child, child_id, annulus_wedge_angles, coordinates, start_radius, distance_between_layers)
 
     return coordinates
 
 def calc_ann_wedge(node_list, parent_id, child_id, radius1, radius2):
+    #calculate annulus wedge for each vertex based on the formulas from the slides
     length_child = len(calc_all_children(node_list, child_id))
     length_parent = len(calc_all_children(node_list, parent_id))
     radius_angle = radius1 / radius2
-    acos_arg = length_child / (length_parent - 1)
-    print(acos_arg)
-    length_angle = 2 * math.acos(length_child / (length_parent - 1))
+    length_angle = 2 * math.acos(length_child / (length_parent)) #change to length_parent - 1, had division by zero error
     wedge_angle = min(radius_angle, length_angle)
 
     return wedge_angle
 
 def calc_all_children(node_list, parent_id):
+    #calculate all children of a node given its id (parent_id) en the list of all nodes
     all_children = [] #including grandchildren, thus the whole subtree rooted at the parent_id
 
     for tuple in node_list:
         if tuple[0] in all_children:
+            #check if a parent is in the all_children list, if so append its child to the list
             all_children.append(tuple[1])
-            print("add child", tuple[1], "with parent", tuple[0], "to all_children list")
+            #print("add child", tuple[1], "with parent", tuple[0], "to all_children list")
         elif tuple[0] == parent_id and tuple[0] != tuple[1]:
+            #check if the node id is not the same as the parent_id and if it is a child of the parent id
             all_children.append(tuple[1])
-            print("add child", tuple[1], "with parent", tuple[0], "to all_children list")
+            #print("add child", tuple[1], "with parent", tuple[0], "to all_children list")
         #else do nothing 
     return all_children
 
@@ -257,23 +256,34 @@ def calc_direct_children(node_list, parent_id):
     direct_children = []
     for tuple in node_list:
         if tuple[0] == parent_id and tuple[0] != tuple[1]:
-            direct_children.append(tuple[1])
-            print("add child", tuple[1], "with parent", tuple[0], "to direct_children list")
+            #check if the node id is not the same as the parent_id and if it is a direct child of the parent id
+            direct_children.append(tuple) #was tuple[1]
+            #print("add child", tuple[1], "with parent", tuple[0], "to direct_children list")
 
     return direct_children
 
 def calc_radial_coordinates_children(node_list, parent_node, annulus_wedge_angles, coordinates, start_radius, radius_distance):
-    direct_root_children = calc_direct_children(node_list, parent_node)
-    for child in direct_root_children:
+    #recursive function for calculating radial coordinates
+    direct_children = calc_direct_children(node_list, parent_node)
+    #print("direct children list in recursion", direct_children)
+    if not direct_children:
+        #print("child list is empty")
+        return
+    
+    for child in direct_children:
+        #print("yes this for loop")
         child_id = child[1]
         child_angle = calc_ann_wedge(node_list, parent_node, child_id, start_radius, start_radius + radius_distance)
         annulus_wedge_angles[child_id] = child_angle
         parent_x = coordinates[parent_node][0]
         parent_y = coordinates[parent_node][1]
-        coordinates[child_id] = polar_to_cartesian(start_radius, parent_x, parent_y)
+        coordinates[child_id] = polar_to_cartesian(child_angle/2, start_radius, parent_x, parent_y)
+        #print("coordinates of child", coordinates[child_id])
+        calc_radial_coordinates_children(node_list, child, annulus_wedge_angles, coordinates, start_radius, radius_distance)
 
 node_list_dfs = [('11','11'), ('11','2'), ('2','1'), ('2','3'), ('3','4'), ('2','5'), ('2','6'), ('2','7'), ('2','8'), ('2','9'),
                  ('2','10'), ('11','12'), ('11', '13'), ('13', '24'), ('24', '17'), ('17', '18'), ('18', '27'), ('27', '25'), ('25', '26'),
                  ('26', '28'), ('28', '29'), ('29', '45'), ('29', '46'), ('28', '30'), ('30', '35'), ('35', '36'), ('36', '37')]
 
 coordinates = create_radial_coordinates(500,500,node_list_dfs)
+print(coordinates)
