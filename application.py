@@ -214,10 +214,11 @@ class MainWindow(QMainWindow):
         # Coordinates
         self.dfs = []
         self.prims = []
-        self.generate(self.default_layout)             
         self.vertices = {}
-        self.add_to_scene(self.coordinates)
-        
+        self.initialize_vertices()
+        self.layout = self.default_layout
+        self.regenerate()
+ 
         
         self.view.show()
 
@@ -299,23 +300,16 @@ class MainWindow(QMainWindow):
         self.regenerate()
             
 # part of graph initialization:
-            
-    def add_to_scene(self, coordinates):
-        self.add_vertices(coordinates)
-        self.add_edges()
         
-    def add_vertices(self, coordinates):
-        for vertex_id in coordinates.keys():
-            x,y = coordinates[vertex_id]
-
-            # modifying y to negative y to have the graph treat (0,0) as center instead of top left
-            new_vertex = Vertex(vertex_id, x, -y, radius = self.node_radius)
-            if main.printing_mode:
-                print("set vertex",vertex_id,"at x_val",x,"and y_val",y)
-            self.vertices[vertex_id] = new_vertex           
+    def initialize_vertices(self):
+        for vertex_id in self.adjacency_dict.keys():
+            new_vertex = Vertex(vertex_id, 0, 0, radius = self.node_radius)
+            self.vertices[vertex_id] = new_vertex
             self.scene.addItem(new_vertex)
+        self.initialize_edges()
 
-    def add_edges(self):
+
+    def initialize_edges(self):
         for start_id in self.adjacency_dict.keys():        
             for e_tuple in self.adjacency_dict[start_id]:
                 end_id, to_create, weight = e_tuple
@@ -400,7 +394,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict, "solar deterministic")
+    window = MainWindow(main.adjacency_dict, "radial dfs")
     window.show()
 
     
