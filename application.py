@@ -114,6 +114,10 @@ class Vertex(QGraphicsObject):
     # recalculate edges after change in location
     def itemChange(self, change: QGraphicsItem.GraphicsItemChange, value):
         if change == QGraphicsItem.ItemPositionHasChanged:
+            # x = value.x()
+            # y = value.y()
+        #    print("scenepos",self.scenePos(),"itemChange value", value, "x and y", x, y)
+        #    print("scenerect",self.scene().sceneRect.x(),self.scene().sceneRect.y())
             self.update_edges()
 
         return super().itemChange(change, value)
@@ -224,6 +228,10 @@ class MainWindow(QMainWindow):
         deterministic_solar_regeneration_action.triggered.connect(self.regenerate_solar_deterministic)
         self.layouts_menu.addAction(deterministic_solar_regeneration_action)
 
+        radial_bfs_regeneration_action = QAction("Generate Radial BFS Tree Layout", self)
+        radial_bfs_regeneration_action.triggered.connect(self.regenerate_radial_bfs)
+        self.layouts_menu.addAction(radial_bfs_regeneration_action)
+
         radial_dfs_regeneration_action = QAction("Generate Radial DFS Tree Layout", self)
         radial_dfs_regeneration_action.triggered.connect(self.regenerate_radial_dfs)
         self.layouts_menu.addAction(radial_dfs_regeneration_action)
@@ -290,6 +298,10 @@ class MainWindow(QMainWindow):
         elif self.layout == "solar deterministic":
             self.coordinates = main.create_solar_coordinates(width, height, self.adjacency_dict, deterministic = True)
         elif self.layout == "radial dfs":
+            if self.dfs == []:
+                self.depth_first_search()
+            self.coordinates = main.create_radial_coordinates(width, height, self.dfs)
+        elif self.layout == "radial bfs":
             if self.bfs == []:
                 self.breadth_first_search()
             self.coordinates = main.create_radial_coordinates(width, height, self.bfs)
@@ -341,6 +353,10 @@ class MainWindow(QMainWindow):
         self.layout = "radial dfs"
         self.regenerate()
 
+    def regenerate_radial_bfs(self):
+        self.layout = "radial bfs"
+        self.regenerate()
+        
     def regenerate_radial_prims(self):
         self.layout = "radial prims"
         self.regenerate()
@@ -467,7 +483,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict, "radial dfs")
+    window = MainWindow(main.adjacency_dict, "radial bfs")
     window.show()
 
     
