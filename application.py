@@ -1,6 +1,6 @@
 
 import sys
-
+from collections import deque
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from PySide6.QtCore import Slot, QRectF, Qt, QLineF
@@ -173,7 +173,7 @@ class Edge(QGraphicsItem):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, given_adjacency_dict, initial_layout = "random", default_radius = 15) -> None:
+    def __init__(self, given_adjacency_dict, initial_layout = "random", default_radius = 10) -> None:
         super().__init__()
         self.setWindowTitle("Graph viewer app")
 
@@ -256,6 +256,7 @@ class MainWindow(QMainWindow):
         
         # Coordinates
         self.dfs = []
+        self.bfs = []
         self.prims = []
         self.vertices = {}
         self.initialize_vertices()
@@ -289,9 +290,9 @@ class MainWindow(QMainWindow):
         elif self.layout == "solar deterministic":
             self.coordinates = main.create_solar_coordinates(width, height, self.adjacency_dict, deterministic = True)
         elif self.layout == "radial dfs":
-            if self.dfs == []:
-                self.depth_first_search()
-            self.coordinates = main.create_radial_coordinates(width, height, self.dfs)
+            if self.bfs == []:
+                self.breadth_first_search()
+            self.coordinates = main.create_radial_coordinates(width, height, self.bfs)
         elif self.layout == "radial prims":
             if self.prims == []:
                 self.prims_algorithm()
@@ -397,6 +398,27 @@ class MainWindow(QMainWindow):
                 self.dfs.append((vertex.id, next.id))
                 visited.append(next.id)
                 self.depth_first_search_next(next, visited)
+
+    def breadth_first_search(self, root = "most connected"):
+        if root == "most connected":
+            root_id = main.most_connected_node_id
+        self.bfs = []
+        queue = [(root_id, root_id)]
+        visited = [root_id]
+        while queue:
+            vertex_id, parent_id = queue.pop() # remove first vertex of the queue -> pop(0)
+            print("Vertex_id, parent_id: ", vertex_id, parent_id)
+            self.bfs.append((parent_id, vertex_id)) #keep track of the visited vertices
+            for (edge, next) in self.vertices[vertex_id].edges:
+                if next.id not in visited: #if vertex not visited, append to visited
+                    visited.append(next.id)
+                    queue.append((next.id, vertex_id)) # its ID and
+
+        if main.printing_mode:
+            print("bfs order:", self.bfs)
+        return self.bfs
+
+
 
     def prims_algorithm(self, root = "most connected"):
         if root == "most connected":
