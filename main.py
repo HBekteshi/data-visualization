@@ -227,21 +227,23 @@ def create_radial_coordinates(width, height, node_list):
         coordinates[child_id] = polar_to_cartesian(child_angle, start_radius, parent_x, parent_y)
         children_of_child = calc_direct_children(node_list, child_id)
         print(child_id, "has children", children_of_child)
-        old_angle = child_angle
+        parent_angle = child_angle
         child_angle += angle_difference
         #print("children", children_of_child)
         #recurse on children (divide case)
-        calc_radial_coordinates_children(node_list, child_id, start_radius, distance_between_layers, old_angle)
+        calc_radial_coordinates_children(node_list, child_id, start_radius, distance_between_layers, parent_angle)
 
     return coordinates
 
 def calc_ann_wedge(node_list, parent_id, child_id, radius1, radius2):
     #calculate annulus wedge for each vertex based on the formulas from the slides
-    length_child = len(calc_all_children(node_list, child_id))
-    length_parent = len(calc_all_children(node_list, parent_id))
+    length_child = len(calc_all_children(node_list, child_id)) + 1
+    length_parent = len(calc_all_children(node_list, parent_id)) + 1
     radius_angle = 2 * math.acos(radius1 / radius2)
-    length_angle = length_child / (length_parent)
+    length_angle = length_child / (length_parent-1)
     wedge_angle = min(radius_angle, length_angle)
+
+    print("for", child_id, "radiusangle is", radius_angle,"and length angle", length_angle)
 
     return wedge_angle
 
@@ -279,8 +281,9 @@ def calc_radial_coordinates_children(node_list, parent_node, start_radius, radiu
         #print("child list of parent", parent_node, "is empty")
         return
     
-    child_angle = calc_ann_wedge(node_list, parent_node, direct_children[0][1], start_radius, start_radius+radius_distance)
-    angle_increase = child_angle/len(direct_children)
+    wedge_angle = calc_ann_wedge(node_list, parent_node, direct_children[0][1], start_radius, start_radius+radius_distance)
+    angle_increase = wedge_angle/ (len(direct_children)) # + 1
+    child_angle = parent_angle - (wedge_angle/2) # + angle increase
    
     for child in direct_children:
         child_id = child[1]
