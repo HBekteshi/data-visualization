@@ -48,10 +48,11 @@ class Vertex(QGraphicsObject):
             self.setZValue(1)
         self.updateEdgeVisibility()
 
-    def turnVisible(self):
+    def turnVisible(self, edge_update = True):
         self.displayed = True
         self.setZValue(1)
-        self.updateEdgeVisibility()
+        if edge_update:
+            self.updateEdgeVisibility()
         
     def updateEdgeVisibility(self):
         for edge in self.edges:
@@ -209,6 +210,12 @@ class MainWindow(QMainWindow):
         id_visibility_action.setCheckable(True)
         id_visibility_action.setChecked(True)
         self.actions_menu.addAction(id_visibility_action)
+
+        non_tree_edge_display_action = QAction("Show Non-Tree Edges", self)
+        non_tree_edge_display_action.triggered.connect(self.toggle_nontree_edge_display)
+        non_tree_edge_display_action.setCheckable(True)
+        non_tree_edge_display_action.setChecked(False)
+        self.actions_menu.addAction(non_tree_edge_display_action)
         
 
             # graph regeneration
@@ -269,6 +276,8 @@ class MainWindow(QMainWindow):
         self.vertices = {}
         self.initialize_vertices()
         self.layout = self.default_layout
+        self.first_generation = True
+        self.display_non_tree_edges = False
         self.regenerate()
  
         
@@ -283,6 +292,11 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.view)
 
     
+    def check_for_tree_layout(self):
+        if self.layout in ["radial dfs","radial bfs", "radial prims"]:
+            return True
+        else:
+            return False
 
 
 # layout selector             
@@ -321,6 +335,12 @@ class MainWindow(QMainWindow):
 
         # create new set of coordinates based on the current layout
         self.generate(self.layout)
+        
+        if (self.first_generation == False and self.check_for_tree_layout() == True):
+            for item in self.scene.items():
+                item.displayed = False
+
+
 
         # move the vertices to their new positions
         for vertex_id in self.coordinates.keys():
@@ -328,15 +348,42 @@ class MainWindow(QMainWindow):
             if main.printing_mode:
                 print("reset vertex",vertex_id,"at x_val",x,"and y_val",-y)
             self.vertices[vertex_id].moveVertex(x,-y)
-            self.vertices[vertex_id].turnVisible()
+            if self.check_for_tree_layout() and not self.display_non_tree_edges:
+                self.vertices[vertex_id].turnVisible(edge_update = False)
+            else:
+                self.vertices[vertex_id].turnVisible()
             
+       # get self.dfs, for parent in selfdfs element [0], check all the edges for next to be element [1], turn on that edge only; make sure update function doesn't update other edges
+        if self.check_for_tree_layout() and not self.display_non_tree_edges:
+            if self.layout == "radial dfs":
+                node_list = self.dfs
+            elif self.layout == "radial bfs":
+                node_list = self.bfs
+            elif self.layout == "radial prims":
+                node_list = self.prims
+            else:
+                raise ValueError ("No selected node list in given tree layout")
+        
+            for parent_id, child_id in node_list:
+                for edge, next in self.vertices[parent_id].edges:
+                    if next == self.vertices[child_id]:
+                        edge.displayed = True
+                        edge.update()
 
         self.scene.update()
+        self.first_generation = False
+
         if main.printing_mode:
             print("window width and height:", self.screenwidth, self.screenheight)
             print("scene width:", self.scene.width(), "scene height:", self.scene.height())
             print("view width:", self.view.width(), "view height:", self.view.height())
         
+
+    def only_show_tree_edges(self, tree_tuples_list):
+        for e in self.scene.items():
+            if e.__name__ == 'Edge':
+                e.displayed = False
+
     def regenerate_random(self):
         self.layout = "random"
         self.regenerate()
@@ -391,6 +438,11 @@ class MainWindow(QMainWindow):
             if v.__name__ == 'Vertex':
                 v.toggle_id_visibility()
         self.scene.update()
+
+    def toggle_nontree_edge_display(self):
+        self.display_non_tree_edges = not self.display_non_tree_edges
+        if self.check_for_tree_layout() == True:
+            self.regenerate()
 
 
     def depth_first_search(self, root = "most connected"):      # time complexity of DFS is O(2E) = O(E)
