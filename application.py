@@ -365,10 +365,13 @@ class MainWindow(QMainWindow):
                 raise ValueError ("No selected node list in given tree layout")
         
             for parent_id, child_id in node_list:
+        #        print("testing to see if tree displays edge", parent_id,"to",child_id)
                 for edge, next in self.vertices[parent_id].edges:
+        #            print("node",parent_id,"has edge to:",next.id)
                     if next == self.vertices[child_id]:
                         edge.displayed = True
                         edge.update()
+        #                print("tree displaying edge",parent_id, "to", child_id)
 
         self.scene.update()
         self.first_generation = False
@@ -379,10 +382,6 @@ class MainWindow(QMainWindow):
             print("view width:", self.view.width(), "view height:", self.view.height())
         
 
-    def only_show_tree_edges(self, tree_tuples_list):
-        for e in self.scene.items():
-            if e.__name__ == 'Edge':
-                e.displayed = False
 
     def regenerate_random(self):
         self.layout = "random"
@@ -507,12 +506,14 @@ class MainWindow(QMainWindow):
 
             min_dist = None
             min_node_id = None
+            min_node_parent = None
 
             for node_id, (distance, parent) in distances.items():      # find minimum weight among nodes connected to MST
                 if (min_dist == None)  or (min_dist > distance):
                     min_dist = distance
                     min_node_id = node_id
-            self.prims.append((parent, min_node_id))
+                    min_node_parent = parent
+            self.prims.append((min_node_parent, min_node_id))
             visited.append(min_node_id)
 
             del distances[min_node_id]
