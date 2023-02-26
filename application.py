@@ -316,17 +316,16 @@ class MainWindow(QMainWindow):
             self.coordinates = main.create_solar_coordinates(width, height, self.adjacency_dict, deterministic = True)
         elif self.layout == "radial dfs":
             if self.dfs == []:
-                max_depth = self.depth_first_search()[1]
-                print("max depth =", max_depth)
-            self.coordinates = main.create_radial_coordinates(width, height, self.dfs, max_depth)
+                self.depth_first_search()
+            self.coordinates = main.create_radial_coordinates(width, height, self.dfs)
         elif self.layout == "radial bfs":
             if self.bfs == []:
                 self.breadth_first_search()
-            self.coordinates = main.create_radial_coordinates(width, height, self.bfs, 0)
+            self.coordinates = main.create_radial_coordinates(width, height, self.bfs)
         elif self.layout == "radial prims":
             if self.prims == []:
                 self.prims_algorithm()
-            self.coordinates = main.create_radial_coordinates(width, height, self.prims, 0)
+            self.coordinates = main.create_radial_coordinates(width, height, self.prims)
         else:
             print("asked for layout", layout)
             raise ValueError ("Unsupported layout requested")
@@ -449,31 +448,28 @@ class MainWindow(QMainWindow):
         if self.check_for_tree_layout() == True:
             self.regenerate()
 
-    def depth_first_search(self, root = "most connected", depth = 0):      # time complexity of DFS is O(2E) = O(E)
+    def depth_first_search(self, root = "most connected"):      # time complexity of DFS is O(2E) = O(E)
         if root == "most connected":
             root_id = main.most_connected_node_id
         self.dfs = [(root_id, root_id)]
         self.max_depth = []
         visited = [root_id]
-        max_depth = self.depth_first_search_next(self.vertices[root_id], visited, 0, depth)
+        max_depth = self.depth_first_search_next(self.vertices[root_id], visited)
         if len(self.dfs) < len(self.vertices.keys()):
             print("WARNING: There are", len(self.vertices.keys()) - len(self.dfs),"nodes in the graph that are not connected with the rest, these are currently not displayed")
 
         if main.printing_mode:
             print("dfs order:",self.dfs)
-        return (self.dfs, max(self.max_depth))
+        return self.dfs
         
     #global max_depth
-    def depth_first_search_next(self, vertex, visited, max_depth, depth):  
+    def depth_first_search_next(self, vertex, visited):  
        # self.dfs.append(vertex.id)
-        #print("max depth =", max_depth)
-        max_depth = max(max_depth, depth)
-        self.max_depth.append(max_depth)
         for (edge, next) in vertex.edges:
             if next.id not in visited:
                 self.dfs.append((vertex.id, next.id))
                 visited.append(next.id)
-                self.depth_first_search_next(next, visited, max_depth, depth + 1)
+                self.depth_first_search_next(next, visited)
 
     def breadth_first_search(self, root = "most connected"):
         if root == "most connected":

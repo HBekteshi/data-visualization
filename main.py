@@ -194,12 +194,17 @@ def convert_to_deterministic_solar_coordinates(rings_dict, nr_rings, max_adjacen
 
 coordinates = {}
 
-def create_radial_coordinates(width, height, node_list, max_depth):
+def create_radial_coordinates(width, height, node_list):
     #coordinates = {}
     annulus_wedge_angles = {} #store each annulus_wedge_angle in here by node_id
-    distance_between_layers = 50 #play with this number, this is for the distance between the C layers, later make it into width/height function
-    start_radius = 100 # initialize the radius of the first layer, still make this into width/height function
+    max_depth = get_max_depth(node_list)
+    radius_tuple = calc_radius(width, height, max_depth)
+    distance_between_layers = radius_tuple[1] #play with this number, this is for the distance between the C layers, later make it into width/height function
+    start_radius = radius_tuple[0] # initialize the radius of the first layer, still make this into width/height function
     root_node = node_list[0][1]
+
+    print("radius tuple", radius_tuple[0])
+    print("radius distance tuple", radius_tuple[1])
 
     # base case:
     # if the list consists of one node, we put it in the middle of the screen and done
@@ -317,7 +322,14 @@ def get_max_depth(node_list):
     max_depth = max(depth_dict.values())
     return max_depth
 
-print("depth of example nodelist is:", get_max_depth(node_list_dfs))
+def calc_radius(width, height, max_depth):
+    if width < height:
+        radius = width / max_depth
+        radius_distance = width / (max_depth + 1)
+    else:
+        radius = height / max_depth
+        radius_distance = height / (max_depth + 1)
+    return (radius, radius_distance)
 
 
 
