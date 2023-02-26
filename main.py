@@ -289,8 +289,8 @@ def calc_radial_coordinates_children(node_list, parent_node, start_radius, radiu
         return
     
     wedge_angle = calc_ann_wedge(node_list, parent_node, direct_children[0][1], start_radius, start_radius+radius_distance)
-    angle_increase = wedge_angle/ (len(direct_children)) # + 1
-    child_angle = parent_angle - (wedge_angle/2) # + angle increase
+    angle_increase = wedge_angle/ (len(direct_children)+1)
+    child_angle = parent_angle - (wedge_angle/2) + angle_increase
    
     for child in direct_children:
         child_id = child[1]
