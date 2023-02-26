@@ -216,7 +216,14 @@ class MainWindow(QMainWindow):
         non_tree_edge_display_action.setCheckable(True)
         non_tree_edge_display_action.setChecked(False)
         self.actions_menu.addAction(non_tree_edge_display_action)
-        
+
+        radius_increase_action = QAction("Increase Node Size",self)
+        radius_increase_action.triggered.connect(self.vertices_increase_radius)
+        self.actions_menu.addAction(radius_increase_action)
+
+        radius_decrease_action = QAction("Decrease Node Size",self)
+        radius_decrease_action.triggered.connect(self.vertices_decrease_radius)
+        self.actions_menu.addAction(radius_decrease_action)
 
             # graph regeneration
         layout_regeneration_action = QAction("Regenerate Layout", self) # will regenerate with same layout
@@ -431,7 +438,20 @@ class MainWindow(QMainWindow):
                     if main.printing_mode:
                         print ("added edge from", start_id, "to", end_id,"with weight",weight)
                     
+    def vertices_decrease_radius(self):
+        for v in self.scene.items():
+            if v.__name__ == 'Vertex':
+                v.radius = max(5, v.radius-5)
+                v.update_edges()
+        self.scene.update()
 
+    def vertices_increase_radius(self):
+        for v in self.scene.items():
+            if v.__name__ == 'Vertex':
+                v.radius += 5
+                v.update_edges()
+        self.scene.update()
+                        
     def vertices_toggle_movability(self):
         for v in self.scene.items():
             if v.__name__ == 'Vertex':
@@ -541,7 +561,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict, "radial bfs")
+    window = MainWindow(main.adjacency_dict, "radial bfs", default_radius=15)
     window.show()
 
     
