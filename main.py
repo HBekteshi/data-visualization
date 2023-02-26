@@ -200,9 +200,9 @@ def create_radial_coordinates(width, height, node_list, node_radius):
     max_depth = get_max_depth(node_list)
     radius_tuple = calc_radius(width, height, max_depth)
     #distance_between_layers = radius_tuple[1]     #play with this number, this is for the distance between the C layers, later make it into width/height function
-    distance_between_layers = max(radius_tuple[1], node_radius) 
+    distance_between_layers = max(radius_tuple[1], 0.8*node_radius) 
     #start_radius = radius_tuple[0]       # initialize the radius of the first layer, still make this into width/height function
-    start_radius = max(radius_tuple[0], node_radius)
+    start_radius = max(radius_tuple[0], 0.8*node_radius)
     root_node = node_list[0][1]
 
     if printing_mode:
