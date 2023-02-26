@@ -324,15 +324,15 @@ class MainWindow(QMainWindow):
         elif self.layout == "radial dfs":
             if self.dfs == []:
                 self.depth_first_search()
-            self.coordinates = main.create_radial_coordinates(width, height, self.dfs)
+            self.coordinates = main.create_radial_coordinates(width, height, self.dfs, self.node_radius)
         elif self.layout == "radial bfs":
             if self.bfs == []:
                 self.breadth_first_search()
-            self.coordinates = main.create_radial_coordinates(width, height, self.bfs)
+            self.coordinates = main.create_radial_coordinates(width, height, self.bfs, self.node_radius)
         elif self.layout == "radial prims":
             if self.prims == []:
                 self.prims_algorithm()
-            self.coordinates = main.create_radial_coordinates(width, height, self.prims)
+            self.coordinates = main.create_radial_coordinates(width, height, self.prims, self.node_radius)
         else:
             print("asked for layout", layout)
             raise ValueError ("Unsupported layout requested")
@@ -513,7 +513,7 @@ class MainWindow(QMainWindow):
             print("bfs order:", self.bfs)
 
         if len(self.bfs) < len(self.vertices.keys()):
-            print("WARNING: There are", len(self.vertices.keys()) - len(self.dfs),"nodes in the",self.layout, "graph that are not connected with the rest, these are currently not displayed")
+            print("WARNING: There are", len(self.vertices.keys()) - len(self.bfs),"nodes in the",self.layout, "graph that are not connected with the rest, these are currently not displayed")
         return self.bfs
 
 
@@ -567,7 +567,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict, "radial dfs", default_radius=10)
+    window = MainWindow(main.adjacency_dict, "radial bfs", default_radius=10)
     window.show()
 
     
