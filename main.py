@@ -194,7 +194,7 @@ def convert_to_deterministic_solar_coordinates(rings_dict, nr_rings, max_adjacen
 
 coordinates = {}
 
-def create_radial_coordinates(width, height, node_list):
+def create_radial_coordinates(width, height, node_list, max_depth):
     #coordinates = {}
     annulus_wedge_angles = {} #store each annulus_wedge_angle in here by node_id
     distance_between_layers = 50 #play with this number, this is for the distance between the C layers, later make it into width/height function
