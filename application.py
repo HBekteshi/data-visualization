@@ -454,7 +454,7 @@ class MainWindow(QMainWindow):
         self.dfs = [(root_id, root_id)]
         self.max_depth = []
         visited = [root_id]
-        max_depth = self.depth_first_search_next(self.vertices[root_id], visited)
+        self.depth_first_search_next(self.vertices[root_id], visited)
         if len(self.dfs) < len(self.vertices.keys()):
             print("WARNING: There are", len(self.vertices.keys()) - len(self.dfs),"nodes in the graph that are not connected with the rest, these are currently not displayed")
 
