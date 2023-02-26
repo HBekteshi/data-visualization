@@ -273,7 +273,7 @@ class MainWindow(QMainWindow):
         self.scene = QGraphicsScene()
         self.view = QGraphicsView(self.scene)
 
-        self.scene.setSceneRect(-self.screenwidth/2 + 25, -self.screenheight/2 + 50, self.screenwidth - 50, self.screenheight - 75)
+        #self.scene.setSceneRect(-self.screenwidth/2 + 25, -self.screenheight/2 + 50, self.screenwidth - 50, self.screenheight - 75)
 
         
         # Coordinates
@@ -311,8 +311,8 @@ class MainWindow(QMainWindow):
 
 # layout selector             
     def generate(self, layout):
-        width = self.scene.width() - self.node_radius * 2
-        height = self.scene.height() - self.node_radius * 2
+        width = self.screenwidth - 50 - self.node_radius * 2
+        height = self.screenheight - 75 - self.node_radius * 2
 
         self.layout = layout
         if self.layout == "random":
@@ -385,6 +385,8 @@ class MainWindow(QMainWindow):
 
         self.update_status()                
         
+        new_bounding_rect = self.scene.itemsBoundingRect()
+        self.scene.setSceneRect(new_bounding_rect)
         self.scene.update()
         self.first_generation = False
 
@@ -476,7 +478,7 @@ class MainWindow(QMainWindow):
         visited = [root_id]
         self.depth_first_search_next(self.vertices[root_id], visited)
         if len(self.dfs) < len(self.vertices.keys()):
-            print("WARNING: There are", len(self.vertices.keys()) - len(self.dfs),"nodes in the graph that are not connected with the rest, these are currently not displayed")
+            print("WARNING: There are", len(self.vertices.keys()) - len(self.dfs),"nodes in the",self.layout, "graph that are not connected with the rest, these are currently not displayed")
 
         if main.printing_mode:
             print("dfs order:",self.dfs)
@@ -499,7 +501,8 @@ class MainWindow(QMainWindow):
         visited = [root_id]
         while queue:
             vertex_id, parent_id = queue.pop() # remove first vertex of the queue -> pop(0)
-            print("Vertex_id, parent_id: ", vertex_id, parent_id)
+            if main.printing_mode:
+                print("Vertex_id, parent_id: ", vertex_id, parent_id)
             self.bfs.append((parent_id, vertex_id)) #keep track of the visited vertices
             for (edge, next) in self.vertices[vertex_id].edges:
                 if next.id not in visited: #if vertex not visited, append to visited
@@ -508,6 +511,9 @@ class MainWindow(QMainWindow):
 
         if main.printing_mode:
             print("bfs order:", self.bfs)
+
+        if len(self.bfs) < len(self.vertices.keys()):
+            print("WARNING: There are", len(self.vertices.keys()) - len(self.dfs),"nodes in the",self.layout, "graph that are not connected with the rest, these are currently not displayed")
         return self.bfs
 
 
@@ -524,7 +530,7 @@ class MainWindow(QMainWindow):
 
         while (len(self.prims) != len(self.vertices.keys())):       # make sure no duplicates go into self.prims
             if len(distances.keys()) == 0:      # if there are no more vertices to check (dictionary is empty)
-                print("WARNING: There are",len(self.vertices.keys()) - len(self.prims),"nodes in the graph that are not connected with the rest, these are currently not displayed")
+                print("WARNING: There are",len(self.vertices.keys()) - len(self.prims),"nodes in the",self.layout, "graph that are not connected with the rest, these are currently not displayed")
                 break
                 #raise ValueError ("There are nodes in the graph that are not connected with the rest")
                 # TODO: handle this situation, maybe make a new tree with an unused node as new root
@@ -561,7 +567,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict, "radial bfs", default_radius=15)
+    window = MainWindow(main.adjacency_dict, "radial dfs", default_radius=10)
     window.show()
 
     

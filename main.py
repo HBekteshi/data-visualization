@@ -203,8 +203,9 @@ def create_radial_coordinates(width, height, node_list):
     start_radius = radius_tuple[0] # initialize the radius of the first layer, still make this into width/height function
     root_node = node_list[0][1]
 
-    print("radius tuple", radius_tuple[0])
-    print("radius distance tuple", radius_tuple[1])
+    if printing_mode:
+        print("radius tuple", radius_tuple[0])
+        print("radius distance tuple", radius_tuple[1])
 
     # base case:
     # if the list consists of one node, we put it in the middle of the screen and done
@@ -219,19 +220,22 @@ def create_radial_coordinates(width, height, node_list):
     # first layer after the root
     direct_root_children = calc_direct_children(node_list, root_node)
     nr_root_children = len(direct_root_children)
-    print("root children", direct_root_children)
+    if printing_mode:
+        print("root children", direct_root_children)
     angle_difference = 2 * math.pi / nr_root_children
     child_angle = 0
     for child in direct_root_children:
         child_id = child[1]
-        print("angle of child", child_id, "is", child_angle)
+        if printing_mode:
+            print("angle of child", child_id, "is", child_angle)
 
         #determine coordinates child
         parent_x = coordinates[root_node][0]
         parent_y = coordinates[root_node][1]
         coordinates[child_id] = polar_to_cartesian(child_angle, start_radius, parent_x, parent_y)
         children_of_child = calc_direct_children(node_list, child_id)
-        print(child_id, "has children", children_of_child)
+        if printing_mode:
+            print(child_id, "has children", children_of_child)
         parent_angle = child_angle
         child_angle += angle_difference
         #print("children", children_of_child)
