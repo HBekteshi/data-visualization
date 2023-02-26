@@ -243,7 +243,8 @@ def calc_ann_wedge(node_list, parent_id, child_id, radius1, radius2):
     length_angle = length_child / (length_parent-1)
     wedge_angle = min(radius_angle, length_angle)
 
-    print("for", child_id, "radiusangle is", radius_angle,"and length angle", length_angle)
+    if printing_mode:
+        print("for", child_id, "radiusangle is", radius_angle,"and length angle", length_angle)
 
     return wedge_angle
 
@@ -269,7 +270,8 @@ def calc_direct_children(node_list, parent_id):
         if tuple[0] == parent_id and tuple[0] != tuple[1]:
             #check if the node id is not the same as the parent_id and if it is a direct child of the parent id
             direct_children.append(tuple) #was tuple[1]
-            print("add child", tuple[1], "with parent", tuple[0], "to direct_children list")
+            if printing_mode:
+                print("add child", tuple[1], "with parent", tuple[0], "to direct_children list")
 
     return direct_children
 
@@ -300,6 +302,24 @@ def calc_radial_coordinates_children(node_list, parent_node, start_radius, radiu
 node_list_dfs = [('11','11'), ('11','2'), ('2','1'), ('2','3'), ('3','4'), ('2','5'), ('2','6'), ('2','7'), ('2','8'), ('2','9'),
                  ('2','10'), ('11','12'), ('11', '13'), ('13', '24'), ('24', '17'), ('17', '18'), ('18', '27'), ('27', '25'), ('25', '26'),
                  ('26', '28'), ('28', '29'), ('29', '45'), ('29', '46'), ('28', '30'), ('30', '35'), ('35', '36'), ('36', '37')]
+
+def get_node_list_depth_dict(node_list):
+    depth_dict = {}
+    root_id = node_list[0][0]
+    depth_dict[root_id] = 0
+    for edge in node_list:
+        parent_id, child_id = edge
+        depth_dict[child_id] = depth_dict[parent_id] +1
+    return depth_dict
+
+def get_max_depth(node_list):
+    depth_dict = get_node_list_depth_dict(node_list)
+    max_depth = max(depth_dict.values())
+    return max_depth
+
+print("depth of example nodelist is:", get_max_depth(node_list_dfs))
+
+
 
 #create_radial_coordinates(500,500,node_list_dfs)
 #print(coordinates)pipenv run python application.py

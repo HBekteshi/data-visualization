@@ -249,7 +249,7 @@ class MainWindow(QMainWindow):
 
          # Status Bar
         self.status = self.statusBar()
-        self.status.showMessage("Graph loaded and displayed")
+        self.status.showMessage("Graph loaded and displayed - layout: "+initial_layout)
 
         # Window dimensions
         geometry = self.screen().availableSize()
@@ -292,6 +292,9 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.view)
 
     
+    def update_status(self):
+        self.status.showMessage("Graph loaded and displayed - layout: "+self.layout)
+
     def check_for_tree_layout(self):
         if self.layout in ["radial dfs","radial bfs", "radial prims"]:
             return True
@@ -374,6 +377,8 @@ class MainWindow(QMainWindow):
                         edge.update()
         #                print("tree displaying edge",parent_id, "to", child_id)
 
+        self.update_status()                
+        
         self.scene.update()
         self.first_generation = False
 
