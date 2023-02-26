@@ -109,7 +109,7 @@ def assign_to_rings(adjacencies):
     return rings_dict
 
 
-def calc_radius(height, width, i, nr_rings):
+def calc_radius_solar(height, width, i, nr_rings):
     #calculate the radius of a ring based on the height, width, and the # of rings 
     
     if(height < width):
@@ -141,7 +141,7 @@ def convert_to_solar_coordinates(rings_dict, nr_rings, max_adjacency, height, wi
     for ring_id in rings_dict.keys():
         if i == nr_rings:
             break
-        radius = calc_radius(height, width, i, nr_rings)
+        radius = calc_radius_solar(height, width, i, nr_rings)
         if printing_mode:
             print("ring", ring_id, "has nodes:", rings_dict[ring_id], "and is given radius",radius)
 
@@ -175,7 +175,7 @@ def convert_to_deterministic_solar_coordinates(rings_dict, nr_rings, max_adjacen
     for ring_id in rings_dict.keys():
         if i == nr_rings:
             break
-        radius = calc_radius(height, width, i, nr_rings)
+        radius = calc_radius_solar(height, width, i, nr_rings)
         if printing_mode:
             print("ring", ring_id, "has nodes:", rings_dict[ring_id], "and is given radius",radius)
 
