@@ -228,6 +228,7 @@ class MainWindow(QMainWindow):
             # graph regeneration
         layout_regeneration_action = QAction("Regenerate Layout", self) # will regenerate with same layout
         layout_regeneration_action.triggered.connect(self.regenerate)
+        layout_regeneration_action.setShortcut(QKeySequence.Refresh)
         self.layouts_menu.addAction(layout_regeneration_action)
 
         random_regeneration_action = QAction("Generate Random Layout", self) # will regenerate with random layout
@@ -388,6 +389,7 @@ class MainWindow(QMainWindow):
         new_bounding_rect = self.scene.itemsBoundingRect()
         self.scene.setSceneRect(new_bounding_rect)
         self.scene.update()
+        self.view.updateSceneRect(new_bounding_rect)
         self.first_generation = False
 
         if main.printing_mode:
