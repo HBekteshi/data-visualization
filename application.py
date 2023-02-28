@@ -12,9 +12,10 @@ import numpy as np
 import main
 
 class Vertex(QGraphicsObject):
-    def __init__(self, id, x_coord, y_coord, radius = 25, displayed = False, id_visible = True) -> None:
+    def __init__(self, window, id, x_coord, y_coord, radius = 25, displayed = False, id_visible = True) -> None:
         super().__init__()
 
+        self.window = window
         self.__name__ = 'Vertex'
         self.id = id
         self.radius = radius
@@ -39,6 +40,20 @@ class Vertex(QGraphicsObject):
 
         self.setFlag(QGraphicsItem.ItemSendsGeometryChanges)
     
+    def mouseReleaseEvent(self, event):
+        QGraphicsItem.mouseReleaseEvent(self, event)
+        
+        x = self.pos().x()
+        y = self.pos().y()
+        
+        self.x_coord = x
+        self.y_coord = -y
+
+        self.window.coordinates[self.id] = (self.x_coord, self.y_coord)
+
+        if self.window.dynamic_forces == True: # and self.window.layout == force directed
+            print("recalculate forces now")
+        
     def toggleVisibility(self):
         if self.displayed == True:
             self.displayed = False
@@ -225,6 +240,12 @@ class MainWindow(QMainWindow):
         radius_decrease_action.triggered.connect(self.vertices_decrease_radius)
         self.actions_menu.addAction(radius_decrease_action)
 
+        dynamic_force_layout_action = QAction("Enable Dynamic Forces on Force-Directed Layout",self)
+        dynamic_force_layout_action.triggered.connect(self.toggle_dynamic_forces)
+        self.actions_menu.addAction(dynamic_force_layout_action)
+        dynamic_force_layout_action.setCheckable(True)
+        dynamic_force_layout_action.setChecked(True)
+
             # graph regeneration
         layout_regeneration_action = QAction("Regenerate Layout", self) # will regenerate with same layout
         layout_regeneration_action.triggered.connect(self.regenerate)
@@ -283,9 +304,12 @@ class MainWindow(QMainWindow):
         self.prims = []
         self.vertices = {}
         self.initialize_vertices()
+
+        # Default Settings
         self.layout = self.default_layout
         self.first_generation = True
         self.display_non_tree_edges = False
+        self.dynamic_forces = True
         self.regenerate()
  
         
@@ -427,7 +451,7 @@ class MainWindow(QMainWindow):
         
     def initialize_vertices(self):
         for vertex_id in self.adjacency_dict.keys():
-            new_vertex = Vertex(vertex_id, 0, 0, radius = self.node_radius)
+            new_vertex = Vertex(self, vertex_id, 0, 0, radius = self.node_radius)
             self.vertices[vertex_id] = new_vertex
             self.scene.addItem(new_vertex)
         self.initialize_edges()
@@ -466,6 +490,9 @@ class MainWindow(QMainWindow):
             if v.__name__ == 'Vertex':
                 v.toggle_id_visibility()
         self.scene.update()
+
+    def toggle_dynamic_forces(self):
+        self.dynamic_forces = not self.dynamic_forces
 
     def toggle_nontree_edge_display(self):
         self.display_non_tree_edges = not self.display_non_tree_edges
