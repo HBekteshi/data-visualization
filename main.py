@@ -337,7 +337,70 @@ def calc_radius(width, height, max_depth):
         radius_distance = height / (max_depth + 1)
     return (radius, radius_distance)
 
+def calc_ideal_length(area, nr_vertices, C):
+    """ 
+    input: a parameter C, the number of vertices and area
+    output: a float that represent the ideal edge length""" 
+    ideal_length = C * math.sqrt(area / nr_vertices)
+    return ideal_length
+
+def calc_eucl_dist(x1, y1, x2, y2):
+    """ 
+    input: x1, y1, x2, y2 coordinates that represent node 1 and node 2 repestively
+    output: a float that represent the euclidean distance""" 
+    eucl_dist = math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2))
+    return eucl_dist
+
+def calc_unit_vec(x1, y1, x2, y2):
+    """ 
+    input: x1, y1, x2, y2 coordinates that represent node 1 and node 2 repestively
+    output: a tuple (x,y) for the unit vector""" 
+    magnitude = calc_eucl_dist(x1, y1, x2, y2)
+    unit_vecx = math.sqrt((x1 - x2) * (x1 - x2)) / magnitude
+    unit_vecy = math.sqrt((y1 - y2) * (y1 - y2)) / magnitude
+    return (unit_vecx, unit_vecy)
+
+def calc_rep_force(length, node1, node2):
+    """ 
+    input: length: ideal length of an edge, float, node1 and node2: a tuple of (x,y) coordinates
+    output: a float tuple (x,y) that indicates the repulsive force""" 
+    x1 = node1[0]
+    y1 = node1[1]
+    x2 = node2[0]
+    y2 = node2[1]
+    unit_vec12 = calc_unit_vec(x1, y1, x2, y2)
+    eucl_dist = calc_eucl_dist(x1, y1, x2, y2)
+    rep_forcex = (length * length) / eucl_dist * unit_vec12[0]
+    rep_forcey = (length * length) / eucl_dist * unit_vec12[1]
+    
+    
+    return (rep_forcex, rep_forcey)
+
+def calc_attr_force(length, node1, node2):
+    """
+    input: length: ideal length of an edge, float, node1 and node2: a tuple of (x,y) coordinates
+    output: a float tuple (x,y) that indicates the attractive force""" 
+    x1 = node1[0]
+    y1 = node1[1]
+    x2 = node2[0]
+    y2 = node2[1]
+    unit_vec12 = calc_unit_vec(x1, y1, x2, y2)
+    eucl_dist = calc_eucl_dist(x1, y1, x2, y2)
+    attr_forcex = (eucl_dist * eucl_dist) / length * unit_vec12[0]
+    attr_forcey = (eucl_dist * eucl_dist) / length * unit_vec12[1]
+
+    return (attr_forcex, attr_forcey)
 
 
 #create_radial_coordinates(500,500,node_list_dfs)
 #print(coordinates)pipenv run python application.py
+length = calc_ideal_length(50, 50, 2)
+print("length", length)
+eucl = calc_eucl_dist(5, 8 , 10 ,13)
+print("euclidean = ", eucl) 
+unit = calc_unit_vec(5, 8, 10, 13)
+print("unit vec = ", unit)
+rep_force = calc_rep_force(5, (5,8), (10,13))
+attr_force = calc_attr_force(5, (5,8), (10,13))
+print("rep =", rep_force)
+print("attr =", attr_force)
