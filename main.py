@@ -200,9 +200,9 @@ def create_radial_coordinates(width, height, node_list, node_radius):
     max_depth = get_max_depth(node_list)
     radius_tuple = calc_radius(width, height, max_depth)
     #distance_between_layers = radius_tuple[1]     #play with this number, this is for the distance between the C layers, later make it into width/height function
-    distance_between_layers = max(radius_tuple[1], 0.8*node_radius) 
+    distance_between_layers = max(radius_tuple[1], 2*node_radius)
     #start_radius = radius_tuple[0]       # initialize the radius of the first layer, still make this into width/height function
-    start_radius = max(radius_tuple[0], 0.8*node_radius)
+    start_radius = max(radius_tuple[0], 2*node_radius)
     root_node = node_list[0][1]
 
     if printing_mode:
@@ -336,6 +336,42 @@ def calc_radius(width, height, max_depth):
         radius = height / max_depth
         radius_distance = height / (max_depth + 1)
     return (radius, radius_distance)
+
+
+def create_force_layout_coordinates(initial_coords):
+    max_iterations = 1000
+    delta = 0.1 #given number within the range (0,1]`
+    iteration_count = 0
+    coords_list = initial_coords.copy()
+
+    while iteration_count < max_iterations:
+        coords_list = force_iteration(coords_list, delta)
+        iteration_count += 1
+
+    return coords_list
+
+
+def force_iteration(old_coordinates_list, delta_value):
+    new_coordinates_list = old_coordinates_list.copy()
+
+    for i in range(len(old_coordinates_list)):
+        node = old_coordinates_list[i]
+        force = calc_sum_force(node, old_coordinates_list)
+        new_coordinates_list[i] = (node[0] + delta_value * force[0], node[1] + delta_value * force[1])
+
+    return new_coordinates_list
+
+def calc_sum_force(node, coordinates_list):
+    adj_nodes = get_adjacent_nodes() #to define
+    force = 0
+    for node in adj_nodes:
+        force = force + calc_attr_force(length= , node1= , node2= )
+
+    for cord in coordinates_list:
+        if cord != node:
+            force = force + calc_rep_force(length= , node1= , node2= )
+
+    return force
 
 def calc_ideal_length(area, nr_vertices, C):
     """ 
