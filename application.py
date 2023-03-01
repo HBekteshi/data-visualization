@@ -45,7 +45,7 @@ class Vertex(QGraphicsObject):
         
         x = self.pos().x()
         y = self.pos().y()
-        
+
         self.x_coord = x
         self.y_coord = -y
 
@@ -365,7 +365,8 @@ class MainWindow(QMainWindow):
         elif self.layout == "force bfs":
             if self.bfs == []:
                 self.breadth_first_search()
-            self.coordinates = main.create_force_layout_coordinates(width, height, self.bfs)
+            bfs_coords = main.create_radial_coordinates(width, height, self.bfs, self.node_radius)
+            self.coordinates = main.create_force_layout_coordinates(self.vertices, width, height, bfs_coords)
         else:
             print("asked for layout", layout)
             raise ValueError ("Unsupported layout requested")
@@ -388,9 +389,12 @@ class MainWindow(QMainWindow):
         # move the vertices to their new positions
         for vertex_id in self.coordinates.keys():
             x,y = self.coordinates[vertex_id]
+
             if main.printing_mode:
                 print("reset vertex",vertex_id,"at x_val",x,"and y_val",-y)
+
             self.vertices[vertex_id].moveVertex(x,-y)
+            
             if self.check_for_tree_layout() and not self.display_non_tree_edges:
                 self.vertices[vertex_id].turnVisible(edge_update = False)
             else:
@@ -608,7 +612,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict, "radial bfs", default_radius=10)
+    window = MainWindow(main.adjacency_dict, "force bfs", default_radius=10)
     window.show()
 
     

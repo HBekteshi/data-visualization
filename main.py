@@ -2,6 +2,9 @@ import networkx
 import pydot
 import numpy as np
 import math
+import copy
+
+
 G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
@@ -337,39 +340,61 @@ def calc_radius(width, height, max_depth):
         radius_distance = height / (max_depth + 1)
     return (radius, radius_distance)
 
-def create_force_layout_coordinates(width, height, initial_coords, nr_vertices, C):
-    max_iterations = 1000
-    delta = 0.1 #given number within the range (0,1]`
+def create_force_layout_coordinates(vertex_object_dict, width, height, initial_coords, C = 1):
+    max_iterations = 100     # increase to 1000 when it doesn't break
+    delta = 0.004 # given number within the range (0,1]`
     iteration_count = 0
-    coords_list = initial_coords.copy()
+    coords_dict = initial_coords.copy()
     area = width * height
+    
+    nr_vertices = len(initial_coords.keys())
+
     while iteration_count < max_iterations:
-        coords_list = force_iteration(coords_list, delta,area, nr_vertices, C)
+        coords_dict = force_iteration(vertex_object_dict, coords_dict, delta,area, nr_vertices, C)
         iteration_count += 1
 
-    return coords_list
+    return coords_dict
 
 
-def force_iteration(old_coordinates_list, delta_value, area, nr_vertices, C):
-    new_coordinates_list = old_coordinates_list.copy()
+def force_iteration(vertex_object_dict, old_coordinates_dict, delta_value, area, nr_vertices, C):
+    new_coordinates_dict = copy.deepcopy(old_coordinates_dict)
 
-    for i in range(len(old_coordinates_list)):
-        node = old_coordinates_list[i]
-        force = calc_sum_force(node, old_coordinates_list, area, nr_vertices, C)
-        new_coordinates_list[i] = (node[0] + delta_value * force[0], node[1] + delta_value * force[1])
+    for id in (old_coordinates_dict.keys()):
+        old_coords_tuple = old_coordinates_dict[id]             # (x,y) tuple
+        force = calc_sum_force(vertex_object_dict, id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C)
+        new_coordinates_dict[id] = (old_coords_tuple[0] + delta_value * force[0], old_coords_tuple[1] + delta_value * force[1])
+       # print("node",id,"gets a force push of",force)
 
-    return new_coordinates_list
+    return new_coordinates_dict
 
-def calc_sum_force(node, coordinates_list, area, nr_vertices, C):
-    adj_nodes = calc_direct_children() #to check again
-    force = 0
+def calc_sum_force(vertex_object_dict, current_id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C):
+    #adj_nodes = calc_direct_children() #to check again          # need node list and parent id  # this only works for a tree structure
+    adj_nodes = []
+
+    for edge, next in vertex_object_dict[current_id].edges:
+        adj_nodes.append(next.id)
+
+    force = [0,0]
     length = calc_ideal_length(area, nr_vertices, C)
-    for a_node in adj_nodes:
-        force = force + calc_attr_force(length, a_node, node)
+   # print("ideal length of an edge is calculated to be", length)
 
-    for cord in coordinates_list:
-        if cord != node:
-            force = force + calc_rep_force(length, a_node, node)
+    for a_node_id in adj_nodes:
+        a_node_coords_tuple = old_coordinates_dict[a_node_id]
+        dx, dy = calc_attr_force(length, a_node_coords_tuple, old_coords_tuple)
+        force[0] += dx
+        force[1] += dy
+    
+  # print("with only attractive forces, node", current_id,"gets a force of",force)
+
+    for node_id in old_coordinates_dict.keys():
+        if node_id != current_id:
+            node_coords = old_coordinates_dict[node_id]
+
+            if node_coords != old_coords_tuple:             # check that the nodes are not in the same location
+              #  print("inequality testing", node_coords,old_coords_tuple)
+                dx, dy = calc_rep_force(length, node_coords, old_coords_tuple)
+                force[0] += dx
+                force[1] += dy
 
     return force
 
@@ -386,6 +411,8 @@ def calc_eucl_dist(x1, y1, x2, y2):
     input: x1, y1, x2, y2 coordinates that represent node 1 and node 2 repestively
     output: a float that represent the euclidean distance""" 
     eucl_dist = math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2))
+    if eucl_dist == 0:
+        print("distance zero:", x1, x2, y1, y2)
     return eucl_dist
 
 def calc_unit_vec(x1, y1, x2, y2):
@@ -393,8 +420,8 @@ def calc_unit_vec(x1, y1, x2, y2):
     input: x1, y1, x2, y2 coordinates that represent node 1 and node 2 repestively
     output: a tuple (x,y) for the unit vector""" 
     magnitude = calc_eucl_dist(x1, y1, x2, y2)
-    unit_vecx = math.sqrt((x1 - x2) * (x1 - x2)) / magnitude
-    unit_vecy = math.sqrt((y1 - y2) * (y1 - y2)) / magnitude
+    unit_vecx = (x1 - x2) / magnitude
+    unit_vecy = (y1 - y2) / magnitude
     return (unit_vecx, unit_vecy)
 
 def calc_rep_force(length, node1, node2):
@@ -407,8 +434,8 @@ def calc_rep_force(length, node1, node2):
     y2 = node2[1]
     unit_vec12 = calc_unit_vec(x1, y1, x2, y2)
     eucl_dist = calc_eucl_dist(x1, y1, x2, y2)
-    rep_forcex = (length * length) / eucl_dist * unit_vec12[0]
-    rep_forcey = (length * length) / eucl_dist * unit_vec12[1]
+    rep_forcex = ((length * length) / eucl_dist) * unit_vec12[0]
+    rep_forcey = ((length * length) / eucl_dist) * unit_vec12[1]
     
     
     return (rep_forcex, rep_forcey)
@@ -423,8 +450,8 @@ def calc_attr_force(length, node1, node2):
     y2 = node2[1]
     unit_vec12 = calc_unit_vec(x1, y1, x2, y2)
     eucl_dist = calc_eucl_dist(x1, y1, x2, y2)
-    attr_forcex = (eucl_dist * eucl_dist) / length * unit_vec12[0]
-    attr_forcey = (eucl_dist * eucl_dist) / length * unit_vec12[1]
+    attr_forcex = ((eucl_dist * eucl_dist) / length) * unit_vec12[0]
+    attr_forcey = ((eucl_dist * eucl_dist) / length) * unit_vec12[1]
 
     return (attr_forcex, attr_forcey)
 
