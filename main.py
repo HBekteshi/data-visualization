@@ -337,38 +337,39 @@ def calc_radius(width, height, max_depth):
         radius_distance = height / (max_depth + 1)
     return (radius, radius_distance)
 
-def create_force_layout_coordinates(initial_coords):
+def create_force_layout_coordinates(width, height, initial_coords, nr_vertices, C):
     max_iterations = 1000
     delta = 0.1 #given number within the range (0,1]`
     iteration_count = 0
     coords_list = initial_coords.copy()
-
+    area = width * height
     while iteration_count < max_iterations:
-        coords_list = force_iteration(coords_list, delta)
+        coords_list = force_iteration(coords_list, delta,area, nr_vertices, C)
         iteration_count += 1
 
     return coords_list
 
 
-def force_iteration(old_coordinates_list, delta_value):
+def force_iteration(old_coordinates_list, delta_value, area, nr_vertices, C):
     new_coordinates_list = old_coordinates_list.copy()
 
     for i in range(len(old_coordinates_list)):
         node = old_coordinates_list[i]
-        force = calc_sum_force(node, old_coordinates_list)
+        force = calc_sum_force(node, old_coordinates_list, area, nr_vertices, C)
         new_coordinates_list[i] = (node[0] + delta_value * force[0], node[1] + delta_value * force[1])
 
     return new_coordinates_list
 
-def calc_sum_force(node, coordinates_list):
-    adj_nodes = get_adjacent_nodes() #to define
+def calc_sum_force(node, coordinates_list, area, nr_vertices, C):
+    adj_nodes = calc_direct_children() #to check again
     force = 0
-    for node in adj_nodes:
-        force = force + calc_attr_force(length= , node1= , node2= )
+    length = calc_ideal_length(area, nr_vertices, C)
+    for a_node in adj_nodes:
+        force = force + calc_attr_force(length, a_node, node)
 
     for cord in coordinates_list:
         if cord != node:
-            force = force + calc_rep_force(length= , node1= , node2= )
+            force = force + calc_rep_force(length, a_node, node)
 
     return force
 
@@ -382,7 +383,7 @@ def calc_ideal_length(area, nr_vertices, C):
 
 def calc_eucl_dist(x1, y1, x2, y2):
     """ 
-    input: x1, y1, x2, y2 coordinates that represent node 1 and node 2 repestively
+    input: x1, y1, x2, y2 coordinates that represent node 1 and node 2 respectively
     output: a float that represent the euclidean distance""" 
     eucl_dist = math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2))
     return eucl_dist
