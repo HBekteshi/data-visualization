@@ -337,7 +337,6 @@ def calc_radius(width, height, max_depth):
         radius_distance = height / (max_depth + 1)
     return (radius, radius_distance)
 
-
 def create_force_layout_coordinates(initial_coords):
     max_iterations = 1000
     delta = 0.1 #given number within the range (0,1]`
@@ -372,6 +371,7 @@ def calc_sum_force(node, coordinates_list):
             force = force + calc_rep_force(length= , node1= , node2= )
 
     return force
+
 
 def calc_ideal_length(area, nr_vertices, C):
     """ 
