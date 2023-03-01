@@ -337,7 +337,7 @@ def calc_radius(width, height, max_depth):
         radius_distance = height / (max_depth + 1)
     return (radius, radius_distance)
 
-def create_force_layout_coordinates(initial_coords):
+def create_force_layout_coordinates(width, height, initial_coords):
     max_iterations = 1000
     delta = 0.1 #given number within the range (0,1]`
     iteration_count = 0
