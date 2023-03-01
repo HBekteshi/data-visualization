@@ -276,6 +276,10 @@ class MainWindow(QMainWindow):
         radial_prims_regeneration_action.triggered.connect(self.regenerate_radial_prims)
         self.layouts_menu.addAction(radial_prims_regeneration_action)
 
+        force_bfs_regeneration_action = QAction("Generate Force Directed BFS Tree Layout", self)
+        force_bfs_regeneration_action.triggered.connect(self.regenerate_force_bfs)
+        self.layouts_menu.addAction(force_bfs_regeneration_action)
+
          # Status Bar
         self.status = self.statusBar()
         self.status.showMessage("Graph loaded and displayed - layout: "+initial_layout)
@@ -358,6 +362,10 @@ class MainWindow(QMainWindow):
             if self.prims == []:
                 self.prims_algorithm()
             self.coordinates = main.create_radial_coordinates(width, height, self.prims, self.node_radius)
+        elif self.layout == "force bfs":
+            if self.bfs == []:
+                self.breadth_first_search()
+            self.coordinates = main.create_force_layout_coordinates(width, height, self.bfs)
         else:
             print("asked for layout", layout)
             raise ValueError ("Unsupported layout requested")
@@ -445,6 +453,10 @@ class MainWindow(QMainWindow):
         
     def regenerate_radial_prims(self):
         self.layout = "radial prims"
+        self.regenerate()
+    
+    def regenerate_force_bfs(self):
+        self.layout = "force bfs"
         self.regenerate()
             
 # part of graph initialization:
