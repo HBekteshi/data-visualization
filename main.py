@@ -341,8 +341,8 @@ def calc_radius(width, height, max_depth):
     return (radius, radius_distance)
 
 def create_force_layout_coordinates(vertex_object_dict, width, height, initial_coords, C = 1):
-    max_iterations = 100     # increase to 1000 when it doesn't break
-    delta = 0.004 # given number within the range (0,1]`
+    max_iterations = 600     # increase to 1000 when it doesn't break
+    delta = 0.01 # given number within the range (0,1]`
     iteration_count = 0
     coords_dict = initial_coords.copy()
     area = width * height
@@ -380,7 +380,7 @@ def calc_sum_force(vertex_object_dict, current_id, old_coords_tuple, old_coordin
 
     for a_node_id in adj_nodes:
         a_node_coords_tuple = old_coordinates_dict[a_node_id]
-        dx, dy = calc_attr_force(length, a_node_coords_tuple, old_coords_tuple)
+        dx, dy = calc_attr_force_eades(1, a_node_coords_tuple, old_coords_tuple) # change 1 to length for fruchterman and vice versa
         force[0] += dx
         force[1] += dy
     
@@ -392,7 +392,7 @@ def calc_sum_force(vertex_object_dict, current_id, old_coords_tuple, old_coordin
 
             if node_coords != old_coords_tuple:             # check that the nodes are not in the same location
               #  print("inequality testing", node_coords,old_coords_tuple)
-                dx, dy = calc_rep_force(length, node_coords, old_coords_tuple)
+                dx, dy = calc_rep_force_eades(1, node_coords, old_coords_tuple) #change 1 to length for fruchterman and vice versa
                 force[0] += dx
                 force[1] += dy
 
@@ -424,7 +424,7 @@ def calc_unit_vec(x1, y1, x2, y2):
     unit_vecy = (y1 - y2) / magnitude
     return (unit_vecx, unit_vecy)
 
-def calc_rep_force(length, node1, node2):
+def calc_rep_force_fruchter(length, node1, node2):
     """ 
     input: length: ideal length of an edge, float, node1 and node2: a tuple of (x,y) coordinates
     output: a float tuple (x,y) that indicates the repulsive force""" 
@@ -436,6 +436,22 @@ def calc_rep_force(length, node1, node2):
     eucl_dist = calc_eucl_dist(x1, y1, x2, y2)
     rep_forcex = ((length * length) / eucl_dist) * unit_vec12[0]
     rep_forcey = ((length * length) / eucl_dist) * unit_vec12[1]
+    
+    
+    return (rep_forcex, rep_forcey)
+
+def calc_rep_force_eades(length, node1, node2):
+    """ 
+    input: length: ideal length of an edge, float, node1 and node2: a tuple of (x,y) coordinates
+    output: a float tuple (x,y) that indicates the repulsive force""" 
+    x1 = node1[0]
+    y1 = node1[1]
+    x2 = node2[0]
+    y2 = node2[1]
+    unit_vec12 = calc_unit_vec(x1, y1, x2, y2)
+    eucl_dist = calc_eucl_dist(x1, y1, x2, y2)
+    rep_forcex = (length / (eucl_dist * eucl_dist)) * unit_vec12[0]
+    rep_forcey = (length / (eucl_dist * eucl_dist)) * unit_vec12[1]
     
     
     return (rep_forcex, rep_forcey)
@@ -455,6 +471,21 @@ def calc_attr_force(length, node1, node2):
 
     return (attr_forcex, attr_forcey)
 
+def calc_attr_force_eades(length, node1, node2):
+    """
+    input: length: ideal length of an edge, float, node1 and node2: a tuple of (x,y) coordinates
+    output: a float tuple (x,y) that indicates the attractive force""" 
+    x1 = node1[0]
+    y1 = node1[1]
+    x2 = node2[0]
+    y2 = node2[1]
+    unit_vec12 = calc_unit_vec(x1, y1, x2, y2)
+    eucl_dist = calc_eucl_dist(x1, y1, x2, y2)
+    attr_forcex = 2 * math.log((eucl_dist / length)) * unit_vec12[0]
+    attr_forcey = 2 * math.log((eucl_dist / length)) * unit_vec12[1]
+
+    return (attr_forcex, attr_forcey)
+
 
 #create_radial_coordinates(500,500,node_list_dfs)
 #print(coordinates)pipenv run python application.py
@@ -464,7 +495,7 @@ eucl = calc_eucl_dist(5, 8 , 10 ,13)
 print("euclidean = ", eucl) 
 unit = calc_unit_vec(5, 8, 10, 13)
 print("unit vec = ", unit)
-rep_force = calc_rep_force(5, (5,8), (10,13))
-attr_force = calc_attr_force(5, (5,8), (10,13))
+rep_force = calc_rep_force_eades(5, (5,8), (10,13))
+attr_force = calc_attr_force_eades(5, (5,8), (10,13))
 print("rep =", rep_force)
 print("attr =", attr_force)
