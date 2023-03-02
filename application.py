@@ -49,10 +49,14 @@ class Vertex(QGraphicsObject):
         self.x_coord = x
         self.y_coord = -y
 
-        self.window.coordinates[self.id] = (self.x_coord, self.y_coord)
+        self.window.update_node_position(self.id, self.x_coord, self.y_coord)
 
-        if self.window.dynamic_forces == True: # and self.window.layout == force directed
-            print("recalculate forces now")
+        #print("dragged node",self.id,"to position",self.x_coord,self.y_coord)
+
+        if self.window.dynamic_forces == True and self.window.layout in ["force bfs", "force random", "force custom"]:
+            self.window.layout = "force custom"
+            print("updating force layout")
+            self.window.regenerate()
         
     def toggleVisibility(self):
         if self.displayed == True:
@@ -331,6 +335,9 @@ class MainWindow(QMainWindow):
     def update_status(self):
         self.status.showMessage("Graph loaded and displayed - layout: "+self.layout)
 
+    def update_node_position(self, node_id, x, y):
+        self.coordinates[node_id] = (x,y)
+
     def check_for_tree_layout(self):
         if self.layout in ["radial dfs","radial bfs", "radial prims"]:
             return True
@@ -367,6 +374,8 @@ class MainWindow(QMainWindow):
                 self.breadth_first_search()
             bfs_coords = main.create_radial_coordinates(width, height, self.bfs, self.node_radius)
             self.coordinates = main.create_force_layout_coordinates(self.vertices, width, height, bfs_coords)
+        elif self.layout == "force custom":
+            self.coordinates = main.create_force_layout_coordinates(self.vertices, width, height, self.coordinates, max_iterations=50)
         else:
             print("asked for layout", layout)
             raise ValueError ("Unsupported layout requested")

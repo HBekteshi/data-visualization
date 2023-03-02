@@ -340,8 +340,7 @@ def calc_radius(width, height, max_depth):
         radius_distance = height / (max_depth + 1)
     return (radius, radius_distance)
 
-def create_force_layout_coordinates(vertex_object_dict, width, height, initial_coords, C = 1):
-    max_iterations = 600     # increase to 1000 when it doesn't break
+def create_force_layout_coordinates(vertex_object_dict, width, height, initial_coords, C = 1, max_iterations = 100):
     delta = 0.01 # given number within the range (0,1]`
     iteration_count = 0
     coords_dict = initial_coords.copy()
