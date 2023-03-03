@@ -460,8 +460,8 @@ def calc_eucl_dist(x1, y1, x2, y2):
     input: x1, y1, x2, y2 coordinates that represent node 1 and node 2 repestively
     output: a float that represent the euclidean distance""" 
     eucl_dist = math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2))
-    if eucl_dist == 0:
-        print("distance zero:", x1, x2, y1, y2)
+    # if eucl_dist == 0:
+    #     print("distance zero:", x1, x2, y1, y2)
     return eucl_dist
 
 def calc_unit_vec(x1, y1, x2, y2):
@@ -469,6 +469,8 @@ def calc_unit_vec(x1, y1, x2, y2):
     input: x1, y1, x2, y2 coordinates that represent node 1 and node 2 repestively
     output: a tuple (x,y) for the unit vector""" 
     magnitude = calc_eucl_dist(x1, y1, x2, y2)
+    if magnitude == 0:
+        return (0,0)
     unit_vecx = (x1 - x2) / magnitude
     unit_vecy = (y1 - y2) / magnitude
     return (unit_vecx, unit_vecy)
@@ -483,6 +485,9 @@ def calc_rep_force_fruchter(length, node1, node2):
     y2 = node2[1]
     unit_vec12 = calc_unit_vec(x1, y1, x2, y2)
     eucl_dist = calc_eucl_dist(x1, y1, x2, y2)
+    if eucl_dist == 0:
+        return (0,0)
+    
     rep_forcex = ((length * length) / eucl_dist) * unit_vec12[0]
     rep_forcey = ((length * length) / eucl_dist) * unit_vec12[1]
     
@@ -499,6 +504,9 @@ def calc_rep_force_eades(length, node1, node2):
     y2 = node2[1]
     unit_vec12 = calc_unit_vec(x1, y1, x2, y2)
     eucl_dist = calc_eucl_dist(x1, y1, x2, y2)
+    if eucl_dist == 0:
+        return (0,0)
+    
     rep_forcex = (length / (eucl_dist * eucl_dist)) * unit_vec12[0]
     rep_forcey = (length / (eucl_dist * eucl_dist)) * unit_vec12[1]
     
@@ -515,6 +523,9 @@ def calc_attr_force(length, node1, node2):
     y2 = node2[1]
     unit_vec12 = calc_unit_vec(x1, y1, x2, y2)
     eucl_dist = calc_eucl_dist(x1, y1, x2, y2)
+    if eucl_dist == 0:
+        return (0,0)
+
     attr_forcex = ((eucl_dist * eucl_dist) / length) * unit_vec12[0]
     attr_forcey = ((eucl_dist * eucl_dist) / length) * unit_vec12[1]
 
@@ -530,6 +541,9 @@ def calc_attr_force_eades(length, node1, node2):
     y2 = node2[1]
     unit_vec12 = calc_unit_vec(x1, y1, x2, y2)
     eucl_dist = calc_eucl_dist(x1, y1, x2, y2)
+    if eucl_dist == 0:
+        return (0,0)
+
     attr_forcex = 2 * math.log((eucl_dist / length)) * unit_vec12[0]
     attr_forcey = 2 * math.log((eucl_dist / length)) * unit_vec12[1]
 

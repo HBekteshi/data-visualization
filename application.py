@@ -328,6 +328,7 @@ class MainWindow(QMainWindow):
         self.first_generation = True
         self.display_non_tree_edges = False
         self.dynamic_forces = True
+        self.strict_force_binding = True
         self.regenerate()
  
         
@@ -395,7 +396,10 @@ class MainWindow(QMainWindow):
             random_coords = main.create_random_coordinates(width, height, self.adjacency_dict)
             self.coordinates = main.create_force_layout_coordinates(self.vertices, width, height, random_coords)
         elif self.layout == "force custom":
-            self.coordinates = main.create_force_layout_coordinates(self.vertices, width, height, self.coordinates, max_iterations=50)
+            if self.strict_force_binding == True:
+                self.coordinates = main.create_force_layout_coordinates(self.vertices, width, height, self.coordinates, max_iterations=50)
+            else:
+                self.coordinates = main.create_force_layout_coordinates(self.vertices, self.scene.width(), self.scene.height(), self.coordinates, max_iterations=50)
         else:
             print("asked for layout", layout)
             raise ValueError ("Unsupported layout requested")
