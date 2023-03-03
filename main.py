@@ -341,7 +341,7 @@ def calc_radius(width, height, max_depth):
     return (radius, radius_distance)
 
 def create_force_layout_coordinates(vertex_object_dict, width, height, initial_coords, C = 1, max_iterations = 200):
-    delta = 0.025 # given number within the range (0,1]`
+    delta = 0.075 # given number within the range (0,1]`
     iteration_count = 0
     coords_dict = initial_coords.copy()
     area = width * height
@@ -366,7 +366,7 @@ def force_iteration(vertex_object_dict, old_coordinates_dict, delta_value, area,
 
     return new_coordinates_dict
 
-def calc_sum_force(vertex_object_dict, current_id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C):
+def calc_sum_force(vertex_object_dict, current_id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_mass = True):
     #adj_nodes = calc_direct_children() #to check again          # need node list and parent id  # this only works for a tree structure
     adj_nodes = []
 
@@ -374,12 +374,18 @@ def calc_sum_force(vertex_object_dict, current_id, old_coords_tuple, old_coordin
         adj_nodes.append(next.id)
 
     force = [0,0]
-    length = calc_ideal_length(area, nr_vertices, C)
+    length = calc_ideal_length(area, nr_vertices, C)            # unused for eades
    # print("ideal length of an edge is calculated to be", length)
 
     for a_node_id in adj_nodes:
         a_node_coords_tuple = old_coordinates_dict[a_node_id]
         dx, dy = calc_attr_force_eades(1, a_node_coords_tuple, old_coords_tuple) # change 1 to length for fruchterman and vice versa
+
+        if use_mass == True:
+            mass = 1 + adjacencies[current_id]/2
+            dx = dx / mass
+            dy = dy / mass
+
         force[0] += dx
         force[1] += dy
     
