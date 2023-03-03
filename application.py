@@ -250,6 +250,10 @@ class MainWindow(QMainWindow):
         dynamic_force_layout_action.setCheckable(True)
         dynamic_force_layout_action.setChecked(True)
 
+        force_custom_regeneration_action = QAction("Apply Force Direction on Current Layout", self)
+        force_custom_regeneration_action.triggered.connect(self.regenerate_force_custom)
+        self.actions_menu.addAction(force_custom_regeneration_action)
+
             # graph regeneration
         layout_regeneration_action = QAction("Regenerate Layout", self) # will regenerate with same layout
         layout_regeneration_action.triggered.connect(self.regenerate)
@@ -481,6 +485,10 @@ class MainWindow(QMainWindow):
         
     def regenerate_force_bfs(self):
         self.layout = "force bfs"
+        self.regenerate()
+    
+    def regenerate_force_custom(self):
+        self.layout = "force custom"
         self.regenerate()
             
 # part of graph initialization:
