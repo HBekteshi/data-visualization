@@ -319,6 +319,8 @@ class MainWindow(QMainWindow):
         self.bfs = []
         self.prims = []
         self.vertices = {}
+        self.tree = None
+        self.treetype = None
         self.initialize_vertices()
 
         # Default Settings
@@ -347,9 +349,13 @@ class MainWindow(QMainWindow):
         self.coordinates[node_id] = (x,y)
 
     def check_for_tree_layout(self):
-        if self.layout in ["radial dfs","radial bfs", "radial prims"]:
+        if self.layout == "force custom":
+            return self.tree
+        elif self.layout in ["radial dfs","radial bfs", "radial prims"]:
+            self.tree = True
             return True
         else:
+            self.tree = False
             return False
 
 
@@ -368,14 +374,17 @@ class MainWindow(QMainWindow):
         elif self.layout == "radial dfs":
             if self.dfs == []:
                 self.depth_first_search()
+            self.treetype = "dfs"                
             self.coordinates = main.create_radial_coordinates(width, height, self.dfs, self.node_radius)
         elif self.layout == "radial bfs":
             if self.bfs == []:
                 self.breadth_first_search()
+            self.treetype = "bfs"
             self.coordinates = main.create_radial_coordinates(width, height, self.bfs, self.node_radius)
         elif self.layout == "radial prims":
             if self.prims == []:
                 self.prims_algorithm()
+            self.treetype = "prims"
             self.coordinates = main.create_radial_coordinates(width, height, self.prims, self.node_radius)
         elif self.layout == "force bfs":
             if self.bfs == []:
@@ -422,11 +431,11 @@ class MainWindow(QMainWindow):
             
        # get self.dfs, for parent in selfdfs element [0], check all the edges for next to be element [1], turn on that edge only; make sure update function doesn't update other edges
         if self.check_for_tree_layout() and not self.display_non_tree_edges:
-            if self.layout == "radial dfs":
+            if self.treetype == "dfs":
                 node_list = self.dfs
-            elif self.layout == "radial bfs":
+            elif self.treetype == "bfs":
                 node_list = self.bfs
-            elif self.layout == "radial prims":
+            elif self.treetype == "prims":
                 node_list = self.prims
             else:
                 raise ValueError ("No selected node list in given tree layout")

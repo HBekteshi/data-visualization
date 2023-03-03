@@ -355,18 +355,31 @@ def create_force_layout_coordinates(vertex_object_dict, width, height, initial_c
     return coords_dict
 
 
-def force_iteration(vertex_object_dict, old_coordinates_dict, delta_value, area, nr_vertices, C):
+def force_iteration(vertex_object_dict, old_coordinates_dict, delta_value, area, nr_vertices, C, use_barycenter = True):
     new_coordinates_dict = copy.deepcopy(old_coordinates_dict)
 
+    barycenter = [0,0]
+
+    if use_barycenter == True:
+        for old_coords_tuple in (old_coordinates_dict.values()):
+            barycenter[0] += old_coords_tuple[0]
+            barycenter[1] += old_coords_tuple[1]
+        
+        barycenter[0] = barycenter[0] / nr_vertices
+        barycenter[1] = barycenter[1] / nr_vertices
+
+        
     for id in (old_coordinates_dict.keys()):
         old_coords_tuple = old_coordinates_dict[id]             # (x,y) tuple
-        force = calc_sum_force(vertex_object_dict, id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C)
+
+        force = calc_sum_force(vertex_object_dict, id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter)
+
         new_coordinates_dict[id] = (old_coords_tuple[0] + delta_value * force[0], old_coords_tuple[1] + delta_value * force[1])
        # print("node",id,"gets a force push of",force)
 
     return new_coordinates_dict
 
-def calc_sum_force(vertex_object_dict, current_id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_mass = True):
+def calc_sum_force(vertex_object_dict, current_id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter, use_mass = True):
     #adj_nodes = calc_direct_children() #to check again          # need node list and parent id  # this only works for a tree structure
     adj_nodes = []
 
@@ -377,19 +390,25 @@ def calc_sum_force(vertex_object_dict, current_id, old_coords_tuple, old_coordin
     length = calc_ideal_length(area, nr_vertices, C)            # unused for eades
    # print("ideal length of an edge is calculated to be", length)
 
+
+# attractive forces:
+    
+    node_mass = 1 + adjacencies[current_id]/2
+
     for a_node_id in adj_nodes:
         a_node_coords_tuple = old_coordinates_dict[a_node_id]
         dx, dy = calc_attr_force_eades(1, a_node_coords_tuple, old_coords_tuple) # change 1 to length for fruchterman and vice versa
 
         if use_mass == True:
-            mass = 1 + adjacencies[current_id]/2
-            dx = dx / mass
-            dy = dy / mass
+            dx = dx / node_mass
+            dy = dy / node_mass
 
         force[0] += dx
         force[1] += dy
     
   # print("with only attractive forces, node", current_id,"gets a force of",force)
+        
+# repulsive forces:
 
     for node_id in old_coordinates_dict.keys():
         if node_id != current_id:
@@ -401,8 +420,17 @@ def calc_sum_force(vertex_object_dict, current_id, old_coords_tuple, old_coordin
                 force[0] += dx
                 force[1] += dy
 
-    return force
+# modifications:
 
+    if use_barycenter == True:
+        c_grav = 1                  # arbitrarily defined
+        unit_vector_to_bary = calc_unit_vec(old_coords_tuple[0], old_coords_tuple[1], barycenter[0], barycenter[1])
+        force[0] += c_grav * node_mass * unit_vector_to_bary[0]
+        force[1] += dy + c_grav * node_mass * unit_vector_to_bary[1]
+
+
+
+    return force
 
 def calc_ideal_length(area, nr_vertices, C):
     """ 
