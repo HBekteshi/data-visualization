@@ -280,7 +280,11 @@ class MainWindow(QMainWindow):
         radial_prims_regeneration_action.triggered.connect(self.regenerate_radial_prims)
         self.layouts_menu.addAction(radial_prims_regeneration_action)
 
-        force_bfs_regeneration_action = QAction("Generate Force Directed BFS Tree Layout", self)
+        force_random_regeneration_action = QAction("Generate Force Directed Random-Initialized Layout", self)
+        force_random_regeneration_action.triggered.connect(self.regenerate_force_random)
+        self.layouts_menu.addAction(force_random_regeneration_action)
+
+        force_bfs_regeneration_action = QAction("Generate Force Directed BFS-Initialized Layout", self)
         force_bfs_regeneration_action.triggered.connect(self.regenerate_force_bfs)
         self.layouts_menu.addAction(force_bfs_regeneration_action)
 
@@ -374,6 +378,9 @@ class MainWindow(QMainWindow):
                 self.breadth_first_search()
             bfs_coords = main.create_radial_coordinates(width, height, self.bfs, self.node_radius)
             self.coordinates = main.create_force_layout_coordinates(self.vertices, width, height, bfs_coords)
+        elif self.layout == "force random":
+            random_coords = main.create_random_coordinates(width, height, self.adjacency_dict)
+            self.coordinates = main.create_force_layout_coordinates(self.vertices, width, height, random_coords)
         elif self.layout == "force custom":
             self.coordinates = main.create_force_layout_coordinates(self.vertices, width, height, self.coordinates, max_iterations=50)
         else:
@@ -468,6 +475,10 @@ class MainWindow(QMainWindow):
         self.layout = "radial prims"
         self.regenerate()
     
+    def regenerate_force_random(self):
+        self.layout = "force random"
+        self.regenerate()
+        
     def regenerate_force_bfs(self):
         self.layout = "force bfs"
         self.regenerate()
@@ -621,7 +632,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict, "force bfs", default_radius=10)
+    window = MainWindow(main.adjacency_dict, "force random", default_radius=10)
     window.show()
 
     
