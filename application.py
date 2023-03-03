@@ -401,13 +401,14 @@ class MainWindow(QMainWindow):
             raise ValueError ("Unsupported layout requested")
 
 # recreate the graph
-    def regenerate(self):
+    def regenerate(self, changed_positions = True):
         if main.printing_mode:
             print("calling regenerate")
             print("asking for layout", self.layout)
 
         # create new set of coordinates based on the current layout
-        self.generate(self.layout)
+        if changed_positions:
+            self.generate(self.layout)
         
         if (self.first_generation == False and self.check_for_tree_layout() == True):
             for item in self.scene.items():
@@ -550,7 +551,7 @@ class MainWindow(QMainWindow):
     def toggle_nontree_edge_display(self):
         self.display_non_tree_edges = not self.display_non_tree_edges
         if self.check_for_tree_layout() == True:
-            self.regenerate()
+            self.regenerate(changed_positions = False)
 
     def depth_first_search(self, root = "most connected"):      # time complexity of DFS is O(2E) = O(E)
         if root == "most connected":

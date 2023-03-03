@@ -349,13 +349,13 @@ def create_force_layout_coordinates(vertex_object_dict, width, height, initial_c
     nr_vertices = len(initial_coords.keys())
 
     while iteration_count < max_iterations:
-        coords_dict = force_iteration(vertex_object_dict, coords_dict, delta,area, nr_vertices, C)
+        coords_dict = force_iteration(width, height, vertex_object_dict, coords_dict, delta,area, nr_vertices, C)
         iteration_count += 1
 
     return coords_dict
 
 
-def force_iteration(vertex_object_dict, old_coordinates_dict, delta_value, area, nr_vertices, C, use_barycenter = True):
+def force_iteration(width, height, vertex_object_dict, old_coordinates_dict, delta_value, area, nr_vertices, C, use_barycenter = True, apply_boundaries = True):
     new_coordinates_dict = copy.deepcopy(old_coordinates_dict)
 
     barycenter = [0,0]
@@ -374,7 +374,23 @@ def force_iteration(vertex_object_dict, old_coordinates_dict, delta_value, area,
 
         force = calc_sum_force(vertex_object_dict, id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter)
 
-        new_coordinates_dict[id] = (old_coords_tuple[0] + delta_value * force[0], old_coords_tuple[1] + delta_value * force[1])
+        new_x = old_coords_tuple[0] + delta_value * force[0]
+        new_y = old_coords_tuple[1] + delta_value * force[1]
+        
+        if apply_boundaries == True:
+            if abs(new_x) > width/2:
+                if new_x > 0:
+                    new_x = width/2
+                else:
+                    new_x = -width/2
+            
+            if abs(new_y) > height/2:
+                if new_y > 0:
+                    new_y = height/2
+                else:
+                    new_y = -height/2
+
+        new_coordinates_dict[id] = (new_x, new_y)
        # print("node",id,"gets a force push of",force)
 
     return new_coordinates_dict
