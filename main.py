@@ -355,7 +355,7 @@ def create_force_layout_coordinates(width, height, initial_coords, C = 1, max_it
     return coords_dict
 
 
-def force_iteration(width, height, old_coordinates_dict, delta_value, area, nr_vertices, C, use_barycenter = True, apply_boundaries = True):
+def force_iteration(width, height, old_coordinates_dict, delta_value, area, nr_vertices, C, use_barycenter = True, apply_boundaries = True, single_node_iteration = False):
     new_coordinates_dict = copy.deepcopy(old_coordinates_dict)
 
     barycenter = [0,0]
@@ -368,30 +368,61 @@ def force_iteration(width, height, old_coordinates_dict, delta_value, area, nr_v
         barycenter[0] = barycenter[0] / nr_vertices
         barycenter[1] = barycenter[1] / nr_vertices
 
-        
-    for id in (old_coordinates_dict.keys()):
-        old_coords_tuple = old_coordinates_dict[id]             # (x,y) tuple
+    
+    if single_node_iteration == True:
 
-        force = calc_sum_force(id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter)
+        rounds = nr_vertices
 
-        new_x = old_coords_tuple[0] + delta_value * force[0]
-        new_y = old_coords_tuple[1] + delta_value * force[1]
-        
-        if apply_boundaries == True:
-            if abs(new_x) > width/2:
-                if new_x > 0:
-                    new_x = width/2
-                else:
-                    new_x = -width/2
+        for i in range(rounds):
+            # decide which node out of the list (random) --> id is the id of that node
+            id = np.random.choice(list(old_coordinates_dict.keys()))
+
+            coords_tuple = new_coordinates_dict[id]             # (x,y) tuple
+
+            force = calc_sum_force(id, coords_tuple, new_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter)
+
+            new_x = old_coords_tuple[0] + delta_value * force[0]
+            new_y = old_coords_tuple[1] + delta_value * force[1]
+
+            if apply_boundaries == True:
+                if abs(new_x) > width/2:
+                    if new_x > 0:
+                        new_x = width/2
+                    else:
+                        new_x = -width/2
+                
+                if abs(new_y) > height/2:
+                    if new_y > 0:
+                        new_y = height/2
+                    else:
+                        new_y = -height/2
+
+            new_coordinates_dict[id] = (new_x, new_y)
+
+    else:
+        for id in (old_coordinates_dict.keys()):
+            old_coords_tuple = old_coordinates_dict[id]             # (x,y) tuple
+
+            force = calc_sum_force(id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter)
+
+            new_x = old_coords_tuple[0] + delta_value * force[0]
+            new_y = old_coords_tuple[1] + delta_value * force[1]
             
-            if abs(new_y) > height/2:
-                if new_y > 0:
-                    new_y = height/2
-                else:
-                    new_y = -height/2
+            if apply_boundaries == True:
+                if abs(new_x) > width/2:
+                    if new_x > 0:
+                        new_x = width/2
+                    else:
+                        new_x = -width/2
+                
+                if abs(new_y) > height/2:
+                    if new_y > 0:
+                        new_y = height/2
+                    else:
+                        new_y = -height/2
 
-        new_coordinates_dict[id] = (new_x, new_y)
-       # print("node",id,"gets a force push of",force)
+            new_coordinates_dict[id] = (new_x, new_y)
+        # print("node",id,"gets a force push of",force)
 
     return new_coordinates_dict
 
