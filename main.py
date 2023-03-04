@@ -344,21 +344,35 @@ def create_force_layout_coordinates(width, height, initial_coords, C = 1, max_it
     delta = 0.075 # given number within the range (0,1]`
     iteration_count = 0
     coords_dict = initial_coords.copy()
+    temp_dict = {key: np.random.uniform(3, 256) for key in list(initial_coords.keys()) } # dictionary with all temperature values
+    skew_gauge_dict = {key: 0 for key in list(initial_coords.keys())} # dictionary with all skew gauge values
+    prev_force_dict = {key: 0 for key in list(initial_coords.keys())} # init dictionary with prev force values
     area = width * height
+    t_min = 3 # minimum temperature
+    t_global = 100 #random number for t_global
     
     nr_vertices = len(initial_coords.keys())
 
-    while iteration_count < max_iterations:
-        coords_dict = force_iteration(width, height, coords_dict, delta,area, nr_vertices, C)
+    while t_global > t_min and iteration_count < max_iterations: #change max iterations maybe
+        coords_dict = force_iteration(width, height, coords_dict, prev_force_dict, temp_dict, skew_gauge_dict, delta, area, nr_vertices, C)
+        t_global = sum(temp_dict.values()) / len(temp_dict) #update global temperature
         iteration_count += 1
 
     return coords_dict
 
 
-def force_iteration(width, height, old_coordinates_dict, delta_value, area, nr_vertices, C, use_barycenter = True, apply_boundaries = True, single_node_iteration = False):
+def force_iteration(width, height, old_coordinates_dict, prev_force_dict, temp_dict, skew_gauge_dict,
+                    delta_value, area, nr_vertices, C, use_barycenter = True, apply_boundaries = True, single_node_iteration = False):
     new_coordinates_dict = copy.deepcopy(old_coordinates_dict)
 
     barycenter = [0,0]
+
+    #we can play with these constants
+    t_max = 256
+    angle_osc = math.pi
+    angle_rot = math.pi / 3
+    sens_osc = 0.5
+    sens_rot = 1 / (2 * nr_vertices)
 
     if use_barycenter == True:
         for old_coords_tuple in (old_coordinates_dict.values()):
@@ -404,9 +418,34 @@ def force_iteration(width, height, old_coordinates_dict, delta_value, area, nr_v
             old_coords_tuple = old_coordinates_dict[id]             # (x,y) tuple
 
             force = calc_sum_force(id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter)
+            prev_force = prev_force_dict[id]
 
-            new_x = old_coords_tuple[0] + delta_value * force[0]
-            new_y = old_coords_tuple[1] + delta_value * force[1]
+            if prev_force != 0:
+                #calculate angle between force and prev force
+                unit_vec_force = calc_unit_vec(0,0,force[0],force[1])
+                unit_vec_prev_force = calc_unit_vec(0,0,prev_force[0],prev_force[1])
+                angle = np.arccos(np.dot(unit_vec_force, unit_vec_prev_force))
+
+                #
+                if math.sin(angle) > math.sin(math.pi/2 + angle_rot/2):
+                    skew_gauge_dict[id] += sens_rot * np.sign(math.sin(angle))
+
+                if abs(math.cos(angle)) >= math.cos(angle_osc/2):
+                    temp_dict[id] += sens_osc * math.cos(angle)
+
+                temp_dict[id] = temp_dict[id] * (1 - abs(skew_gauge_dict[id]))
+                temp_dict[id] = min(temp_dict[id], t_max)
+                #print("skew gauge of vertex", id, "is", skew_gauge_dict[id])
+                #print("temp of vertex", id, "is", temp_dict[id])
+                #print("with current force", force, "and previous force", prev_force)
+
+            if force != 0:
+                force_magnitude = calc_eucl_dist(0,0,force[0],force[1])
+                force = (temp_dict[id] * (force[0] / force_magnitude), temp_dict[id] * (force[1] / force_magnitude))
+                new_x = old_coords_tuple[0] + delta_value * force[0]
+                new_y = old_coords_tuple[1] + delta_value * force[1]
+                barycenter[0] += force[0]
+                barycenter[1] += force[1]
             
             if apply_boundaries == True:
                 if abs(new_x) > width/2:
@@ -422,6 +461,7 @@ def force_iteration(width, height, old_coordinates_dict, delta_value, area, nr_v
                         new_y = -height/2
 
             new_coordinates_dict[id] = (new_x, new_y)
+            prev_force_dict[id] = force #store current force as previous force for next round
         # print("node",id,"gets a force push of",force)
 
     return new_coordinates_dict
@@ -433,18 +473,23 @@ def calc_sum_force(current_id, old_coords_tuple, old_coordinates_dict, area, nr_
     for edge in adjacency_dict[current_id]:
         adj_nodes.append(edge[0])           # appends ID of neighbour vertex
 
-    force = [0,0]
-    length = calc_ideal_length(area, nr_vertices, C)            # unused for eades
    # print("ideal length of an edge is calculated to be", length)
 
 
 # attractive forces:
     
     node_mass = 1 + adjacencies[current_id]/2
+    c_grav = 1/16               # 1 with normal eades, now 1/16 for impulse
+    #rand_vec = (np.random.uniform(-32, 32), np.random.uniform(-32, 32)) #randon disturbance vector for force/impuls init
+    # [0,0] was original for eades algorithm, initialize impulse p now with all these things
+    #force = [(barycenter[0]/nr_vertices - old_coords_tuple[0]) * c_grav * node_mass + rand_vec[0], 
+    #         (barycenter[1]/nr_vertices - old_coords_tuple[1]) * c_grav * node_mass + rand_vec[1]]
+    force = [0,0]
+    length = calc_ideal_length(area, nr_vertices, C)            # unused for eades, used for impulse
 
     for a_node_id in adj_nodes:
         a_node_coords_tuple = old_coordinates_dict[a_node_id]
-        dx, dy = calc_attr_force_eades(1, a_node_coords_tuple, old_coords_tuple) # change 1 to length for fruchterman and vice versa
+        dx, dy = calc_attr_force_eades(128, a_node_coords_tuple, old_coords_tuple) # change 1 to length for fruchterman and vice versa
 
         if use_mass == True:
             dx = dx / node_mass
@@ -463,17 +508,16 @@ def calc_sum_force(current_id, old_coords_tuple, old_coordinates_dict, area, nr_
 
             if node_coords != old_coords_tuple:             # check that the nodes are not in the same location
               #  print("inequality testing", node_coords,old_coords_tuple)
-                dx, dy = calc_rep_force_eades(1, node_coords, old_coords_tuple) #change 1 to length for fruchterman and vice versa
+                dx, dy = calc_rep_force_eades(128, node_coords, old_coords_tuple) #change 1 to length for fruchterman and vice versa
                 force[0] += dx
-                force[1] += dy
+                force[1] += dy 
 
 # modifications:
 
     if use_barycenter == True:
-        c_grav = 1                  # arbitrarily defined
-        unit_vector_to_bary = calc_unit_vec(old_coords_tuple[0], old_coords_tuple[1], barycenter[0], barycenter[1])
-        force[0] += c_grav * node_mass * unit_vector_to_bary[0]
-        force[1] += c_grav * node_mass * unit_vector_to_bary[1]
+       unit_vector_to_bary = calc_unit_vec(old_coords_tuple[0], old_coords_tuple[1], barycenter[0], barycenter[1])
+       force[0] += c_grav * node_mass * unit_vector_to_bary[0]
+       force[1] += c_grav * node_mass * unit_vector_to_bary[1]
 
 
 
@@ -544,7 +588,7 @@ def calc_rep_force_eades(length, node1, node2):
     
     return (rep_forcex, rep_forcey)
 
-def calc_attr_force(length, node1, node2):
+def calc_attr_force_fruchter(length, node1, node2):
     """
     input: length: ideal length of an edge, float, node1 and node2: a tuple of (x,y) coordinates
     output: a float tuple (x,y) that indicates the attractive force""" 
@@ -580,6 +624,34 @@ def calc_attr_force_eades(length, node1, node2):
 
     return (attr_forcex, attr_forcey)
 
+def calc_rep_imp(length, chosen_node, node2):
+    x1 = chosen_node[0]
+    y1 = chosen_node[1]
+    x2 = node2[0]
+    y2 = node2[1]
+    pos_dif = (x1 - x2, y1 - y2)
+
+    if pos_dif[0] != 0 or pos_dif[1] != 0:
+        magnitude = calc_eucl_dist(x1, y1, x2, y2)
+        rep_forcex = (pos_dif[0] * (length * length)) / (magnitude * magnitude)
+        rep_forcey = (pos_dif[1] * (length * length)) / (magnitude * magnitude)
+        return(rep_forcex, rep_forcey)
+    
+    return (0,0)
+
+def calc_attr_imp(length, chosen_node, node2, node_mass):
+    x1 = chosen_node[0]
+    y1 = chosen_node[1]
+    x2 = node2[0]
+    y2 = node2[1]
+    pos_dif = (x1 - x2, y1 - y2)
+    magnitude = calc_eucl_dist(x1, y1, x2, y2)
+
+    attr_forcex = (-pos_dif[0] * (magnitude * magnitude)) / (length * length * node_mass)
+    attr_forcey = (-pos_dif[1] * (magnitude * magnitude)) / (length * length * node_mass)
+
+    return (attr_forcex, attr_forcey)
+
 
 #create_radial_coordinates(500,500,node_list_dfs)
 #print(coordinates)pipenv run python application.py
@@ -589,7 +661,7 @@ eucl = calc_eucl_dist(5, 8 , 10 ,13)
 print("euclidean = ", eucl) 
 unit = calc_unit_vec(5, 8, 10, 13)
 print("unit vec = ", unit)
-rep_force = calc_rep_force_eades(5, (5,8), (10,13))
-attr_force = calc_attr_force_eades(5, (5,8), (10,13))
+rep_force = calc_rep_imp(5, (5,8), (10,13))
+attr_force = calc_attr_imp(5, (5,8), (10,13), 10)
 print("rep =", rep_force)
 print("attr =", attr_force)
