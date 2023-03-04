@@ -340,7 +340,7 @@ def calc_radius(width, height, max_depth):
         radius_distance = height / (max_depth + 1)
     return (radius, radius_distance)
 
-def create_force_layout_coordinates(vertex_object_dict, width, height, initial_coords, C = 1, max_iterations = 200):
+def create_force_layout_coordinates(width, height, initial_coords, C = 1, max_iterations = 200):
     delta = 0.075 # given number within the range (0,1]`
     iteration_count = 0
     coords_dict = initial_coords.copy()
@@ -349,13 +349,13 @@ def create_force_layout_coordinates(vertex_object_dict, width, height, initial_c
     nr_vertices = len(initial_coords.keys())
 
     while iteration_count < max_iterations:
-        coords_dict = force_iteration(width, height, vertex_object_dict, coords_dict, delta,area, nr_vertices, C)
+        coords_dict = force_iteration(width, height, coords_dict, delta,area, nr_vertices, C)
         iteration_count += 1
 
     return coords_dict
 
 
-def force_iteration(width, height, vertex_object_dict, old_coordinates_dict, delta_value, area, nr_vertices, C, use_barycenter = True, apply_boundaries = True):
+def force_iteration(width, height, old_coordinates_dict, delta_value, area, nr_vertices, C, use_barycenter = True, apply_boundaries = True):
     new_coordinates_dict = copy.deepcopy(old_coordinates_dict)
 
     barycenter = [0,0]
@@ -372,7 +372,7 @@ def force_iteration(width, height, vertex_object_dict, old_coordinates_dict, del
     for id in (old_coordinates_dict.keys()):
         old_coords_tuple = old_coordinates_dict[id]             # (x,y) tuple
 
-        force = calc_sum_force(vertex_object_dict, id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter)
+        force = calc_sum_force(id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter)
 
         new_x = old_coords_tuple[0] + delta_value * force[0]
         new_y = old_coords_tuple[1] + delta_value * force[1]
@@ -395,12 +395,12 @@ def force_iteration(width, height, vertex_object_dict, old_coordinates_dict, del
 
     return new_coordinates_dict
 
-def calc_sum_force(vertex_object_dict, current_id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter, use_mass = True):
+def calc_sum_force(current_id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter, use_mass = True):
     #adj_nodes = calc_direct_children() #to check again          # need node list and parent id  # this only works for a tree structure
     adj_nodes = []
 
-    for edge, next in vertex_object_dict[current_id].edges:
-        adj_nodes.append(next.id)
+    for edge in adjacency_dict[current_id]:
+        adj_nodes.append(edge[0])           # appends ID of neighbour vertex
 
     force = [0,0]
     length = calc_ideal_length(area, nr_vertices, C)            # unused for eades
@@ -442,7 +442,7 @@ def calc_sum_force(vertex_object_dict, current_id, old_coords_tuple, old_coordin
         c_grav = 1                  # arbitrarily defined
         unit_vector_to_bary = calc_unit_vec(old_coords_tuple[0], old_coords_tuple[1], barycenter[0], barycenter[1])
         force[0] += c_grav * node_mass * unit_vector_to_bary[0]
-        force[1] += dy + c_grav * node_mass * unit_vector_to_bary[1]
+        force[1] += c_grav * node_mass * unit_vector_to_bary[1]
 
 
 

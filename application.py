@@ -391,15 +391,15 @@ class MainWindow(QMainWindow):
             if self.bfs == []:
                 self.breadth_first_search()
             bfs_coords = main.create_radial_coordinates(width, height, self.bfs, self.node_radius)
-            self.coordinates = main.create_force_layout_coordinates(self.vertices, width, height, bfs_coords)
+            self.coordinates = main.create_force_layout_coordinates(width, height, bfs_coords)
         elif self.layout == "force random":
             random_coords = main.create_random_coordinates(width, height, self.adjacency_dict)
-            self.coordinates = main.create_force_layout_coordinates(self.vertices, width, height, random_coords)
+            self.coordinates = main.create_force_layout_coordinates(width, height, random_coords)
         elif self.layout == "force custom":
             if self.strict_force_binding == True:
-                self.coordinates = main.create_force_layout_coordinates(self.vertices, width, height, self.coordinates, max_iterations=50)
+                self.coordinates = main.create_force_layout_coordinates(width, height, self.coordinates, max_iterations=50)
             else:
-                self.coordinates = main.create_force_layout_coordinates(self.vertices, self.scene.width(), self.scene.height(), self.coordinates, max_iterations=50)
+                self.coordinates = main.create_force_layout_coordinates(self.scene.width(), self.scene.height(), self.coordinates, max_iterations=50)
         else:
             print("asked for layout", layout)
             raise ValueError ("Unsupported layout requested")
