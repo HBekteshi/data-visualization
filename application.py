@@ -251,6 +251,7 @@ class MainWindow(QMainWindow):
         dynamic_force_layout_action.setChecked(True)
 
         force_custom_regeneration_action = QAction("Apply Force Direction on Current Layout", self)
+        force_custom_regeneration_action.setShortcut(Qt.Key_F)
         force_custom_regeneration_action.triggered.connect(self.regenerate_force_custom)
         self.actions_menu.addAction(force_custom_regeneration_action)
 
@@ -405,13 +406,13 @@ class MainWindow(QMainWindow):
             raise ValueError ("Unsupported layout requested")
 
 # recreate the graph
-    def regenerate(self, changed_positions = True):
+    def regenerate(self, same_positions = False):
         if main.printing_mode:
             print("calling regenerate")
             print("asking for layout", self.layout)
 
         # create new set of coordinates based on the current layout
-        if changed_positions:
+        if not same_positions:
             self.generate(self.layout)
         
         if (self.first_generation == False and self.check_for_tree_layout() == True):
@@ -555,7 +556,7 @@ class MainWindow(QMainWindow):
     def toggle_nontree_edge_display(self):
         self.display_non_tree_edges = not self.display_non_tree_edges
         if self.check_for_tree_layout() == True:
-            self.regenerate(changed_positions = False)
+            self.regenerate(same_positions = True)
 
     def depth_first_search(self, root = "most connected"):      # time complexity of DFS is O(2E) = O(E)
         if root == "most connected":
