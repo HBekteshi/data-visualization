@@ -347,10 +347,16 @@ def calc_radius(width, height, max_depth):
 
 def create_force_layout_coordinates(width, height, initial_coords, C = 1, max_iterations = 200, grid_size = (9,12)):
     # grid size is (rows, columns)
+    
     delta = 0.075 # given number within the range (0,1]`
     iteration_count = 0
     coords_dict = initial_coords.copy()
+    temp_dict = {key: np.random.uniform(3, 256) for key in list(initial_coords.keys()) } # dictionary with all temperature values
+    skew_gauge_dict = {key: 0 for key in list(initial_coords.keys())} # dictionary with all skew gauge values
+    prev_force_dict = {key: 0 for key in list(initial_coords.keys())} # init dictionary with prev force values
     area = width * height
+    t_min = 3 # minimum temperature
+    t_global = 100 #random number for t_global
     
     nr_vertices = len(initial_coords.keys())
 
@@ -363,7 +369,7 @@ def create_force_layout_coordinates(width, height, initial_coords, C = 1, max_it
 
 
 def force_iteration(width, height, old_coordinates_dict, prev_force_dict, temp_dict, skew_gauge_dict,
-                    delta_value, area, nr_vertices, C, grid_size, use_grid = False, use_barycenter = True, apply_boundaries = True, single_node_iteration = False):
+                    delta_value, area, nr_vertices, C, grid_size, use_grid = True, use_barycenter = True, apply_boundaries = True, single_node_iteration = False):
     
     gridbox_height = height / grid_size[0]      # height / number of rows in grid
     gridbox_width = width / grid_size[1]        # width / number of columns in grid
