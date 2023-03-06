@@ -1,6 +1,6 @@
 
 import sys
-from collections import deque
+#from collections import deque
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from PySide6.QtCore import Slot, QRectF, Qt, QLineF
@@ -8,6 +8,7 @@ from PySide6.QtGui import QAction, QKeySequence, QPainter, QPen, QColor, QBrush
 from PySide6.QtWidgets import QMainWindow, QApplication, QLabel, QPushButton, QGraphicsScene, QGraphicsView, QGraphicsObject, QGraphicsItem, QStyleOptionGraphicsItem, QHBoxLayout, QWidget
 
 import numpy as np
+import time
 
 import main
 
@@ -342,6 +343,8 @@ class MainWindow(QMainWindow):
         
         # graphics displayed in the center
         self.setCentralWidget(self.view)
+
+        print("Graph loaded in time", time.time() - main.time_after_loading)
 
     
     def update_status(self):

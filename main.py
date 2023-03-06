@@ -4,12 +4,17 @@ import numpy as np
 import math
 import copy
 
+import time
+
+time_before_loading = time.time()
 
 G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
+time_after_loading = time.time()
 
+print("Data loading took a time of",time_after_loading - time_before_loading)
 
 printing_mode = False
 
@@ -340,7 +345,8 @@ def calc_radius(width, height, max_depth):
         radius_distance = height / (max_depth + 1)
     return (radius, radius_distance)
 
-def create_force_layout_coordinates(width, height, initial_coords, C = 1, max_iterations = 200):
+def create_force_layout_coordinates(width, height, initial_coords, C = 1, max_iterations = 200, grid_size = (9,12)):
+    # grid size is (rows, columns)
     delta = 0.075 # given number within the range (0,1]`
     iteration_count = 0
     coords_dict = initial_coords.copy()
@@ -348,28 +354,57 @@ def create_force_layout_coordinates(width, height, initial_coords, C = 1, max_it
     
     nr_vertices = len(initial_coords.keys())
 
-    while iteration_count < max_iterations:
-        coords_dict = force_iteration(width, height, coords_dict, delta,area, nr_vertices, C)
+    while t_global > t_min and iteration_count < max_iterations: #change max iterations maybe
+        coords_dict = force_iteration(width, height, coords_dict, prev_force_dict, temp_dict, skew_gauge_dict, delta, area, nr_vertices, C, grid_size)
+        t_global = sum(temp_dict.values()) / len(temp_dict) #update global temperature
         iteration_count += 1
 
     return coords_dict
 
 
-def force_iteration(width, height, old_coordinates_dict, delta_value, area, nr_vertices, C, use_barycenter = True, apply_boundaries = True, single_node_iteration = False):
+def force_iteration(width, height, old_coordinates_dict, prev_force_dict, temp_dict, skew_gauge_dict,
+                    delta_value, area, nr_vertices, C, grid_size, use_grid = False, use_barycenter = True, apply_boundaries = True, single_node_iteration = False):
+    
+    gridbox_height = height / grid_size[0]      # height / number of rows in grid
+    gridbox_width = width / grid_size[1]        # width / number of columns in grid
+    grid = np.full(shape = grid_size, fill_value= set())      # grid[y][x] = set of node_id-s
+    #print("this is the empty grid",grid)
+    grid_locations = {}         # dictionary[node_id] = (grid_x, grid_y)
+
+    
+
     new_coordinates_dict = copy.deepcopy(old_coordinates_dict)
 
     barycenter = [0,0]
 
-    if use_barycenter == True:
-        for old_coords_tuple in (old_coordinates_dict.values()):
-            barycenter[0] += old_coords_tuple[0]
-            barycenter[1] += old_coords_tuple[1]
+    #we can play with these constants
+    t_max = 256
+    angle_osc = math.pi
+    angle_rot = math.pi / 3
+    sens_osc = 0.5
+    sens_rot = 1 / (2 * nr_vertices)
+
+    for id in (old_coordinates_dict.keys()):
+        x,y = old_coordinates_dict[id]
+
+        if use_grid:
+            xbox = int((width/2 + x) // gridbox_width)
+            ybox = int((height/2 + y) // gridbox_height)
+            
+            grid_locations[id] = (xbox,ybox)
+        #    print("xbox is:",xbox,"ybox is:",ybox)
+            grid[ybox][xbox].add(id)
+            
+
+        if use_barycenter == True:
+            barycenter[0] += x
+            barycenter[1] += y
         
-        barycenter[0] = barycenter[0] / nr_vertices
-        barycenter[1] = barycenter[1] / nr_vertices
+            barycenter[0] = barycenter[0] / nr_vertices
+            barycenter[1] = barycenter[1] / nr_vertices
 
     
-    if single_node_iteration == True:
+    if single_node_iteration == True:       
 
         rounds = nr_vertices
 
@@ -379,7 +414,7 @@ def force_iteration(width, height, old_coordinates_dict, delta_value, area, nr_v
 
             coords_tuple = new_coordinates_dict[id]             # (x,y) tuple
 
-            force = calc_sum_force(id, coords_tuple, new_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter)
+            force = calc_sum_force(id, coords_tuple, new_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter, use_grid, grid, grid_locations)
 
             new_x = old_coords_tuple[0] + delta_value * force[0]
             new_y = old_coords_tuple[1] + delta_value * force[1]
@@ -399,11 +434,12 @@ def force_iteration(width, height, old_coordinates_dict, delta_value, area, nr_v
 
             new_coordinates_dict[id] = (new_x, new_y)
 
-    else:
+    else:       # single_node_iteration is false
         for id in (old_coordinates_dict.keys()):
             old_coords_tuple = old_coordinates_dict[id]             # (x,y) tuple
 
-            force = calc_sum_force(id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter)
+            force = calc_sum_force(id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter, use_grid, grid, grid_locations)
+            prev_force = prev_force_dict[id]
 
             new_x = old_coords_tuple[0] + delta_value * force[0]
             new_y = old_coords_tuple[1] + delta_value * force[1]
@@ -421,12 +457,26 @@ def force_iteration(width, height, old_coordinates_dict, delta_value, area, nr_v
                     else:
                         new_y = -height/2
 
+            # update grid
+            if use_grid:
+                old_xbox, old_ybox = grid_locations[id]
+                grid[old_ybox][old_xbox].remove(id)
+                
+                new_xbox = int((width/2 + new_x) // gridbox_width)
+                new_ybox = int((height/2 + new_y) // gridbox_height)
+
+                grid_locations[id] = (new_xbox,new_ybox)
+                grid[new_ybox][new_xbox].add(id)
+
+            # update coordinates dict
             new_coordinates_dict[id] = (new_x, new_y)
+
+            prev_force_dict[id] = force #store current force as previous force for next round
         # print("node",id,"gets a force push of",force)
 
     return new_coordinates_dict
 
-def calc_sum_force(current_id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter, use_mass = True):
+def calc_sum_force(current_id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter, use_grid, grid, grid_locations, use_mass = True):
     #adj_nodes = calc_direct_children() #to check again          # need node list and parent id  # this only works for a tree structure
     adj_nodes = []
 
@@ -456,16 +506,105 @@ def calc_sum_force(current_id, old_coords_tuple, old_coordinates_dict, area, nr_
   # print("with only attractive forces, node", current_id,"gets a force of",force)
         
 # repulsive forces:
+    if use_grid == False:
+        for node_id in old_coordinates_dict.keys():
+            if node_id != current_id:
+                node_coords = old_coordinates_dict[node_id]
 
-    for node_id in old_coordinates_dict.keys():
-        if node_id != current_id:
-            node_coords = old_coordinates_dict[node_id]
+                if node_coords != old_coords_tuple:             # check that the nodes are not in the same location
+                #  print("inequality testing", node_coords,old_coords_tuple)
+                    dx, dy = calc_rep_force_eades(1, node_coords, old_coords_tuple) #change 1 to length for fruchterman and vice versa
+                    force[0] += dx
+                    force[1] += dy
 
-            if node_coords != old_coords_tuple:             # check that the nodes are not in the same location
-              #  print("inequality testing", node_coords,old_coords_tuple)
-                dx, dy = calc_rep_force_eades(1, node_coords, old_coords_tuple) #change 1 to length for fruchterman and vice versa
-                force[0] += dx
-                force[1] += dy
+    else:
+        xbox, ybox = grid_locations[current_id]
+    #   print("grid shape is",grid.shape)
+        grid_size_x = grid.shape[1]
+        grid_size_y = grid.shape[0]
+    #    print("grid size x,y is:",grid_size_x, grid_size_y)
+
+        for node_id in grid[ybox][xbox]:
+            if node_id != current_id:
+                node_coords = old_coordinates_dict[node_id]
+
+                if node_coords != old_coords_tuple:             # check that the nodes are not in the same location
+                    dx, dy = calc_rep_force_eades(1, node_coords, old_coords_tuple) #change 1 to length for fruchterman and vice versa
+                    force[0] += dx
+                    force[1] += dy
+
+        if xbox - 1 >= 0:
+            for node_id in grid[ybox][xbox-1]:
+                node_coords = old_coordinates_dict[node_id]
+
+                if node_coords != old_coords_tuple:             # check that the nodes are not in the same location
+                    dx, dy = calc_rep_force_eades(1, node_coords, old_coords_tuple) #change 1 to length for fruchterman and vice versa
+                    force[0] += dx
+                    force[1] += dy
+
+            if ybox - 1 >= 0:
+                for node_id in grid[ybox-1][xbox-1]:
+                    node_coords = old_coordinates_dict[node_id]
+
+                    if node_coords != old_coords_tuple:             # check that the nodes are not in the same location
+                        dx, dy = calc_rep_force_eades(1, node_coords, old_coords_tuple) #change 1 to length for fruchterman and vice versa
+                        force[0] += dx
+                        force[1] += dy
+
+            if ybox + 1 < grid_size_y:
+                for node_id in grid[ybox+1][xbox-1]:
+                    node_coords = old_coordinates_dict[node_id]
+
+                    if node_coords != old_coords_tuple:             # check that the nodes are not in the same location
+                        dx, dy = calc_rep_force_eades(1, node_coords, old_coords_tuple) #change 1 to length for fruchterman and vice versa
+                        force[0] += dx
+                        force[1] += dy
+        
+        
+        if xbox + 1 < grid_size_x:
+            for node_id in grid[ybox][xbox+1]:
+                node_coords = old_coordinates_dict[node_id]
+
+                if node_coords != old_coords_tuple:             # check that the nodes are not in the same location
+                    dx, dy = calc_rep_force_eades(1, node_coords, old_coords_tuple) #change 1 to length for fruchterman and vice versa
+                    force[0] += dx
+                    force[1] += dy
+
+            if ybox - 1 >= 0:
+                for node_id in grid[ybox-1][xbox+1]:
+                    node_coords = old_coordinates_dict[node_id]
+
+                    if node_coords != old_coords_tuple:             # check that the nodes are not in the same location
+                        dx, dy = calc_rep_force_eades(1, node_coords, old_coords_tuple) #change 1 to length for fruchterman and vice versa
+                        force[0] += dx
+                        force[1] += dy
+
+            if ybox + 1 < grid_size_y:
+                for node_id in grid[ybox+1][xbox+1]:
+                    node_coords = old_coordinates_dict[node_id]
+
+                    if node_coords != old_coords_tuple:             # check that the nodes are not in the same location
+                        dx, dy = calc_rep_force_eades(1, node_coords, old_coords_tuple) #change 1 to length for fruchterman and vice versa
+                        force[0] += dx
+                        force[1] += dy
+
+        if ybox - 1 >= 0:
+            for node_id in grid[ybox-1][xbox]:
+                node_coords = old_coordinates_dict[node_id]
+
+                if node_coords != old_coords_tuple:             # check that the nodes are not in the same location
+                    dx, dy = calc_rep_force_eades(1, node_coords, old_coords_tuple) #change 1 to length for fruchterman and vice versa
+                    force[0] += dx
+                    force[1] += dy
+
+        if ybox + 1 < grid_size_y:
+            for node_id in grid[ybox+1][xbox]:
+                node_coords = old_coordinates_dict[node_id]
+
+                if node_coords != old_coords_tuple:             # check that the nodes are not in the same location
+                    dx, dy = calc_rep_force_eades(1, node_coords, old_coords_tuple) #change 1 to length for fruchterman and vice versa
+                    force[0] += dx
+                    force[1] += dy
 
 # modifications:
 
