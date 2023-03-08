@@ -4,10 +4,14 @@ import numpy as np
 import math
 import copy
 
-
-G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
+#undirected graphs
+#G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
+
+#directed graphs
+G = networkx.Graph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
+#G = networkx.Graph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
 
 
 
@@ -653,15 +657,66 @@ def calc_attr_imp(length, chosen_node, node2, node_mass):
     return (attr_forcex, attr_forcey)
 
 
-#create_radial_coordinates(500,500,node_list_dfs)
-#print(coordinates)pipenv run python application.py
-length = calc_ideal_length(50, 50, 2)
-print("length", length)
-eucl = calc_eucl_dist(5, 8 , 10 ,13)
-print("euclidean = ", eucl) 
-unit = calc_unit_vec(5, 8, 10, 13)
-print("unit vec = ", unit)
-rep_force = calc_rep_imp(5, (5,8), (10,13))
-attr_force = calc_attr_imp(5, (5,8), (10,13), 10)
-print("rep =", rep_force)
-print("attr =", attr_force)
+def calc_sink_list(adjacency_dict):
+    """
+    return a list of vertices which are sinks
+    """
+
+    #if it has no outgoing edges, but it has incoming edges, then it is a sink
+    incoming_dict =  {key: 0 for key in list(adjacency_dict.keys())} #initialize to zeros
+    outgoing_dict =  {key: 0 for key in list(adjacency_dict.keys())} #initialize to zeros
+
+    #calculates for each vertex how many incoming edges it has
+    for vertex_id in adjacency_dict:
+        for triple in adjacency_dict[vertex_id]:
+            if triple[1] == True:
+                receiving_vertex = triple[0]
+                incoming_dict[receiving_vertex] += 1
+                print("The receiving vertix is", receiving_vertex, "so we increment by 1")
+
+    #calculates for each vertex how many outgoing edges it has
+    for vertex_id in adjacency_dict:
+        for triple in adjacency_dict[vertex_id]:
+            if triple[1] == True:
+                outgoing_dict[vertex_id] += 1
+                print("The outgoing vertix is", vertex_id, "so we increment by 1")
+    
+    #adds a vertex to the sink list if it has incoming edges and no outgoing edges
+    sink_list = []
+    for vertex_id in incoming_dict:
+        if incoming_dict[vertex_id] != 0 and outgoing_dict[vertex_id] == 0:
+            sink_list.append(vertex_id)
+
+    return sink_list
+
+def calc_source_list(adjadency_dict):
+    """
+    return a list of vertices which are sources
+    """
+    #if it has no incoming edges then it is a source, even if it has no outgoing edges
+
+    incoming_dict =  {key: 0 for key in list(adjacency_dict.keys())} #initialize to zeros
+
+    #calculates for each vertex how many incoming edges it has
+    for vertex_id in adjacency_dict:
+        for triple in adjacency_dict[vertex_id]:
+            if triple[1] == True:
+                receiving_vertex = triple[0]
+                incoming_dict[receiving_vertex] += 1
+                #print("The receiving vertix is", receiving_vertex, "so we increment by 1")
+
+    #print("adjacency dict", adjacency_dict)
+    #print("incoming dict", incoming_dict)
+
+    source_list = []
+    for vertex_id in incoming_dict:
+        if incoming_dict[vertex_id] == 0:
+            source_list.append(vertex_id)
+
+    return source_list
+
+
+source_list = calc_source_list(adjacency_dict)
+print(source_list)
+sink_list = calc_sink_list(adjacency_dict)
+print(sink_list)
