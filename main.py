@@ -10,8 +10,8 @@ import copy
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
 #directed graphs
-G = networkx.Graph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
-#G = networkx.Graph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
+G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
+#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
 
 
 
@@ -656,17 +656,20 @@ def calc_attr_imp(length, chosen_node, node2, node_mass):
 
     return (attr_forcex, attr_forcey)
 
-
-def calc_sink_list(adjacency_dict):
-    """
-    return a list of vertices which are sinks
-    """
-
-    #if it has no outgoing edges, but it has incoming edges, then it is a sink
-    incoming_dict =  {key: 0 for key in list(adjacency_dict.keys())} #initialize to zeros
+def calc_outgoing_edges(adjacency_dict):
+    #calculates for each vertex how many outgoing edges it has
     outgoing_dict =  {key: 0 for key in list(adjacency_dict.keys())} #initialize to zeros
+    for vertex_id in adjacency_dict:
+        for triple in adjacency_dict[vertex_id]:
+            if triple[1] == True:
+                outgoing_dict[vertex_id] += 1
+                print("The outgoing vertix is", vertex_id, "so we increment by 1")
+    
+    return outgoing_dict
 
+def calc_incoming_edges(adjacency_dict):
     #calculates for each vertex how many incoming edges it has
+    incoming_dict =  {key: 0 for key in list(adjacency_dict.keys())} #initialize to zeros
     for vertex_id in adjacency_dict:
         for triple in adjacency_dict[vertex_id]:
             if triple[1] == True:
@@ -674,12 +677,16 @@ def calc_sink_list(adjacency_dict):
                 incoming_dict[receiving_vertex] += 1
                 print("The receiving vertix is", receiving_vertex, "so we increment by 1")
 
-    #calculates for each vertex how many outgoing edges it has
-    for vertex_id in adjacency_dict:
-        for triple in adjacency_dict[vertex_id]:
-            if triple[1] == True:
-                outgoing_dict[vertex_id] += 1
-                print("The outgoing vertix is", vertex_id, "so we increment by 1")
+    return incoming_dict
+
+def calc_sink_list(adjacency_dict):
+    """
+    return a list of vertices which are sinks
+    """
+
+    #if it has no outgoing edges, but it has incoming edges, then it is a sink
+    incoming_dict =  calc_incoming_edges(adjacency_dict)
+    outgoing_dict =  calc_outgoing_edges(adjacency_dict)
     
     #adds a vertex to the sink list if it has incoming edges and no outgoing edges
     sink_list = []
@@ -695,18 +702,7 @@ def calc_source_list(adjadency_dict):
     """
     #if it has no incoming edges then it is a source, even if it has no outgoing edges
 
-    incoming_dict =  {key: 0 for key in list(adjacency_dict.keys())} #initialize to zeros
-
-    #calculates for each vertex how many incoming edges it has
-    for vertex_id in adjacency_dict:
-        for triple in adjacency_dict[vertex_id]:
-            if triple[1] == True:
-                receiving_vertex = triple[0]
-                incoming_dict[receiving_vertex] += 1
-                #print("The receiving vertix is", receiving_vertex, "so we increment by 1")
-
-    #print("adjacency dict", adjacency_dict)
-    #print("incoming dict", incoming_dict)
+    incoming_dict = calc_incoming_edges(adjacency_dict)
 
     source_list = []
     for vertex_id in incoming_dict:
@@ -715,8 +711,56 @@ def calc_source_list(adjadency_dict):
 
     return source_list
 
+def remove_cycles_eades(adjacency_dict):
+    source_list = calc_source_list(adjacency_dict)
+    sink_list = calc_sink_list(adjacency_dict)
+    vertices = list(adjacency_dict.keys())
+    incoming_edges = calc_incoming_edges(adjacency_dict)
+    outgoing_edges = calc_outgoing_edges(adjacency_dict)
+    vertex_sequence_sinks = []
+    vertex_sequence_sources = []
+
+    while vertices:
+
+        for vertex in vertices:
+            if vertex in sink_list:
+                vertex_sequence_sinks.append(vertex)
+                incoming_edges.pop(vertex)
+                outgoing_edges.pop(vertex)
+                vertices.remove(vertex)
+
+        for vertex in vertices:
+            if vertex in source_list:
+                vertex_sequence_sources.append(vertex)
+                incoming_edges.pop(vertex)
+                outgoing_edges.pop(vertex)
+                vertices.remove(vertex)
+
+        if vertices:
+            u_list = {key: 0 for key in list(incoming_edges.keys())}
+            print("u list before", u_list)
+            for vertex in incoming_edges:
+                indegree = incoming_edges[vertex]
+                outdegree = outgoing_edges[vertex]
+                delta = outdegree - indegree
+                u_list[vertex] = delta
+            u = max(zip(u_list.values(), u_list.keys()))[1]
+            print("u list after", u_list)
+            print("incoming edges", incoming_edges)
+            print("outgoing edges", outgoing_edges)
+            print("max value u", u)
+            vertex_sequence_sources.append(u)
+            incoming_edges.pop(u)
+            outgoing_edges.pop(u)
+            vertices.remove(u)
+    
+    vertex_sequence = vertex_sequence_sources + vertex_sequence_sinks
+    return vertex_sequence
+
 
 source_list = calc_source_list(adjacency_dict)
 print(source_list)
 sink_list = calc_sink_list(adjacency_dict)
 print(sink_list)
+vertex_sequence = remove_cycles_eades(adjacency_dict)
+print(vertex_sequence)
