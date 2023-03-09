@@ -656,11 +656,26 @@ def calc_attr_imp(length, chosen_node, node2, node_mass):
 
     return (attr_forcex, attr_forcey)
 
-def calc_DAG():
+def calc_DAG(width, height, dfs):
     #main function of DAG
 
-    #first call the remove cycles
-    #then the layers
+    #first remove the cycles in the DAG
+    vertex_sequence = create_vertex_seqeuence_eades(adjacency_dict)
+    acyclic_adjac_dict = reverse_edges(vertex_sequence, adjacency_dict)
+
+    #assign vertices to layers --> still have to test this!! but doesn't break anything
+    layer_dict = {key: 0 for key in list(adjacency_dict.keys())}
+    print(dfs)
+    start_vertex_ind = np.random.choice(len(dfs)) #choose a random vertex to start with
+    start_layer = np.random.randint(0,10) #choose a random start layer
+    layer_assignment_dag(dfs, adjacency_dict, layer_dict, dfs[start_vertex_ind][1], start_layer)
+    print(layer_dict)
+
+    #perform iterative crossing minimization
+
+    #assign coordinates to vertices
+
+    #reverse back edges that have been changed in the first step
     return
 
 def calc_outgoing_edges(adjacency_dict):
@@ -803,6 +818,19 @@ def reverse_edges(vertex_sequence, adjacency_dict):
     #if not, continue looping
 
     return adjacency_dict
+
+def layer_assignment_dag(dfs, to_assign_dict, layer_dict, start_vertex, start_layer):
+    """input: the adjacency dict and a dfs list with tuples of (parent_id, node_id)"""
+    to_assign = to_assign_dict.copy()
+
+    for edge in to_assign[start_vertex]:
+        if edge[1] == True:
+            layer_nr = start_layer + 1
+            layer_dict[edge[0]] = layer_nr
+        else:
+            layer_nr = start_layer - 1
+            layer_dict[edge[0]] = layer_nr
+        to_assign.pop(edge[0])
 
 
 source_list = calc_source_list(adjacency_dict)

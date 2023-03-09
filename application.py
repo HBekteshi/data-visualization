@@ -293,6 +293,10 @@ class MainWindow(QMainWindow):
         force_bfs_regeneration_action.triggered.connect(self.regenerate_force_bfs)
         self.layouts_menu.addAction(force_bfs_regeneration_action)
 
+        dag_dfs_regeneration_action = QAction("Generate DAG DFS-Initialized Layout", self)
+        dag_dfs_regeneration_action.triggered.connect(self.regenerate_dag_dfs)
+        self.layouts_menu.addAction(dag_dfs_regeneration_action)
+
          # Status Bar
         self.status = self.statusBar()
         self.status.showMessage("Graph loaded and displayed - layout: "+initial_layout)
@@ -401,6 +405,9 @@ class MainWindow(QMainWindow):
                 self.coordinates = main.create_force_layout_coordinates(width, height, self.coordinates, max_iterations=50)
             else:
                 self.coordinates = main.create_force_layout_coordinates(self.scene.width(), self.scene.height(), self.coordinates, max_iterations=50)
+        elif self.layout == "dag dfs":
+            self.depth_first_search()
+            main.calc_DAG(width, height, self.dfs) #to be completed, assign coordinates when there are any
         else:
             print("asked for layout", layout)
             raise ValueError ("Unsupported layout requested")
@@ -504,6 +511,10 @@ class MainWindow(QMainWindow):
     
     def regenerate_force_custom(self):
         self.layout = "force custom"
+        self.regenerate()
+
+    def regenerate_dag_dfs(self):
+        self.layout = "dag dfs"
         self.regenerate()
             
 # part of graph initialization:
