@@ -656,6 +656,13 @@ def calc_attr_imp(length, chosen_node, node2, node_mass):
 
     return (attr_forcex, attr_forcey)
 
+def calc_DAG():
+    #main function of DAG
+
+    #first call the remove cycles
+    #then the layers
+    return
+
 def calc_outgoing_edges(adjacency_dict):
     #calculates for each vertex how many outgoing edges it has
     outgoing_dict =  {key: 0 for key in list(adjacency_dict.keys())} #initialize to zeros
@@ -711,7 +718,7 @@ def calc_source_list(adjadency_dict):
 
     return source_list
 
-def remove_cycles_eades(adjacency_dict):
+def create_vertex_seqeuence_eades(adjacency_dict):
     source_list = calc_source_list(adjacency_dict)
     sink_list = calc_sink_list(adjacency_dict)
     vertices = list(adjacency_dict.keys())
@@ -757,10 +764,52 @@ def remove_cycles_eades(adjacency_dict):
     vertex_sequence = vertex_sequence_sources + vertex_sequence_sinks
     return vertex_sequence
 
+    # if weighted:
+    #     weight = G[u][v]["weight"]
+    #     adjacency_dict[u].append((v,True, weight))          # True = will be rendered graphically; False = has already been rendered graphically
+    #     adjacency_dict[v].append((u,False, weight))         # for directed graph, make sure direction is u-->v for True 
+
+def reverse_edges(vertex_sequence, adjacency_dict):
+
+    for index, vertex in enumerate(vertex_sequence):
+        edges = adjacency_dict[vertex]
+        for edge in edges:
+            if(edge[1] == True):
+                receiving_vertex = edge[0]
+                receiving_vertex_index = vertex_sequence.index(receiving_vertex)
+                if(receiving_vertex_index < index):
+                    print("vertex with index", index, "has an edge pointing back to vertex index", receiving_vertex_index)
+                    #reverse the edge
+                    new_edge_uv = (edge[0], False, edge[2])
+                    new_edge_vu = (vertex, True, edge[2])
+                    old_edge_vu = (vertex, False, edge[2])
+                    new_edge_list = edges
+                    #delete old entry from dictionary
+                    print("remove edge", edge, "from adjacency dict from", vertex)
+                    new_edge_list.remove(edge) #from current vertex
+                    print("remove edge", old_edge_vu, "from adjacency dict from", edge[0])
+                    adjacency_dict[edge[0]].remove(old_edge_vu) #from receiving vertex
+                    #add new entry to dictionary
+                    print("add edge", new_edge_uv, "to adjacency dict from", vertex)
+                    new_edge_list.append(new_edge_uv)
+                    adjacency_dict[vertex] = new_edge_list
+                    print("add edge", new_edge_vu, "to adjacency dict from", edge[0])
+                    adjacency_dict[edge[0]].append(new_edge_vu)
+
+    #loop through the vertex sequence
+    #check for each vertex if it has an edge that point to a vertex with a lower index in the list
+        #use index() function for this
+    #if so, reverse that edge
+    #if not, continue looping
+
+    return adjacency_dict
+
 
 source_list = calc_source_list(adjacency_dict)
 print(source_list)
 sink_list = calc_sink_list(adjacency_dict)
 print(sink_list)
-vertex_sequence = remove_cycles_eades(adjacency_dict)
-print(vertex_sequence)
+vertex_sequence = create_vertex_seqeuence_eades(adjacency_dict)
+print("before", adjacency_dict)
+adjac = reverse_edges(vertex_sequence, adjacency_dict)
+print("after", adjac)
