@@ -661,7 +661,7 @@ def calc_DAG(width, height, dfs):
 
     #first remove the cycles in the DAG
     vertex_sequence = create_vertex_seqeuence_eades(adjacency_dict)
-    acyclic_adjac_dict = reverse_edges(vertex_sequence, adjacency_dict)
+    acyclic_adjac_dict, reversed_list = reverse_edges(vertex_sequence, adjacency_dict)
 
     #assign vertices to layers --> still have to test this!! but doesn't break anything 
     print(dfs)
@@ -677,13 +677,17 @@ def calc_DAG(width, height, dfs):
     print(layer_dict)
 
     #perform iterative crossing minimization
+    # --> input the layer dictionary and adjacency dictionary at least
+    #TODO
 
     #assign coordinates to vertices 
-    # --> placeholder with random coordinates, need to make a new function for this that bases the coordinates on the layer_dict
-    coordinates = create_random_coordinates(width, height, acyclic_adjac_dict)
+    # --> placeholder with random coordinates to test application, need to make a new function for this that bases the coordinates on the iterative crossing output
+    #TODO
+    coordinates = create_random_coordinates(width, height, adjacency_dict)
 
-    #reverse back edges that have been changed in the first step
-    return
+    #reverse back edges that have been changed in the first step with the reversed list made in the reverse_edges function
+    #TODO
+    return coordinates #and something else such that it can read the directions of the edges?
 
 def calc_outgoing_edges(adjacency_dict):
     #calculates for each vertex how many outgoing edges it has
@@ -792,7 +796,7 @@ def create_vertex_seqeuence_eades(adjacency_dict):
     #     adjacency_dict[v].append((u,False, weight))         # for directed graph, make sure direction is u-->v for True 
 
 def reverse_edges(vertex_sequence, adjacency_dict):
-
+    reversed_list = [] #a list of (x,y) which indicate that the edge between xy has been reversed
     for index, vertex in enumerate(vertex_sequence):
         edges = adjacency_dict[vertex]
         for edge in edges:
@@ -802,9 +806,11 @@ def reverse_edges(vertex_sequence, adjacency_dict):
                 if(receiving_vertex_index < index):
                     print("vertex with index", index, "has an edge pointing back to vertex index", receiving_vertex_index)
                     #reverse the edge
-                    new_edge_uv = (edge[0], False, edge[2])
-                    new_edge_vu = (vertex, True, edge[2])
-                    old_edge_vu = (vertex, False, edge[2])
+                    weight = edge[2]
+                    new_edge_uv = (edge[0], False, weight)
+                    new_edge_vu = (vertex, True, weight)
+                    old_edge_vu = (vertex, False, weight)
+                    reversed_list.append((vertex, edge[0])) #add to the list of edges that have been reversed
                     new_edge_list = edges
                     #delete old entry from dictionary
                     print("remove edge", edge, "from adjacency dict from", vertex)
@@ -824,7 +830,7 @@ def reverse_edges(vertex_sequence, adjacency_dict):
     #if so, reverse that edge
     #if not, continue looping
 
-    return adjacency_dict
+    return adjacency_dict, reversed_list
 
 def layer_assignment_dag(dfs, adjacency_dict, to_assign, layer_dict, vertex, start_layer):
     """input: the adjacency dict and a dfs list with tuples of (parent_id, node_id)"""

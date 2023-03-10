@@ -407,7 +407,7 @@ class MainWindow(QMainWindow):
                 self.coordinates = main.create_force_layout_coordinates(self.scene.width(), self.scene.height(), self.coordinates, max_iterations=50)
         elif self.layout == "dag dfs":
             self.depth_first_search()
-            main.calc_DAG(width, height, self.dfs) #to be completed, assign coordinates when there are any
+            self.coordinates = main.calc_DAG(width, height, self.dfs) #to be completed, assign coordinates when there are any
         else:
             print("asked for layout", layout)
             raise ValueError ("Unsupported layout requested")
