@@ -825,12 +825,12 @@ def reverse_edges(vertex_sequence, adjacency_dict):
 def layer_assignment_dag(dfs, adjacency_dict):
     """input: the adjacency dict and a dfs list with tuples of (parent_id, node_id)"""
     #print("inside function with start vertex", vertex)
-    start_layer = 0 #choose a random start layer
     layer_dict = {key: 0 for key in list(adjacency_dict.keys())}
     to_assign = {key: False for key in list(adjacency_dict.keys())}
 
     for tuple in dfs:
         start_vertex = tuple[1]
+        #layer_dict[start_vertex] = 0
         print("inside for with start vertex", start_vertex)
         for edge in adjacency_dict[start_vertex]:
             print("inside for with vertex", edge[0], "with start vertex", start_vertex)
@@ -849,14 +849,24 @@ def layer_assignment_dag(dfs, adjacency_dict):
             else:
                 print(start_vertex, "is already assigned to layer", layer_dict[start_vertex])
 
-    #ensure minimum value is 0, and increase all values with the difference            
+    #ensure minimum value is 0, and increase all values with the difference
+    # puts nodes in a dictionary that has all in the nodes in a list with a layer value as key           
+
     minimum_val = min(layer_dict.values())
     for layer in layer_dict:
         layer_dict[layer] += abs(minimum_val)
 
+    nodes_per_layer = {key: [] for key in set(list(layer_dict.values()))}
+    print("all values layers,", layer_dict.values())
+    print("node layer dict", nodes_per_layer)
+    for node in layer_dict:
+        layer_value = layer_dict[node]
+        nodes_per_layer[layer_value].append(node)
+
     print("to assign dict", to_assign)    
     print("layer dict", layer_dict)
-    return layer_dict
+    print("nodes per layer dict", nodes_per_layer)
+    return nodes_per_layer
 
 # def layer_assignment_dag(dfs, adjacency_dict, layer_dict, to_assign, start_layer):
 #     """input: the adjacency dict and a dfs list with tuples of (parent_id, node_id)"""
