@@ -661,20 +661,11 @@ def calc_DAG(width, height, dfs):
 
     #first remove the cycles in the DAG
     vertex_sequence = create_vertex_seqeuence_eades(adjacency_dict)
-    acyclic_adjac_dict, reversed_list = reverse_edges(vertex_sequence, adjacency_dict)
+    acyclic_adjacency_dict, reversed_list = reverse_edges(vertex_sequence, adjacency_dict)
 
     #assign vertices to layers --> still have to test this!! but doesn't break anything 
-    print(dfs)
-    start_vertex_ind = np.random.choice(len(dfs)) #choose a random vertex to start with
-    start_layer = np.random.randint(0,10) #choose a random start layer
-    layer_dict = {key: 0 for key in list(adjacency_dict.keys())}
-    layer_dict[dfs[start_vertex_ind][1]] = start_layer
-    print(acyclic_adjac_dict)
-    print("start vertex", dfs[start_vertex_ind][1])
-    print("start layer,", start_layer)
-    to_assign = {key: False for key in list(adjacency_dict.keys())}
-    layer_assignment_dag(dfs, adjacency_dict, to_assign, layer_dict, dfs[start_vertex_ind][1], start_layer)
-    print(layer_dict)
+    print(acyclic_adjacency_dict)
+    layer_dict = layer_assignment_dag(dfs, acyclic_adjacency_dict)
 
     #perform iterative crossing minimization
     # --> input the layer dictionary and adjacency dictionary at least
@@ -832,12 +823,18 @@ def reverse_edges(vertex_sequence, adjacency_dict):
 
     return adjacency_dict, reversed_list
 
-def layer_assignment_dag(dfs, adjacency_dict, to_assign, layer_dict, vertex, start_layer):
+def layer_assignment_dag(dfs, adjacency_dict):
     """input: the adjacency dict and a dfs list with tuples of (parent_id, node_id)"""
-    print("inside function with start vertex", vertex)
-    for start_vertex in adjacency_dict:
+    #print("inside function with start vertex", vertex)
+    start_layer = 0 #choose a random start layer
+    layer_dict = {key: 0 for key in list(adjacency_dict.keys())}
+    to_assign = {key: False for key in list(adjacency_dict.keys())}
+
+    for tuple in dfs:
+        start_vertex = tuple[1]
+        print("inside for with start vertex", start_vertex)
         for edge in adjacency_dict[start_vertex]:
-            print("inside for with start vertex", start_vertex)
+            print("inside for with vertex", edge[0], "with start vertex", start_vertex)
             if to_assign[edge[0]] == False:
                 print("inside if with start vertex", start_vertex)
                 if edge[1] == True:
@@ -853,13 +850,40 @@ def layer_assignment_dag(dfs, adjacency_dict, to_assign, layer_dict, vertex, sta
             else:
                 print(start_vertex, "is already assigned to layer", layer_dict[start_vertex])
 
+    #ensure minimum value is 0, and increase all values with the difference            
+    minimum_val = min(layer_dict.values())
+    for layer in layer_dict:
+        layer_dict[layer] += abs(minimum_val)
+
+    print("to assign dict", to_assign)    
+    print("layer dict", layer_dict)
+    return layer_dict
+
+# def layer_assignment_dag(dfs, adjacency_dict, layer_dict, to_assign, start_layer):
+#     """input: the adjacency dict and a dfs list with tuples of (parent_id, node_id)"""
+#     for tuple in adjacency_dict:
+#         start_vertex = tuple
+#         for edge in adjacency_dict[start_vertex]:
+#             #print("inside for with start vertex", start_vertex)
+#             if to_assign[edge[0]] == False:
+#                 #print("inside if with start vertex", start_vertex)
+#                 if edge[1] == True:
+#                     layer_nr = start_layer + 1
+#                     layer_dict[edge[0]] = layer_nr
+#                     print("vertex", edge[0], "with parent node", start_vertex, "is assigned layer", layer_nr)
+#                 else:
+#                     layer_nr = start_layer - 1
+#                     layer_dict[edge[0]] = layer_nr
+#                     print("vertex", edge[0], "with previous adjacent node", start_vertex, "is assigned layer", layer_nr)
+#                 to_assign[start_vertex] = True
+#                 layer_assignment_dag(dfs, adjacency_dict, layer_dict, to_assign, layer_nr)
+#             else:
+#                 print(start_vertex, "is already assigned to layer", layer_dict[start_vertex])
+#     return layer_dict
+
 
 
 print("before", adjacency_dict)
-source_list = calc_source_list(adjacency_dict)
-print(source_list)
-sink_list = calc_sink_list(adjacency_dict)
-print(sink_list)
 vertex_sequence = create_vertex_seqeuence_eades(adjacency_dict)
 adjac = reverse_edges(vertex_sequence, adjacency_dict)
 print("after", adjac)
