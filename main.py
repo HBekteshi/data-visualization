@@ -729,7 +729,7 @@ def calc_sink_list(adjacency_dict):
 
     return sink_list
 
-def calc_source_list(adjadency_dict):
+def calc_source_list(adjacency_dict):
     """
     return a list of vertices which are sources
     """
@@ -855,11 +855,11 @@ def layer_assignment_dag(dfs, adjacency_dict, to_assign, layer_dict, vertex, sta
 
 
 
+print("before", adjacency_dict)
 source_list = calc_source_list(adjacency_dict)
 print(source_list)
 sink_list = calc_sink_list(adjacency_dict)
 print(sink_list)
 vertex_sequence = create_vertex_seqeuence_eades(adjacency_dict)
-print("before", adjacency_dict)
 adjac = reverse_edges(vertex_sequence, adjacency_dict)
 print("after", adjac)
