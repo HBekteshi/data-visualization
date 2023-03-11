@@ -1,11 +1,10 @@
 
 import sys
 from collections import deque
-from PySide6 import QtCore, QtGui, QtWidgets
 
-from PySide6.QtCore import Slot, QRectF, Qt, QLineF
-from PySide6.QtGui import QAction, QKeySequence, QPainter, QPen, QColor, QBrush
-from PySide6.QtWidgets import QMainWindow, QApplication, QLabel, QPushButton, QGraphicsScene, QGraphicsView, QGraphicsObject, QGraphicsItem, QStyleOptionGraphicsItem, QHBoxLayout, QWidget
+from PySide6.QtCore import QRectF, Qt, QLineF, QPointF
+from PySide6.QtGui import QAction, QKeySequence, QPainter, QPen, QColor, QBrush, QPolygonF
+from PySide6.QtWidgets import QMainWindow, QApplication, QGraphicsScene, QGraphicsView, QGraphicsObject, QGraphicsItem, QStyleOptionGraphicsItem, QWidget
 
 import numpy as np
 
@@ -50,6 +49,8 @@ class Vertex(QGraphicsObject):
         self.y_coord = -y
 
         self.window.update_node_position(self.id, self.x_coord, self.y_coord)
+
+        self.window.scene.update()
 
         #print("dragged node",self.id,"to position",self.x_coord,self.y_coord)
 
@@ -139,6 +140,7 @@ class Vertex(QGraphicsObject):
         #    print("scenepos",self.scenePos(),"itemChange value", value, "x and y", x, y)
         #    print("scenerect",self.scene().sceneRect.x(),self.scene().sceneRect.y())
             self.update_edges()
+            self.window.scene.update()
 
         return super().itemChange(change, value)
 
@@ -164,6 +166,8 @@ class Edge(QGraphicsItem):
         self.thickness = 2
 
         self.calculate_location()
+
+        self.arrow_size = 10
 
     def calculate_location(self):
         self.prepareGeometryChange()
@@ -191,7 +195,51 @@ class Edge(QGraphicsItem):
                     Qt.RoundJoin,
                 )
             )
-            painter.drawLine(self.line)
+            
+            if main.G.is_directed() == True:
+               self.draw_arrow(painter, self.line.p1(), self.arrow_target())
+               self.arrow_target()
+            else:
+                painter.drawLine(self.line)
+
+# function adapted from the QT for Python documentation examples
+    def draw_arrow(self, painter: QPainter, start: QPointF, end: QPointF):
+        painter.setBrush(QBrush(self.color))
+
+        line = QLineF(end, start)
+
+        angle = np.arctan2(-line.dy(), line.dx())
+        arrow_p1 = line.p1() + QPointF(
+            np.sin(angle + np.pi / 3) * self.arrow_size,
+            np.cos(angle + np.pi / 3) * self.arrow_size,
+        )
+        arrow_p2 = line.p1() + QPointF(
+            np.sin(angle + np.pi - np.pi / 3) * self.arrow_size,
+            np.cos(angle + np.pi - np.pi / 3) * self.arrow_size,
+        )
+
+        arrow_head = QPolygonF()
+        arrow_head.clear()
+        arrow_head.append(line.p1())
+        arrow_head.append(arrow_p1)
+        arrow_head.append(arrow_p2)
+        painter.drawLine(line)
+        painter.drawPolygon(arrow_head)
+
+# function adapted from the QT for Python documentation examples        
+    def arrow_target(self) -> QPointF:
+        target = self.line.p1()
+        center = self.line.p2()
+        radius = self.end.radius
+        vector = target - center
+        length = np.sqrt(vector.x() ** 2 + vector.y() ** 2)
+        if length == 0:
+            return target
+        normal = vector / length
+        target = QPointF(center.x() + (normal.x() * radius), center.y() + (normal.y() * radius))
+
+        return target
+
         
 
 
@@ -243,6 +291,16 @@ class MainWindow(QMainWindow):
         radius_decrease_action = QAction("Decrease Node Size",self)
         radius_decrease_action.triggered.connect(self.vertices_decrease_radius)
         self.actions_menu.addAction(radius_decrease_action)
+
+        arrow_increase_action = QAction("Increase Arrow Size", self)
+        arrow_increase_action.triggered.connect(self.arrow_increase_size)
+
+        arrow_decrease_action = QAction("Decrease Arrow Size", self)
+        arrow_decrease_action.triggered.connect(self.arrow_decrease_size)
+
+        if main.G.is_directed() == True:
+            self.actions_menu.addAction(arrow_increase_action)
+            self.actions_menu.addAction(arrow_decrease_action)
 
         dynamic_force_layout_action = QAction("Enable Dynamic Forces on Force-Directed Layout",self)
         dynamic_force_layout_action.triggered.connect(self.toggle_dynamic_forces)
@@ -549,7 +607,19 @@ class MainWindow(QMainWindow):
                 v.radius += 5
                 v.update_edges()
         self.scene.update()
-                        
+
+    def arrow_increase_size(self):
+        for e in self.scene.items():
+            if e.__name__ == 'Edge':
+                e.arrow_size += 2
+        self.scene.update()
+
+    def arrow_decrease_size(self):
+        for e in self.scene.items():
+            if e.__name__ == 'Edge':
+                e.arrow_size = max(0, e.arrow_size - 2)
+        self.scene.update()
+                    
     def vertices_toggle_movability(self):
         for v in self.scene.items():
             if v.__name__ == 'Vertex':
@@ -666,7 +736,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict, "force random", default_radius=10)
+    window = MainWindow(main.adjacency_dict, "dag dfs", default_radius=10)
     window.show()
 
     

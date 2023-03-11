@@ -14,7 +14,6 @@ G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the
 #G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
 
 
-
 printing_mode = False
 
 print("Data loaded")
@@ -687,7 +686,7 @@ def calc_outgoing_edges(adjacency_dict):
         for triple in adjacency_dict[vertex_id]:
             if triple[1] == True:
                 outgoing_dict[vertex_id] += 1
-                print("The outgoing vertix is", vertex_id, "so we increment by 1")
+          #      print("The outgoing vertix is", vertex_id, "so we increment by 1")
     
     return outgoing_dict
 
@@ -699,7 +698,7 @@ def calc_incoming_edges(adjacency_dict):
             if triple[1] == True:
                 receiving_vertex = triple[0]
                 incoming_dict[receiving_vertex] += 1
-                print("The receiving vertix is", receiving_vertex, "so we increment by 1")
+           #     print("The receiving vertix is", receiving_vertex, "so we increment by 1")
 
     return incoming_dict
 
@@ -762,17 +761,17 @@ def create_vertex_seqeuence_eades(adjacency_dict):
 
         if vertices:
             u_list = {key: 0 for key in list(incoming_edges.keys())}
-            print("u list before", u_list)
+            # print("u list before", u_list)
             for vertex in incoming_edges:
                 indegree = incoming_edges[vertex]
                 outdegree = outgoing_edges[vertex]
                 delta = outdegree - indegree
                 u_list[vertex] = delta
             u = max(zip(u_list.values(), u_list.keys()))[1]
-            print("u list after", u_list)
-            print("incoming edges", incoming_edges)
-            print("outgoing edges", outgoing_edges)
-            print("max value u", u)
+            # print("u list after", u_list)
+            # print("incoming edges", incoming_edges)
+            # print("outgoing edges", outgoing_edges)
+            # print("max value u", u)
             vertex_sequence_sources.append(u)
             incoming_edges.pop(u)
             outgoing_edges.pop(u)
@@ -838,11 +837,11 @@ def layer_assignment_dag(dfs, adjacency_dict):
             if to_assign[edge[0]] == False:
                 print("inside if with start vertex", start_vertex)
                 if edge[1] == True:
-                    layer_nr = start_layer + 1
+                    layer_nr = layer_dict[start_vertex] + 1
                     layer_dict[edge[0]] = layer_nr
                     print("vertex", edge[0], "with parent node", start_vertex, "is assigned layer", layer_nr)
                 else:
-                    layer_nr = start_layer - 1
+                    layer_nr = layer_dict[start_vertex] - 1
                     layer_dict[edge[0]] = layer_nr
                     print("vertex", edge[0], "with previous adjacent node", start_vertex, "is assigned layer", layer_nr)
                 to_assign[start_vertex] = True
