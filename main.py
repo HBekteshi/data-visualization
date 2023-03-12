@@ -10,8 +10,8 @@ import copy
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
 #directed graphs
-G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
-#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
+#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
+G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
 
 
 printing_mode = False
@@ -664,11 +664,14 @@ def calc_DAG(width, height, dfs):
 
     #assign vertices to layers --> still have to test this!! but doesn't break anything 
     print(acyclic_adjacency_dict)
-    layer_dict = layer_assignment_dag(dfs, acyclic_adjacency_dict)
+    layer_dict, nodes_per_layer = layer_assignment_dag(dfs, acyclic_adjacency_dict)
 
     #perform iterative crossing minimization
     # --> input the layer dictionary and adjacency dictionary at least
-    #TODO
+    dummy_nodes_per_layer, dummy_adjacency_dict = minimize_crossings(layer_dict, nodes_per_layer, acyclic_adjacency_dict)
+
+    # the order of layer N is the order of the list that is gotten by calling dummy_nodes_per_layer[N]
+    # dummy nodes have edges' weight == False, real node edges have weights with an integer value
 
     #assign coordinates to vertices 
     # --> placeholder with random coordinates to test application, need to make a new function for this that bases the coordinates on the iterative crossing output
@@ -831,23 +834,24 @@ def layer_assignment_dag(dfs, adjacency_dict):
     for tuple in dfs:
         start_vertex = tuple[1]
         #layer_dict[start_vertex] = 0
-        print("inside for with start vertex", start_vertex)
+  #      print("inside for with start vertex", start_vertex)
         for edge in adjacency_dict[start_vertex]:
-            print("inside for with vertex", edge[0], "with start vertex", start_vertex)
+   #         print("inside for with vertex", edge[0], "with start vertex", start_vertex)
             if to_assign[edge[0]] == False:
-                print("inside if with start vertex", start_vertex)
+     #           print("inside if with start vertex", start_vertex)
                 if edge[1] == True:
                     layer_nr = layer_dict[start_vertex] + 1
                     layer_dict[edge[0]] = layer_nr
-                    print("vertex", edge[0], "with parent node", start_vertex, "is assigned layer", layer_nr)
+     #               print("vertex", edge[0], "with parent node", start_vertex, "is assigned layer", layer_nr)
                 else:
                     layer_nr = layer_dict[start_vertex] - 1
                     layer_dict[edge[0]] = layer_nr
-                    print("vertex", edge[0], "with previous adjacent node", start_vertex, "is assigned layer", layer_nr)
+      #              print("vertex", edge[0], "with previous adjacent node", start_vertex, "is assigned layer", layer_nr)
                 to_assign[start_vertex] = True
                 #layer_assignment_dag(dfs, adjacency_dict, to_assign, layer_dict, edge[0], layer_nr)
             else:
-                print(start_vertex, "is already assigned to layer", layer_dict[start_vertex])
+                if printing_mode:
+                    print(start_vertex, "is already assigned to layer", layer_dict[start_vertex])
 
     #ensure minimum value is 0, and increase all values with the difference
     # puts nodes in a dictionary that has all in the nodes in a list with a layer value as key           
@@ -866,7 +870,8 @@ def layer_assignment_dag(dfs, adjacency_dict):
     print("to assign dict", to_assign)    
     print("layer dict", layer_dict)
     print("nodes per layer dict", nodes_per_layer)
-    return nodes_per_layer
+    return layer_dict, nodes_per_layer
+
 
 # def layer_assignment_dag(dfs, adjacency_dict, layer_dict, to_assign, start_layer):
 #     """input: the adjacency dict and a dfs list with tuples of (parent_id, node_id)"""
@@ -889,6 +894,80 @@ def layer_assignment_dag(dfs, adjacency_dict):
 #             else:
 #                 print(start_vertex, "is already assigned to layer", layer_dict[start_vertex])
 #     return layer_dict
+
+
+# step 1: create dummy nodes --> add to layers
+# step 2: create comparison function between two adjacent layers (two different functions, median and barycenter)
+# step 3: go through the entire graph, first upwards, then downwards
+# step 4: count crossings, see if there is improvement --> if not then stop, if yes then back to step 3
+
+
+
+def minimize_crossings(layer_dict, nodes_per_layer, acyclic_adjacency_dict):
+    print("acyclic adjacency dict:", acyclic_adjacency_dict)
+    dummy_nodes_per_layer, dummy_adjacency_dict = create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict)
+    print("dummy_nodes_per_layer:", dummy_nodes_per_layer)
+    print("dummy_adjacency_dict:", dummy_adjacency_dict)
+
+    #TODO: reorganize the nodes in the value lists of dummy_nodes_per_layer
+    # the order of layer N is the list that is gotten by calling dummy_nodes_per_layer[N]
+
+    return dummy_nodes_per_layer, dummy_adjacency_dict
+
+
+def create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict):
+    dummy_adjacency_dict = copy.deepcopy(acyclic_adjacency_dict)
+    dummy_nodes_per_layer = copy.deepcopy(nodes_per_layer)
+
+    for start_node_id, edges in acyclic_adjacency_dict.items():
+        start_layer = layer_dict[start_node_id]
+        for edge in edges:
+            if edge[1] == True:                 # we only look at edges that go from a lower layer to a higher layer
+                end_node_id = edge[0]
+                end_layer = layer_dict[end_node_id]
+                layer_difference = end_layer - start_layer
+                if layer_difference > 1:
+                    for count in range(layer_difference - 1):
+
+                        dummy_layer = start_layer  + count + 1
+
+                        dummy_id = "dummy " + start_node_id + " to " + end_node_id + " in layer " + str(dummy_layer)
+
+                        if count == (layer_difference - 2):
+                            target_id = end_node_id
+                        else:
+                            target_id = "dummy " + start_node_id + " to " + end_node_id + " in layer " + str(dummy_layer + 1)
+
+                        if printing_mode:
+                            print("trying to create", dummy_id)
+                            
+                    
+                        if dummy_id not in dummy_nodes_per_layer[dummy_layer]:
+                            dummy_nodes_per_layer[dummy_layer].append(dummy_id)
+
+                            if printing_mode:
+                                print("successfully created", dummy_id)
+
+                            if dummy_adjacency_dict.get(dummy_id) == None:
+                                dummy_adjacency_dict[dummy_id] = [target_id, True, False]        # all dummy nodes have weight False
+                            else:
+                                dummy_adjacency_dict[dummy_id].append([target_id, True, False])        
+
+                            if dummy_adjacency_dict.get(target_id) == None:
+                                dummy_adjacency_dict[target_id] = [dummy_id, False, False]
+                            else:
+                                dummy_adjacency_dict[target_id].append([dummy_id, False, False])
+                        else:
+                            if printing_mode:
+                                print("failed to create", dummy_id)
+
+    return dummy_nodes_per_layer, dummy_adjacency_dict
+
+
+def permute_layer(previous_layer, current_layer):
+    pass
+
+
 
 
 

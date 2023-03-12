@@ -595,17 +595,19 @@ class MainWindow(QMainWindow):
                         print ("added edge from", start_id, "to", end_id,"with weight",weight)
                     
     def vertices_decrease_radius(self):
-        for v in self.scene.items():
-            if v.__name__ == 'Vertex':
-                v.radius = max(5, v.radius-5)
-                v.update_edges()
+        for v in self.vertices.values():
+            v.radius = max(5, v.radius-5)
+            v.update_edges()        
+        # for v in self.scene.items():
+        #     if v.__name__ == 'Vertex':
+        #         v.radius = max(5, v.radius-5)
+        #         v.update_edges()
         self.scene.update()
 
     def vertices_increase_radius(self):
-        for v in self.scene.items():
-            if v.__name__ == 'Vertex':
-                v.radius += 5
-                v.update_edges()
+        for v in self.vertices.values():
+            v.radius += 5
+            v.update_edges()
         self.scene.update()
 
     def arrow_increase_size(self):
