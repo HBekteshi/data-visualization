@@ -4,14 +4,16 @@ import numpy as np
 import math
 import copy
 
+import queue
+
 #undirected graphs
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
 #directed graphs
-#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
-G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
+G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
+#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
 
 
 printing_mode = False
@@ -668,10 +670,11 @@ def calc_DAG(width, height, dfs):
 
     #perform iterative crossing minimization
     # --> input the layer dictionary and adjacency dictionary at least
-    dummy_nodes_per_layer, dummy_adjacency_dict = minimize_crossings(layer_dict, nodes_per_layer, acyclic_adjacency_dict)
+    dummy_nodes_per_layer, dummy_adjacency_dict, relative_positions_in_layer = minimize_crossings(layer_dict, nodes_per_layer, acyclic_adjacency_dict)
 
     # the order of layer N is the order of the list that is gotten by calling dummy_nodes_per_layer[N]
     # dummy nodes have edges' weight == False, real node edges have weights with an integer value
+    # relative_positions_in_layer[node_id] = ordinality of this node in its layer (integer value starting from 0)
 
     #assign coordinates to vertices 
     # --> placeholder with random coordinates to test application, need to make a new function for this that bases the coordinates on the iterative crossing output
@@ -911,11 +914,117 @@ def minimize_crossings(layer_dict, nodes_per_layer, acyclic_adjacency_dict):
 
     #TODO: reorganize the nodes in the value lists of dummy_nodes_per_layer
     # the order of layer N is the list that is gotten by calling dummy_nodes_per_layer[N]
+    
+    number_of_layers = len(dummy_nodes_per_layer.keys())
 
-    return dummy_nodes_per_layer, dummy_adjacency_dict
+    # initiate relative positions of nodes within a layer
+
+    
+    relative_positions_in_layer = {}
+    for layer, nodes in dummy_nodes_per_layer.items():
+        for count in range(len(nodes)):
+            relative_positions_in_layer[nodes[count]] = count
+
+    # relative_positions_in_layer = queue.PriorityQueue()
+    # for layer, nodes in dummy_nodes_per_layer.items():
+    #     for count in range(len(nodes)):
+    #         relative_positions_in_layer.put((count, nodes[count]))
+
+    print("initial relative positions:", relative_positions_in_layer)
+
+    # calculate direct layer neighbours of each sequential layer pair
+    downwards_neighbours_set = []
+    upwards_neighbours_set = []
+    downwards_degrees = {}
+    upwards_degrees = {}
+        
+    for layer in range(number_of_layers):
+        if layer != 0:
+            node_neighbours, upwards_degrees = get_layer_neighbours(dummy_adjacency_dict, dummy_nodes_per_layer[layer-1], dummy_nodes_per_layer[layer], upwards_degrees)
+            upwards_neighbours_set.append(node_neighbours)
+        if layer != (number_of_layers - 1):
+            node_neighbours, downwards_degrees = get_layer_neighbours(dummy_adjacency_dict, dummy_nodes_per_layer[layer + 1], dummy_nodes_per_layer[layer], downwards_degrees)
+            downwards_neighbours_set.append(node_neighbours)
+        
+    downwards_neighbours_set.reverse()         
+
+# TODO: add iteration: after doing a pair of upward/downward passes, compare number of crossings before and after, if worse, stop and keep previous
+    
+    # one upward pass:
+    for neighbours_set in upwards_neighbours_set:
+        relative_positions_in_layer = permute_layer(neighbours_set, upwards_degrees, relative_positions_in_layer)
+
+    print("after upwards pass, the rel pos dict is:", relative_positions_in_layer)
+    
+    # one downward pass:
+    for neighbours_set in downwards_neighbours_set:
+        relative_positions_in_layer = permute_layer(neighbours_set, downwards_degrees, relative_positions_in_layer)
+
+    print("after downwards pass, the rel pos dict is:", relative_positions_in_layer)
+
+    return dummy_nodes_per_layer, dummy_adjacency_dict, relative_positions_in_layer
+
+
+def permute_layer(node_neighbours, degrees, relative_positions_in_layer, method = "barycenter"):
+    
+    #print("relative position in layer", relative_positions_in_layer)
+    if method == "barycenter":
+        proposed_positions = queue.PriorityQueue()          # contains items in the form (relative location, node_id), .get() extracts node id with smallest location
+
+        for node_id, neighbours in node_neighbours.items():
+            degree = degrees[node_id]
+            if degree == 0:
+                proposed_position = relative_positions_in_layer[node_id]
+            else:
+                sum = 0
+    #            print("neighbours", neighbours)
+                for neighbour_node in neighbours:
+     #               print("neighbour node:",neighbour_node)
+      #              print("rel pos:", relative_positions_in_layer[neighbour_node])
+                    sum += relative_positions_in_layer[neighbour_node]
+                proposed_position = (sum / degree)
+            proposed_positions.put((proposed_position, node_id))
+        
+
+        count = 0
+        while (proposed_positions.qsize() > 0):
+            node_id = proposed_positions.get()[1]
+            #print("we extract from the pqueue:", node_id)
+            relative_positions_in_layer[node_id] = count
+          #  print("placing node",node_id,"into position",count)
+            count += 1
+
+        return relative_positions_in_layer
+
+    elif method == "median":
+        #TODO
+        pass
+    else:
+        raise ValueError ("unsupported layout permutation function requested")
+    
+
+def get_layer_neighbours(dummy_adjacency_dict, previous_layer, current_layer, degrees):
+
+    node_neighbours = {}
+
+    for node in current_layer:
+        node_neighbours[node] = []
+        edges = dummy_adjacency_dict[node]
+        for edge in edges:
+            end_node_id = edge[0]
+            if (end_node_id in previous_layer) and (end_node_id not in node_neighbours[node]):
+                node_neighbours[node].append(end_node_id)
+        degrees[node] = len(node_neighbours[node])
+                                                     # degrees[node_id] = count of how many neighbouring nodes are in the previous layer
+    return node_neighbours, degrees                  # node_neighbours[node_id] = list of neighbouring node_ids that are in the previous layer
+
+
 
 
 def create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict):
+
+  # the order of layer N is the list that is gotten by calling dummy_nodes_per_layer[N]
+    
     dummy_adjacency_dict = copy.deepcopy(acyclic_adjacency_dict)
     dummy_nodes_per_layer = copy.deepcopy(nodes_per_layer)
 
@@ -943,20 +1052,25 @@ def create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict):
                             
                     
                         if dummy_id not in dummy_nodes_per_layer[dummy_layer]:
+                            
                             dummy_nodes_per_layer[dummy_layer].append(dummy_id)
+                            
 
                             if printing_mode:
                                 print("successfully created", dummy_id)
 
+                            
+
                             if dummy_adjacency_dict.get(dummy_id) == None:
-                                dummy_adjacency_dict[dummy_id] = [target_id, True, False]        # all dummy nodes have weight False
+                                dummy_adjacency_dict[dummy_id] = [(target_id, True, False)]        # all dummy nodes have weight False
                             else:
-                                dummy_adjacency_dict[dummy_id].append([target_id, True, False])        
+                                dummy_adjacency_dict[dummy_id].append((target_id, True, False))        
 
                             if dummy_adjacency_dict.get(target_id) == None:
-                                dummy_adjacency_dict[target_id] = [dummy_id, False, False]
+                                dummy_adjacency_dict[target_id] = [(dummy_id, False, False)]
                             else:
-                                dummy_adjacency_dict[target_id].append([dummy_id, False, False])
+                                dummy_adjacency_dict[target_id].append((dummy_id, False, False))
+
                         else:
                             if printing_mode:
                                 print("failed to create", dummy_id)
@@ -964,8 +1078,6 @@ def create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict):
     return dummy_nodes_per_layer, dummy_adjacency_dict
 
 
-def permute_layer(previous_layer, current_layer):
-    pass
 
 
 
