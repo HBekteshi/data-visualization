@@ -671,39 +671,57 @@ def calc_DAG(width, height, dfs):
     # layer_dict[node_id] = # of layer of that node;  
     # nodes_per_layer[# of layer] = list of all nodes in that layer
 
+    # create dummy vertices for edges that span multiple layers
+    dummy_nodes_per_layer, dummy_adjacency_dict = create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict)
+    print("dummy_nodes_per_layer:", dummy_nodes_per_layer)
+    print("dummy_adjacency_dict:", dummy_adjacency_dict)
 
-    # get initial x-coordinates of vertices
-    n_layers = len(nodes_per_layer)
-    layer_height = height / n_layers
-    layer_width = width / n_layers
+    
+
+
+       # get y-coordinates and initial x-coordinates of vertices
+    n_layers = len(dummy_nodes_per_layer)
+    layer_height_spacing = height / (n_layers+1)            # could also try just (n_layers)
 
     x_coords_dict = {}
+    y_coords_dict = {}
 
-    # Loop through each layer in layer_dict
-    for layer, vertices in nodes_per_layer.items():
+    # Loop through each layer
+    for layer_number, vertices in dummy_nodes_per_layer.items():
 
-        # Calculate the x-coord for each vertex in the layer
-        layer_x_coords = []
-        for i in range(len(layer_width[:vertices])):
-            x_coord = sum(layer_width[:i]) + layer_width[i] / 2
-            layer_x_coords.append(x_coord)
+        # distribute nodes in a layer equally across the screen width
+        layer_spacing = width / len(vertices)               
 
-        # Add the vertex and its corresponding coordinate to x_coords
-        for vertex, x in zip(vertices, layer_x_coords):
-            x_coords_dict[vertex] = x
+        # calculate the y-coord for the entire layer
+        layer_y_coord = (layer_number + 0.5) * layer_height_spacing
 
+        # Calculate the x-coord and add y-coord for each vertex in the layer
+        for i, node_id in enumerate(vertices):
+            x_coords_dict[node_id] = i * layer_spacing + layer_spacing/2
+            y_coords_dict[node_id] = layer_y_coord
+
+
+    print("initial x coords dict:", x_coords_dict)
+
+    print("initial y_coords_dict", y_coords_dict)
+            
+    print("acyclic adjacency dict:", acyclic_adjacency_dict)
 
     #perform iterative crossing minimization
-    dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict = minimize_crossings(layer_dict, nodes_per_layer, acyclic_adjacency_dict, x_coords_dict)
+#    dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict = minimize_crossings(dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict)
 
     # the order of layer N is not the order of the list that is gotten by calling dummy_nodes_per_layer[N], it just contains the nodes in that layer
     # dummy nodes have edges' weight == False, real node edges have weights with an integer value
     # relative_positions_in_layer[node_id] = ordinality of this node in its layer (integer value starting from 0)
 
     #assign coordinates to vertices 
-    # --> placeholder with random coordinates to test application, need to make a new function for this that bases the coordinates on the iterative crossing output
-    #TODO
-    coordinates = create_random_coordinates(width, height, adjacency_dict)
+    coordinates = {}
+    for node_id in adjacency_dict.keys():
+        x_value = x_coords_dict[node_id]
+        y_value = y_coords_dict[node_id]
+        coordinates[node_id] = (x_value, y_value)
+
+   # coordinates = create_random_coordinates(width, height, adjacency_dict)
 
     #reverse back edges that have been changed in the first step with the reversed list made in the reverse_edges function
     #TODO
@@ -906,32 +924,9 @@ def layer_assignment_dag(dfs, adjacency_dict):
 # step 4: count crossings, see if there is improvement --> if not then stop, if yes then back to step 3
 
 
-def minimize_crossings(layer_dict, nodes_per_layer, acyclic_adjacency_dict):
-    print("acyclic adjacency dict:", acyclic_adjacency_dict)
-    dummy_nodes_per_layer, dummy_adjacency_dict = create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict)
-    print("dummy_nodes_per_layer:", dummy_nodes_per_layer)
-    print("dummy_adjacency_dict:", dummy_adjacency_dict)
-
-    #TODO: reorganize the nodes in the value lists of dummy_nodes_per_layer
-    # the order of layer N is the list that is gotten by calling dummy_nodes_per_layer[N]
+def minimize_crossings(dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict):
     
     number_of_layers = len(dummy_nodes_per_layer.keys())
-
-    # initiate relative positions of nodes within a layer
-
-    '''
-    relative_positions_in_layer = {}
-    for layer, nodes in dummy_nodes_per_layer.items():
-        for count in range(len(nodes)):
-            relative_positions_in_layer[nodes[count]] = count
-'''
-    
-    # relative_positions_in_layer = queue.PriorityQueue()
-    # for layer, nodes in dummy_nodes_per_layer.items():
-    #     for count in range(len(nodes)):
-    #         relative_positions_in_layer.put((count, nodes[count]))
-
-    #print("initial relative positions:", relative_positions_in_layer)
 
     # calculate direct layer neighbours of each sequential layer pair
     downwards_neighbours_set = []
@@ -986,27 +981,36 @@ def minimize_crossings(layer_dict, nodes_per_layer, acyclic_adjacency_dict):
 
 def count_crossings(node_neighbours, x_coords_dict):      # counts current crossings between current layer and previous layer
     crossings = 0
-    
+    print("node_neighbours_items() is", node_neighbours.items())
     for i, node_tuple in enumerate(node_neighbours.items()):            # check all nodes in current layer --> that node is current_node, its x-coordinate is x1
         current_node_id, neighbours = node_tuple
+        print("current node is", current_node_id)
         x1 = x_coords_dict[current_node_id]
         for neighbour_node in neighbours:                               # check all neighbours of current node in previous layer --> that node is neighbour_node, its x-coordinate is x2
+            print("looking at neighbour_node", neighbour_node)
             x2 = x_coords_dict[neighbour_node]
+            print("j will be now in this range:", range(i+1, len(node_neighbours.items())))
+
             for j in range(i+1, len(node_neighbours.items())):            # check all nodes in current layer that haven't yet been checked as 'current node' -->
-                other_node_id, other_neighbours = node_neighbours.keys()[j]             # that node is other_node, its x-coordinate is x3
+                print("j is", j)
+                print("list(node_neighbours.items())["+str(j)+"] is", list(node_neighbours.items())[j])
+                other_node_id, other_neighbours = list(node_neighbours.items())[j]             # that node is other_node, its x-coordinate is x3
+                print("looking at other node", other_node_id)
                 x3 = x_coords_dict[other_node_id]
                 for other_neighbour_id in other_neighbours:                 # check all neighbours of other_node in the previous layer --> that node is other_neighbour, its coordinate is x4
+                    print("looking at other neighbour", other_neighbour_id)
                     x4 = x_coords_dict[other_neighbour_id]
                 
                     if ((x1 > x3 and x2 < x4) or (x1 < x3 and x2 > x4)):            # the edge x1 --- x3 crosses with the edge x2 --- x4 if this statement is true
                         crossings += 1
+                        print("there is a crossing")
 
     return crossings
 
 
 
 
-def permute_layer(node_neighbours, degrees, x_coords_dict, method = "median"):
+def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter"):
     
     #print("relative position in layer", relative_positions_in_layer)
     proposed_positions = queue.PriorityQueue()          # contains items in the form (relative location, node_id), .get() extracts node id with smallest location
