@@ -658,7 +658,7 @@ def calc_attr_imp(length, chosen_node, node2, node_mass):
 
     return (attr_forcex, attr_forcey)
 
-def calc_DAG(width, height, dfs):
+def calc_DAG(width, height, dfs, perform_crossing_minimization = True, minimization_method = "median"):
     #main function of DAG
 
     #first remove the cycles in the DAG
@@ -708,7 +708,7 @@ def calc_DAG(width, height, dfs):
     # print("acyclic adjacency dict:", acyclic_adjacency_dict)
 
     #perform iterative crossing minimization
-    dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict = minimize_crossings(dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict)
+    dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict = minimize_crossings(dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict, perform_crossing_minimization, minimization_method)
 
     # the order of layer N is not the order of the list that is gotten by calling dummy_nodes_per_layer[N], it just contains the nodes in that layer
     # dummy nodes have edges' weight == False, real node edges have weights with an integer value
@@ -924,7 +924,7 @@ def layer_assignment_dag(dfs, adjacency_dict):
 # step 4: count crossings, see if there is improvement --> if not then stop, if yes then back to step 3
 
 
-def minimize_crossings(dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict, perform_crossing_minimization = True, minimization_method = "median"):
+def minimize_crossings(dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict, perform_crossing_minimization, minimization_method):
     
     number_of_layers = len(dummy_nodes_per_layer.keys())
 
@@ -1090,7 +1090,7 @@ def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter"
                     else:
                         if self_printing_mode:
                             print("offsetting position of node", node_id)
-                            offset += offset_value
+                        offset += offset_value
 
                 positions_set.add(proposed_position)
 

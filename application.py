@@ -351,9 +351,13 @@ class MainWindow(QMainWindow):
         force_bfs_regeneration_action.triggered.connect(self.regenerate_force_bfs)
         self.layouts_menu.addAction(force_bfs_regeneration_action)
 
-        dag_dfs_regeneration_action = QAction("Generate DAG DFS-Initialized Layout", self)
-        dag_dfs_regeneration_action.triggered.connect(self.regenerate_dag_dfs)
-        self.layouts_menu.addAction(dag_dfs_regeneration_action)
+        dag_dfs_barycenter_regeneration_action = QAction("Generate DAG DFS-Initialized Layout (Barycenter crossing minimization)", self)
+        dag_dfs_barycenter_regeneration_action.triggered.connect(self.regenerate_dag_dfs_barycenter)
+        self.layouts_menu.addAction(dag_dfs_barycenter_regeneration_action)
+
+        dag_dfs_median_regeneration_action = QAction("Generate DAG DFS-Initialized Layout (Median crossing minimization)", self)
+        dag_dfs_median_regeneration_action.triggered.connect(self.regenerate_dag_dfs_median)
+        self.layouts_menu.addAction(dag_dfs_median_regeneration_action)
 
          # Status Bar
         self.status = self.statusBar()
@@ -463,12 +467,17 @@ class MainWindow(QMainWindow):
                 self.coordinates = main.create_force_layout_coordinates(width, height, self.coordinates, max_iterations=50)
             else:
                 self.coordinates = main.create_force_layout_coordinates(self.scene.width(), self.scene.height(), self.coordinates, max_iterations=50)
-        elif self.layout == "dag dfs":
-            self.depth_first_search()
-            self.coordinates = main.calc_DAG(width, height, self.dfs) #to be completed, assign coordinates when there are any
+        elif self.layout == "dag dfs barycenter":
+            if self.dfs == []:
+                self.depth_first_search()
+            self.coordinates = main.calc_DAG(width, height, self.dfs, minimization_method="barycenter")
+        elif self.layout == "dag dfs median":
+            if self.dfs == []:
+                self.depth_first_search()
+            self.coordinates = main.calc_DAG(width, height, self.dfs, minimization_method="median")
         else:
             print("asked for layout", layout)
-            raise ValueError ("Unsupported layout requested")
+            raise ValueError ("Unsupported layout",layout,"requested")
 
 # recreate the graph
     def regenerate(self, same_positions = False):
@@ -571,10 +580,14 @@ class MainWindow(QMainWindow):
         self.layout = "force custom"
         self.regenerate()
 
-    def regenerate_dag_dfs(self):
-        self.layout = "dag dfs"
+    def regenerate_dag_dfs_barycenter(self):
+        self.layout = "dag dfs barycenter"
         self.regenerate()
             
+    def regenerate_dag_dfs_median(self):
+        self.layout = "dag dfs median"
+        self.regenerate()
+
 # part of graph initialization:
         
     def initialize_vertices(self):
@@ -738,7 +751,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict, "dag dfs", default_radius=10)
+    window = MainWindow(main.adjacency_dict, "dag dfs barycenter", default_radius=10)
     window.show()
 
     
