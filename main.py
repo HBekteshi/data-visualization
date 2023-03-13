@@ -924,7 +924,7 @@ def layer_assignment_dag(dfs, adjacency_dict):
 # step 4: count crossings, see if there is improvement --> if not then stop, if yes then back to step 3
 
 
-def minimize_crossings(dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict, perform_crossing_minimization = True, minimization_method = "barycenter"):
+def minimize_crossings(dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict, perform_crossing_minimization = True, minimization_method = "median"):
     
     number_of_layers = len(dummy_nodes_per_layer.keys())
 
@@ -1051,19 +1051,22 @@ def count_crossings(node_neighbours, x_coords_dict, self_printing_mode = printin
 
 
 
-def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter", self_printing_mode = printing_mode):
+def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter", self_printing_mode = False):
     
     #print("relative position in layer", relative_positions_in_layer)
     proposed_positions = queue.PriorityQueue()          # contains items in the form (relative location, node_id), .get() extracts node id with smallest location
     positions_set = set()
 
     offset_value = 100
+    median_offset_value = 75
     
     if method == "barycenter":
         for node_id, neighbours in node_neighbours.items():
             degree = degrees[node_id]
             if degree == 0:
                 proposed_position = x_coords_dict[node_id]
+                if self_printing_mode:
+                    print("proposing node", node_id, "with degree 0 to be in position", proposed_position)
             else:
                 sum = 0
     #            print("neighbours", neighbours)
@@ -1075,7 +1078,7 @@ def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter"
                 if self_printing_mode:
                     print("proposing node", node_id, "to be in position", proposed_position)
 
-                
+            
                 offset = offset_value                                      # introduce tiny gap in the event of equality
                 while proposed_position in positions_set:
                     if (proposed_position + offset) not in positions_set:
@@ -1087,7 +1090,7 @@ def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter"
                     else:
                         if self_printing_mode:
                             print("offsetting position of node", node_id)
-                        offset += offset_value
+                            offset += offset_value
 
                 positions_set.add(proposed_position)
 
@@ -1098,7 +1101,8 @@ def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter"
             x_coord, node_id = proposed_positions.get()
             #print("we extract from the pqueue:", node_id)
             x_coords_dict[node_id] = x_coord
-            # print("placing node",node_id,"into position",x_coord)
+            if self_printing_mode:
+                print("placing node",node_id,"into position",x_coord)
 
 
         return x_coords_dict
@@ -1114,24 +1118,27 @@ def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter"
                 for neighbour_node in neighbours:
                     neighbour_positions.append(x_coords_dict[neighbour_node])
                 proposed_position = statistics.median_high(neighbour_positions)                 # in the case of an even number of neighbours, it takes the higher median value
-            #     print("the neighbours list is", neighbour_positions)
-            # print("proposing to put node",node_id,"into position",proposed_position)
+                if self_printing_mode:
+                    print("the neighbours list is", neighbour_positions)
+                    print("proposing to put node",node_id,"into position",proposed_position)
                 
-                offset = offset_value                                    # introduce tiny gap in the event of equality
-                while proposed_position in positions_set:
-                    if (proposed_position + offset) not in positions_set:
-                        proposed_position += offset
-                        break
-                    elif (proposed_position - offset) not in positions_set:
-                        proposed_position -= offset
-                        break
-                    else:
-                        offset += offset_value            
+            offset = median_offset_value                                    # introduce tiny gap in the event of equality
+            while proposed_position in positions_set:
+                if (proposed_position + offset) not in positions_set:
+                    proposed_position += offset
+                    break
+                elif (proposed_position - offset) not in positions_set:
+                    proposed_position -= offset
+                    break
+                else:
+                    offset += median_offset_value            
+
+            positions_set.add(proposed_position)
+
             proposed_positions.put((proposed_position, node_id))
 
         while (proposed_positions.qsize() > 0):
             x_coord, node_id = proposed_positions.get()
-            # print("we extract from the pqueue:", node_id)
             x_coords_dict[node_id] = x_coord
             if self_printing_mode:
                 print("placing node",node_id,"into position",x_coord)
