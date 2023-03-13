@@ -667,13 +667,36 @@ def calc_DAG(width, height, dfs):
 
     #assign vertices to layers --> still have to test this!! but doesn't break anything 
     print(acyclic_adjacency_dict)
-    layer_dict, nodes_per_layer = layer_assignment_dag(dfs, acyclic_adjacency_dict)
+    layer_dict, nodes_per_layer = layer_assignment_dag(dfs, acyclic_adjacency_dict)         
+    # layer_dict[node_id] = # of layer of that node;  
+    # nodes_per_layer[# of layer] = list of all nodes in that layer
+
+
+    # get initial x-coordinates of vertices
+    n_layers = len(nodes_per_layer)
+    layer_height = height / n_layers
+    layer_width = width / n_layers
+
+    x_coords_dict = {}
+
+    # Loop through each layer in layer_dict
+    for layer, vertices in nodes_per_layer.items():
+
+        # Calculate the x-coord for each vertex in the layer
+        layer_x_coords = []
+        for i in range(len(layer_width[:vertices])):
+            x_coord = sum(layer_width[:i]) + layer_width[i] / 2
+            layer_x_coords.append(x_coord)
+
+        # Add the vertex and its corresponding coordinate to x_coords
+        for vertex, x in zip(vertices, layer_x_coords):
+            x_coords_dict[vertex] = x
+
 
     #perform iterative crossing minimization
-    # --> input the layer dictionary and adjacency dictionary at least
-    dummy_nodes_per_layer, dummy_adjacency_dict, relative_positions_in_layer = minimize_crossings(layer_dict, nodes_per_layer, acyclic_adjacency_dict)
+    dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict = minimize_crossings(layer_dict, nodes_per_layer, acyclic_adjacency_dict, x_coords_dict)
 
-    # the order of layer N is the order of the list that is gotten by calling dummy_nodes_per_layer[N]
+    # the order of layer N is not the order of the list that is gotten by calling dummy_nodes_per_layer[N], it just contains the nodes in that layer
     # dummy nodes have edges' weight == False, real node edges have weights with an integer value
     # relative_positions_in_layer[node_id] = ordinality of this node in its layer (integer value starting from 0)
 
@@ -920,18 +943,19 @@ def minimize_crossings(layer_dict, nodes_per_layer, acyclic_adjacency_dict):
 
     # initiate relative positions of nodes within a layer
 
-    
+    '''
     relative_positions_in_layer = {}
     for layer, nodes in dummy_nodes_per_layer.items():
         for count in range(len(nodes)):
             relative_positions_in_layer[nodes[count]] = count
-
+'''
+    
     # relative_positions_in_layer = queue.PriorityQueue()
     # for layer, nodes in dummy_nodes_per_layer.items():
     #     for count in range(len(nodes)):
     #         relative_positions_in_layer.put((count, nodes[count]))
 
-    print("initial relative positions:", relative_positions_in_layer)
+    #print("initial relative positions:", relative_positions_in_layer)
 
     # calculate direct layer neighbours of each sequential layer pair
     downwards_neighbours_set = []
@@ -957,51 +981,67 @@ def minimize_crossings(layer_dict, nodes_per_layer, acyclic_adjacency_dict):
 
     # one upward pass:
     for neighbours_set in upwards_neighbours_set:
-        relative_positions_in_layer = permute_layer(neighbours_set, upwards_degrees, relative_positions_in_layer)
+   #     relative_positions_in_layer = permute_layer(neighbours_set, upwards_degrees, relative_positions_in_layer)
+        x_coords_dict = permute_layer(neighbours_set, upwards_degrees, x_coords_dict)
 
-    print("after upwards pass, the rel pos dict is:", relative_positions_in_layer)
+    print("after upwards pass, the x pos dict is:", x_coords_dict)
+#    print("after upwards pass, the rel pos dict is:", relative_positions_in_layer)
     
 
     
     # one downward pass:
     for neighbours_set in downwards_neighbours_set:
-        relative_positions_in_layer = permute_layer(neighbours_set, downwards_degrees, relative_positions_in_layer)
+#        relative_positions_in_layer = permute_layer(neighbours_set, downwards_degrees, relative_positions_in_layer)
+        x_coords_dict = permute_layer(neighbours_set, downwards_degrees, x_coords_dict)
 
-    print("after downwards pass, the rel pos dict is:", relative_positions_in_layer)
+    print("after downwards pass, the x pos dict is:", x_coords_dict)
+    # print("after downwards pass, the rel pos dict is:", relative_positions_in_layer)
 
-    return dummy_nodes_per_layer, dummy_adjacency_dict, relative_positions_in_layer
+    return dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict
 
 
-def permute_layer(node_neighbours, degrees, relative_positions_in_layer, method = "median"):
+def permute_layer(node_neighbours, degrees, x_coords_dict, method = "median"):
     
     #print("relative position in layer", relative_positions_in_layer)
     proposed_positions = queue.PriorityQueue()          # contains items in the form (relative location, node_id), .get() extracts node id with smallest location
-
+    positions_set = set()
+    
     if method == "barycenter":
         for node_id, neighbours in node_neighbours.items():
             degree = degrees[node_id]
             if degree == 0:
-                proposed_position = relative_positions_in_layer[node_id]
+                proposed_position = x_coords_dict[node_id]
             else:
                 sum = 0
     #            print("neighbours", neighbours)
                 for neighbour_node in neighbours:
      #               print("neighbour node:",neighbour_node)
-      #              print("rel pos:", relative_positions_in_layer[neighbour_node])
-                    sum += relative_positions_in_layer[neighbour_node]
+      #              print("x coord of neighbour:", x_coords_dict[neighbour_node])
+                    sum += x_coords_dict[neighbour_node]
                 proposed_position = (sum / degree)
+
+                offset = 10                                      # introduce tiny gap in the event of equality
+                while proposed_position in positions_set:
+                    if (proposed_position + offset) not in positions_set:
+                        proposed_position += offset
+                        break
+                    elif (proposed_position - offset) not in positions_set:
+                        proposed_position -= offset
+                        break
+                    else:
+                        offset += 10
+
             proposed_positions.put((proposed_position, node_id))
         
 
-        count = 0
         while (proposed_positions.qsize() > 0):
-            node_id = proposed_positions.get()[1]
+            x_coord, node_id = proposed_positions.get()
             #print("we extract from the pqueue:", node_id)
-            relative_positions_in_layer[node_id] = count
-            # print("placing node",node_id,"into position",count)
-            count += 1
+            x_coords_dict[node_id] = x_coord
+            # print("placing node",node_id,"into position",x_coord)
 
-        return relative_positions_in_layer
+
+        return x_coords_dict
 
     elif method == "median":
         for node_id, neighbours in node_neighbours.items():
@@ -1012,25 +1052,97 @@ def permute_layer(node_neighbours, degrees, relative_positions_in_layer, method 
             else:
                 neighbour_positions = []
                 for neighbour_node in neighbours:
-                    neighbour_positions.append(relative_positions_in_layer[neighbour_node])
+                    neighbour_positions.append(x_coords_dict[neighbour_node])
                 proposed_position = statistics.median_high(neighbour_positions)                 # in the case of an even number of neighbours, it takes the higher median value
             #     print("the neighbours list is", neighbour_positions)
             # print("proposing to put node",node_id,"into position",proposed_position)
+                
+                offset = 10                                      # introduce tiny gap in the event of equality
+                while proposed_position in positions_set:
+                    if (proposed_position + offset) not in positions_set:
+                        proposed_position += offset
+                        break
+                    elif (proposed_position - offset) not in positions_set:
+                        proposed_position -= offset
+                        break
+                    else:
+                        offset += 10                
             proposed_positions.put((proposed_position, node_id))
 
-        count = 0
         while (proposed_positions.qsize() > 0):
-            node_id = proposed_positions.get()[1]
+            x_coord, node_id = proposed_positions.get()
             # print("we extract from the pqueue:", node_id)
-            relative_positions_in_layer[node_id] = count
-            # print("placing node",node_id,"into position",count)
-            count += 1
+            x_coords_dict[node_id] = x_coord
+            print("placing node",node_id,"into position",x_coord)
 
-        return relative_positions_in_layer
+        return x_coords_dict
             
 
     else:
         raise ValueError ("unsupported layout permutation function requested")
+
+
+
+
+# def permute_layer(node_neighbours, degrees, relative_positions_in_layer, method = "median"):
+    
+#     #print("relative position in layer", relative_positions_in_layer)
+#     proposed_positions = queue.PriorityQueue()          # contains items in the form (relative location, node_id), .get() extracts node id with smallest location
+
+#     if method == "barycenter":
+#         for node_id, neighbours in node_neighbours.items():
+#             degree = degrees[node_id]
+#             if degree == 0:
+#                 proposed_position = relative_positions_in_layer[node_id]
+#             else:
+#                 sum = 0
+#     #            print("neighbours", neighbours)
+#                 for neighbour_node in neighbours:
+#      #               print("neighbour node:",neighbour_node)
+#       #              print("rel pos:", relative_positions_in_layer[neighbour_node])
+#                     sum += relative_positions_in_layer[neighbour_node]
+#                 proposed_position = (sum / degree)
+#             proposed_positions.put((proposed_position, node_id))
+        
+
+#         count = 0
+#         while (proposed_positions.qsize() > 0):
+#             node_id = proposed_positions.get()[1]
+#             #print("we extract from the pqueue:", node_id)
+#             relative_positions_in_layer[node_id] = count
+#             # print("placing node",node_id,"into position",count)
+#             count += 1
+
+#         return relative_positions_in_layer
+
+#     elif method == "median":
+#         for node_id, neighbours in node_neighbours.items():
+#             degree = degrees[node_id]
+#             # print("node",node_id,"has degree",degree)
+#             if degree == 0:
+#                 proposed_position = 0
+#             else:
+#                 neighbour_positions = []
+#                 for neighbour_node in neighbours:
+#                     neighbour_positions.append(relative_positions_in_layer[neighbour_node])
+#                 proposed_position = statistics.median_high(neighbour_positions)                 # in the case of an even number of neighbours, it takes the higher median value
+#             #     print("the neighbours list is", neighbour_positions)
+#             # print("proposing to put node",node_id,"into position",proposed_position)
+#             proposed_positions.put((proposed_position, node_id))
+
+#         count = 0
+#         while (proposed_positions.qsize() > 0):
+#             node_id = proposed_positions.get()[1]
+#             # print("we extract from the pqueue:", node_id)
+#             relative_positions_in_layer[node_id] = count
+#             # print("placing node",node_id,"into position",count)
+#             count += 1
+
+#         return relative_positions_in_layer
+            
+
+#     else:
+#         raise ValueError ("unsupported layout permutation function requested")
 
 
 
