@@ -5,6 +5,7 @@ import math
 import copy
 
 import queue
+import statistics
 
 #undirected graphs
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
@@ -950,11 +951,17 @@ def minimize_crossings(layer_dict, nodes_per_layer, acyclic_adjacency_dict):
 
 # TODO: add iteration: after doing a pair of upward/downward passes, compare number of crossings before and after, if worse, stop and keep previous
     
+    # print("upwards degrees are:",upwards_degrees)
+
+    # print("downwards degrees are:",downwards_degrees)
+
     # one upward pass:
     for neighbours_set in upwards_neighbours_set:
         relative_positions_in_layer = permute_layer(neighbours_set, upwards_degrees, relative_positions_in_layer)
 
     print("after upwards pass, the rel pos dict is:", relative_positions_in_layer)
+    
+
     
     # one downward pass:
     for neighbours_set in downwards_neighbours_set:
@@ -965,12 +972,12 @@ def minimize_crossings(layer_dict, nodes_per_layer, acyclic_adjacency_dict):
     return dummy_nodes_per_layer, dummy_adjacency_dict, relative_positions_in_layer
 
 
-def permute_layer(node_neighbours, degrees, relative_positions_in_layer, method = "barycenter"):
+def permute_layer(node_neighbours, degrees, relative_positions_in_layer, method = "median"):
     
     #print("relative position in layer", relative_positions_in_layer)
-    if method == "barycenter":
-        proposed_positions = queue.PriorityQueue()          # contains items in the form (relative location, node_id), .get() extracts node id with smallest location
+    proposed_positions = queue.PriorityQueue()          # contains items in the form (relative location, node_id), .get() extracts node id with smallest location
 
+    if method == "barycenter":
         for node_id, neighbours in node_neighbours.items():
             degree = degrees[node_id]
             if degree == 0:
@@ -991,17 +998,41 @@ def permute_layer(node_neighbours, degrees, relative_positions_in_layer, method 
             node_id = proposed_positions.get()[1]
             #print("we extract from the pqueue:", node_id)
             relative_positions_in_layer[node_id] = count
-          #  print("placing node",node_id,"into position",count)
+            # print("placing node",node_id,"into position",count)
             count += 1
 
         return relative_positions_in_layer
 
     elif method == "median":
-        #TODO
-        pass
+        for node_id, neighbours in node_neighbours.items():
+            degree = degrees[node_id]
+            # print("node",node_id,"has degree",degree)
+            if degree == 0:
+                proposed_position = 0
+            else:
+                neighbour_positions = []
+                for neighbour_node in neighbours:
+                    neighbour_positions.append(relative_positions_in_layer[neighbour_node])
+                proposed_position = statistics.median_high(neighbour_positions)                 # in the case of an even number of neighbours, it takes the higher median value
+            #     print("the neighbours list is", neighbour_positions)
+            # print("proposing to put node",node_id,"into position",proposed_position)
+            proposed_positions.put((proposed_position, node_id))
+
+        count = 0
+        while (proposed_positions.qsize() > 0):
+            node_id = proposed_positions.get()[1]
+            # print("we extract from the pqueue:", node_id)
+            relative_positions_in_layer[node_id] = count
+            # print("placing node",node_id,"into position",count)
+            count += 1
+
+        return relative_positions_in_layer
+            
+
     else:
         raise ValueError ("unsupported layout permutation function requested")
-    
+
+
 
 def get_layer_neighbours(dummy_adjacency_dict, previous_layer, current_layer, degrees):
 
