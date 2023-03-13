@@ -701,14 +701,14 @@ def calc_DAG(width, height, dfs):
             y_coords_dict[node_id] = layer_y_coord
 
 
-    print("initial x coords dict:", x_coords_dict)
+    # print("initial x coords dict:", x_coords_dict)
 
-    print("initial y_coords_dict", y_coords_dict)
+    # print("initial y_coords_dict", y_coords_dict)
             
-    print("acyclic adjacency dict:", acyclic_adjacency_dict)
+    # print("acyclic adjacency dict:", acyclic_adjacency_dict)
 
     #perform iterative crossing minimization
-#    dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict = minimize_crossings(dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict)
+    dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict = minimize_crossings(dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict)
 
     # the order of layer N is not the order of the list that is gotten by calling dummy_nodes_per_layer[N], it just contains the nodes in that layer
     # dummy nodes have edges' weight == False, real node edges have weights with an integer value
@@ -924,7 +924,7 @@ def layer_assignment_dag(dfs, adjacency_dict):
 # step 4: count crossings, see if there is improvement --> if not then stop, if yes then back to step 3
 
 
-def minimize_crossings(dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict):
+def minimize_crossings(dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict, perform_crossing_minimization = True, minimization_method = "barycenter"):
     
     number_of_layers = len(dummy_nodes_per_layer.keys())
 
@@ -950,71 +950,114 @@ def minimize_crossings(dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dic
 
     # print("downwards degrees are:",downwards_degrees)
 
-    # one upward pass:
-    crossings = 0
+    # initial crossings:
+    previous_crossings = 0
     for neighbours_set in upwards_neighbours_set:
-   #     relative_positions_in_layer = permute_layer(neighbours_set, upwards_degrees, relative_positions_in_layer)
-        x_coords_dict = permute_layer(neighbours_set, upwards_degrees, x_coords_dict)
-        crossings += count_crossings(neighbours_set, x_coords_dict)
+        previous_crossings += count_crossings(neighbours_set, x_coords_dict, self_printing_mode=False)
 
-    print("after upwards pass, the x pos dict is:", x_coords_dict)
-    print("after upwards pass, there are",crossings,"crossings")
-#    print("after upwards pass, the rel pos dict is:", relative_positions_in_layer)
-    
+    print("initial crossings count:",previous_crossings)
 
-    
+    while (perform_crossing_minimization == True):
+        previous_x_coords = x_coords_dict
+
+        if previous_crossings == 0:
+            break
+
     # one downward pass:
-    crossings = 0
-    for neighbours_set in downwards_neighbours_set:
-#        relative_positions_in_layer = permute_layer(neighbours_set, downwards_degrees, relative_positions_in_layer)
-        x_coords_dict = permute_layer(neighbours_set, downwards_degrees, x_coords_dict)
-        crossings += count_crossings(neighbours_set, x_coords_dict)
+        downwards_crossings = 0
+        for neighbours_set in downwards_neighbours_set:
+    #        relative_positions_in_layer = permute_layer(neighbours_set, downwards_degrees, relative_positions_in_layer)
+            x_coords_dict = permute_layer(neighbours_set, downwards_degrees, x_coords_dict, method = minimization_method)
+            downwards_crossings += count_crossings(neighbours_set, x_coords_dict, self_printing_mode = False)
 
 
-    print("after downwards pass, the x pos dict is:", x_coords_dict)
-    print("after downwards pass, there are",crossings,"crossings")
+        #print("after downwards pass, the x pos dict is:", x_coords_dict)
+        print("after downwards pass, there are",downwards_crossings,"crossings, down from", previous_crossings)
+        downwards_x_coords = x_coords_dict
+        if downwards_crossings == 0:
+            new_crossings = downwards_crossings
+            break
 
-    # print("after downwards pass, the rel pos dict is:", relative_positions_in_layer)
+        # one upward pass:
+        new_crossings = 0
+        for neighbours_set in upwards_neighbours_set:
+    #     relative_positions_in_layer = permute_layer(neighbours_set, upwards_degrees, relative_positions_in_layer)
+            x_coords_dict = permute_layer(neighbours_set, upwards_degrees, x_coords_dict, method = minimization_method)
+            new_crossings += count_crossings(neighbours_set, x_coords_dict, self_printing_mode = False)
+
+     #   print("after upwards pass, the x pos dict is:", x_coords_dict)
+        print("after upwards pass, there are",new_crossings,"crossings, down from",previous_crossings)
+
+        
+        # if the downwards half of the iteration is better, we keep that one
+        if downwards_crossings < new_crossings:
+            new_crossings = downwards_crossings
+            x_coords_dict = downwards_x_coords
+        
+        # if the iteration is perfect or results in no benefit stop iterating
+        if new_crossings == 0:
+            break
+        elif new_crossings >= previous_crossings:
+            x_coords_dict = previous_x_coords
+            break
+        else:
+            previous_crossings = new_crossings
+            previous_x_coords = x_coords_dict
+    
+    if perform_crossing_minimization:
+        print("the final crossings count is",new_crossings)
+    
 
     return dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict
 
 
-def count_crossings(node_neighbours, x_coords_dict):      # counts current crossings between current layer and previous layer
+def count_crossings(node_neighbours, x_coords_dict, self_printing_mode = printing_mode):      # counts current crossings between current layer and previous layer
     crossings = 0
-    print("node_neighbours_items() is", node_neighbours.items())
+    # if self_printing_mode:
+    #     print("node_neighbours_items() is", node_neighbours.items())
     for i, node_tuple in enumerate(node_neighbours.items()):            # check all nodes in current layer --> that node is current_node, its x-coordinate is x1
         current_node_id, neighbours = node_tuple
-        print("current node is", current_node_id)
+        # if self_printing_mode:
+        #     print("current node is", current_node_id)
         x1 = x_coords_dict[current_node_id]
         for neighbour_node in neighbours:                               # check all neighbours of current node in previous layer --> that node is neighbour_node, its x-coordinate is x2
-            print("looking at neighbour_node", neighbour_node)
+            # if self_printing_mode:
+                # print("looking at neighbour_node", neighbour_node)
+                # print("j will be now in this range:", range(i+1, len(node_neighbours.items())))
+
             x2 = x_coords_dict[neighbour_node]
-            print("j will be now in this range:", range(i+1, len(node_neighbours.items())))
 
             for j in range(i+1, len(node_neighbours.items())):            # check all nodes in current layer that haven't yet been checked as 'current node' -->
-                print("j is", j)
-                print("list(node_neighbours.items())["+str(j)+"] is", list(node_neighbours.items())[j])
                 other_node_id, other_neighbours = list(node_neighbours.items())[j]             # that node is other_node, its x-coordinate is x3
-                print("looking at other node", other_node_id)
+
+                # if self_printing_mode:
+                    # print("j is", j)
+                    # print("list(node_neighbours.items())["+str(j)+"] is", list(node_neighbours.items())[j])
+                    # print("looking at other node", other_node_id)
+
                 x3 = x_coords_dict[other_node_id]
                 for other_neighbour_id in other_neighbours:                 # check all neighbours of other_node in the previous layer --> that node is other_neighbour, its coordinate is x4
-                    print("looking at other neighbour", other_neighbour_id)
+                    # if self_printing_mode:
+                        # print("looking at other neighbour", other_neighbour_id)
                     x4 = x_coords_dict[other_neighbour_id]
                 
                     if ((x1 > x3 and x2 < x4) or (x1 < x3 and x2 > x4)):            # the edge x1 --- x3 crosses with the edge x2 --- x4 if this statement is true
                         crossings += 1
-                        print("there is a crossing")
+                        if self_printing_mode:
+                            print("there is a crossing between edges",current_node_id,"to",neighbour_node,"and",other_node_id,"to",other_neighbour_id)
 
     return crossings
 
 
 
 
-def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter"):
+def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter", self_printing_mode = printing_mode):
     
     #print("relative position in layer", relative_positions_in_layer)
     proposed_positions = queue.PriorityQueue()          # contains items in the form (relative location, node_id), .get() extracts node id with smallest location
     positions_set = set()
+
+    offset_value = 100
     
     if method == "barycenter":
         for node_id, neighbours in node_neighbours.items():
@@ -1029,8 +1072,11 @@ def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter"
       #              print("x coord of neighbour:", x_coords_dict[neighbour_node])
                     sum += x_coords_dict[neighbour_node]
                 proposed_position = (sum / degree)
+                if self_printing_mode:
+                    print("proposing node", node_id, "to be in position", proposed_position)
 
-                offset = 10                                      # introduce tiny gap in the event of equality
+                
+                offset = offset_value                                      # introduce tiny gap in the event of equality
                 while proposed_position in positions_set:
                     if (proposed_position + offset) not in positions_set:
                         proposed_position += offset
@@ -1039,7 +1085,11 @@ def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter"
                         proposed_position -= offset
                         break
                     else:
-                        offset += 10
+                        if self_printing_mode:
+                            print("offsetting position of node", node_id)
+                        offset += offset_value
+
+                positions_set.add(proposed_position)
 
             proposed_positions.put((proposed_position, node_id))
         
@@ -1067,7 +1117,7 @@ def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter"
             #     print("the neighbours list is", neighbour_positions)
             # print("proposing to put node",node_id,"into position",proposed_position)
                 
-                offset = 10                                      # introduce tiny gap in the event of equality
+                offset = offset_value                                    # introduce tiny gap in the event of equality
                 while proposed_position in positions_set:
                     if (proposed_position + offset) not in positions_set:
                         proposed_position += offset
@@ -1076,14 +1126,15 @@ def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter"
                         proposed_position -= offset
                         break
                     else:
-                        offset += 10                
+                        offset += offset_value            
             proposed_positions.put((proposed_position, node_id))
 
         while (proposed_positions.qsize() > 0):
             x_coord, node_id = proposed_positions.get()
             # print("we extract from the pqueue:", node_id)
             x_coords_dict[node_id] = x_coord
-            print("placing node",node_id,"into position",x_coord)
+            if self_printing_mode:
+                print("placing node",node_id,"into position",x_coord)
 
         return x_coords_dict
             
