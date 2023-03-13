@@ -900,34 +900,10 @@ def layer_assignment_dag(dfs, adjacency_dict):
     return layer_dict, nodes_per_layer
 
 
-# def layer_assignment_dag(dfs, adjacency_dict, layer_dict, to_assign, start_layer):
-#     """input: the adjacency dict and a dfs list with tuples of (parent_id, node_id)"""
-#     for tuple in adjacency_dict:
-#         start_vertex = tuple
-#         for edge in adjacency_dict[start_vertex]:
-#             #print("inside for with start vertex", start_vertex)
-#             if to_assign[edge[0]] == False:
-#                 #print("inside if with start vertex", start_vertex)
-#                 if edge[1] == True:
-#                     layer_nr = start_layer + 1
-#                     layer_dict[edge[0]] = layer_nr
-#                     print("vertex", edge[0], "with parent node", start_vertex, "is assigned layer", layer_nr)
-#                 else:
-#                     layer_nr = start_layer - 1
-#                     layer_dict[edge[0]] = layer_nr
-#                     print("vertex", edge[0], "with previous adjacent node", start_vertex, "is assigned layer", layer_nr)
-#                 to_assign[start_vertex] = True
-#                 layer_assignment_dag(dfs, adjacency_dict, layer_dict, to_assign, layer_nr)
-#             else:
-#                 print(start_vertex, "is already assigned to layer", layer_dict[start_vertex])
-#     return layer_dict
-
-
 # step 1: create dummy nodes --> add to layers
 # step 2: create comparison function between two adjacent layers (two different functions, median and barycenter)
 # step 3: go through the entire graph, first upwards, then downwards
 # step 4: count crossings, see if there is improvement --> if not then stop, if yes then back to step 3
-
 
 
 def minimize_crossings(layer_dict, nodes_per_layer, acyclic_adjacency_dict):
@@ -980,24 +956,54 @@ def minimize_crossings(layer_dict, nodes_per_layer, acyclic_adjacency_dict):
     # print("downwards degrees are:",downwards_degrees)
 
     # one upward pass:
+    crossings = 0
     for neighbours_set in upwards_neighbours_set:
    #     relative_positions_in_layer = permute_layer(neighbours_set, upwards_degrees, relative_positions_in_layer)
         x_coords_dict = permute_layer(neighbours_set, upwards_degrees, x_coords_dict)
+        crossings += count_crossings(neighbours_set, x_coords_dict)
 
     print("after upwards pass, the x pos dict is:", x_coords_dict)
+    print("after upwards pass, there are",crossings,"crossings")
 #    print("after upwards pass, the rel pos dict is:", relative_positions_in_layer)
     
 
     
     # one downward pass:
+    crossings = 0
     for neighbours_set in downwards_neighbours_set:
 #        relative_positions_in_layer = permute_layer(neighbours_set, downwards_degrees, relative_positions_in_layer)
         x_coords_dict = permute_layer(neighbours_set, downwards_degrees, x_coords_dict)
+        crossings += count_crossings(neighbours_set, x_coords_dict)
+
 
     print("after downwards pass, the x pos dict is:", x_coords_dict)
+    print("after downwards pass, there are",crossings,"crossings")
+
     # print("after downwards pass, the rel pos dict is:", relative_positions_in_layer)
 
     return dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict
+
+
+def count_crossings(node_neighbours, x_coords_dict):      # counts current crossings between current layer and previous layer
+    crossings = 0
+    
+    for i, node_tuple in enumerate(node_neighbours.items()):            # check all nodes in current layer --> that node is current_node, its x-coordinate is x1
+        current_node_id, neighbours = node_tuple
+        x1 = x_coords_dict[current_node_id]
+        for neighbour_node in neighbours:                               # check all neighbours of current node in previous layer --> that node is neighbour_node, its x-coordinate is x2
+            x2 = x_coords_dict[neighbour_node]
+            for j in range(i+1, len(node_neighbours.items())):            # check all nodes in current layer that haven't yet been checked as 'current node' -->
+                other_node_id, other_neighbours = node_neighbours.keys()[j]             # that node is other_node, its x-coordinate is x3
+                x3 = x_coords_dict[other_node_id]
+                for other_neighbour_id in other_neighbours:                 # check all neighbours of other_node in the previous layer --> that node is other_neighbour, its coordinate is x4
+                    x4 = x_coords_dict[other_neighbour_id]
+                
+                    if ((x1 > x3 and x2 < x4) or (x1 < x3 and x2 > x4)):            # the edge x1 --- x3 crosses with the edge x2 --- x4 if this statement is true
+                        crossings += 1
+
+    return crossings
+
+
 
 
 def permute_layer(node_neighbours, degrees, x_coords_dict, method = "median"):
@@ -1080,70 +1086,6 @@ def permute_layer(node_neighbours, degrees, x_coords_dict, method = "median"):
 
     else:
         raise ValueError ("unsupported layout permutation function requested")
-
-
-
-
-# def permute_layer(node_neighbours, degrees, relative_positions_in_layer, method = "median"):
-    
-#     #print("relative position in layer", relative_positions_in_layer)
-#     proposed_positions = queue.PriorityQueue()          # contains items in the form (relative location, node_id), .get() extracts node id with smallest location
-
-#     if method == "barycenter":
-#         for node_id, neighbours in node_neighbours.items():
-#             degree = degrees[node_id]
-#             if degree == 0:
-#                 proposed_position = relative_positions_in_layer[node_id]
-#             else:
-#                 sum = 0
-#     #            print("neighbours", neighbours)
-#                 for neighbour_node in neighbours:
-#      #               print("neighbour node:",neighbour_node)
-#       #              print("rel pos:", relative_positions_in_layer[neighbour_node])
-#                     sum += relative_positions_in_layer[neighbour_node]
-#                 proposed_position = (sum / degree)
-#             proposed_positions.put((proposed_position, node_id))
-        
-
-#         count = 0
-#         while (proposed_positions.qsize() > 0):
-#             node_id = proposed_positions.get()[1]
-#             #print("we extract from the pqueue:", node_id)
-#             relative_positions_in_layer[node_id] = count
-#             # print("placing node",node_id,"into position",count)
-#             count += 1
-
-#         return relative_positions_in_layer
-
-#     elif method == "median":
-#         for node_id, neighbours in node_neighbours.items():
-#             degree = degrees[node_id]
-#             # print("node",node_id,"has degree",degree)
-#             if degree == 0:
-#                 proposed_position = 0
-#             else:
-#                 neighbour_positions = []
-#                 for neighbour_node in neighbours:
-#                     neighbour_positions.append(relative_positions_in_layer[neighbour_node])
-#                 proposed_position = statistics.median_high(neighbour_positions)                 # in the case of an even number of neighbours, it takes the higher median value
-#             #     print("the neighbours list is", neighbour_positions)
-#             # print("proposing to put node",node_id,"into position",proposed_position)
-#             proposed_positions.put((proposed_position, node_id))
-
-#         count = 0
-#         while (proposed_positions.qsize() > 0):
-#             node_id = proposed_positions.get()[1]
-#             # print("we extract from the pqueue:", node_id)
-#             relative_positions_in_layer[node_id] = count
-#             # print("placing node",node_id,"into position",count)
-#             count += 1
-
-#         return relative_positions_in_layer
-            
-
-#     else:
-#         raise ValueError ("unsupported layout permutation function requested")
-
 
 
 def get_layer_neighbours(dummy_adjacency_dict, previous_layer, current_layer, degrees):
