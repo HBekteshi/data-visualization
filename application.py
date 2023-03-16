@@ -92,9 +92,9 @@ class Vertex(QGraphicsObject):
         self.y_coord = y
         self.update_edges()
 
-    def addEdge(self, edge):
-        self.edges.append(edge)
-        edge[0].displayed = self.displayed
+    def addEdge(self, edge_tuple):          # format (edge object, other vertex object)
+        self.edges.append(edge_tuple)
+        edge_tuple[0].displayed = self.displayed
 
         
     def boundingRect(self) -> QRectF:
@@ -145,13 +145,15 @@ class Vertex(QGraphicsObject):
         return super().itemChange(change, value)
 
 class Edge(QGraphicsItem):
-    def __init__(self, start: Vertex, end: Vertex, weight, displayed = False) -> None:
+    def __init__(self, start: Vertex, end: Vertex, weight, displayed = False, segmented = True) -> None:
         super().__init__()
 
         self.__name__ = 'Edge'
 
         self.displayed = displayed
+        self.segmented = segmented
         
+
         self.start = start
         self.end = end
         self.weight = weight
@@ -165,16 +167,33 @@ class Edge(QGraphicsItem):
         self.color = "black"
         self.thickness = 2
 
+        self.waypoints = [self.start.pos() + self.start.boundingRect().center(), self.end.pos() + self.end.boundingRect().center()]
+        
         self.calculate_location()
 
         self.arrow_size = 10
 
     def calculate_location(self):
         self.prepareGeometryChange()
+        starting_point = self.start.pos() + self.start.boundingRect().center()
+        ending_point = self.end.pos() + self.end.boundingRect().center()
+        self.waypoints[0] = starting_point
+        self.waypoints[len(self.waypoints)-1] = ending_point
+        
         self.line = QLineF(
             self.start.pos() + self.start.boundingRect().center(),
             self.end.pos() + self.end.boundingRect().center(),
         )
+        if self.segmented == False:
+            self.lines = [self.line]
+        else:
+            self.lines = []
+            for count in range(len(self.waypoints)-1):
+                line = QLineF(
+                    self.waypoints[count],
+                    self.waypoints[count+1]
+                )
+                self.lines.append(line)
     
     def boundingRect(self) -> QRectF:
         return (
@@ -195,12 +214,19 @@ class Edge(QGraphicsItem):
                     Qt.RoundJoin,
                 )
             )
-            
+
             if main.G.is_directed() == True:
-               self.draw_arrow(painter, self.line.p1(), self.arrow_target())
-               self.arrow_target()
+               for line in self.lines:
+                   if line == self.lines[len(self.lines)-1]:
+                    start = self.waypoints[len(self.waypoints)-2]
+                    end = self.waypoints[len(self.waypoints)-1]
+                    self.draw_arrow(painter, start, self.arrow_target(start,end))
+                   else:
+                    painter.drawLine(line)
+                    
             else:
-                painter.drawLine(self.line)
+                for line in self.lines:
+                    painter.drawLine(line)
 
 # function adapted from the QT for Python documentation examples
     def draw_arrow(self, painter: QPainter, start: QPointF, end: QPointF):
@@ -227,9 +253,9 @@ class Edge(QGraphicsItem):
         painter.drawPolygon(arrow_head)
 
 # function adapted from the QT for Python documentation examples        
-    def arrow_target(self) -> QPointF:
-        target = self.line.p1()
-        center = self.line.p2()
+    def arrow_target(self, target, center) -> QPointF:
+        #target = self.line.p1()
+        #center = self.line.p2()
         radius = self.end.radius
         vector = target - center
         length = np.sqrt(vector.x() ** 2 + vector.y() ** 2)
