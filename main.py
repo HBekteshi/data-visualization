@@ -7,14 +7,16 @@ import copy
 import queue
 import statistics
 
+from PySide6.QtCore import QPointF
+
 #undirected graphs
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
 #directed graphs
-G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
-#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
+#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
+G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
 
 
 printing_mode = False
@@ -61,6 +63,7 @@ for e in G.edges():
 #print(G.edges('0'))
 if printing_mode:
     print("adjacency_dict:",adjacency_dict)
+print("first adjacency_dict:",adjacency_dict)
 
 max_edges = 0
 most_connected_node_id = None
@@ -658,12 +661,14 @@ def calc_attr_imp(length, chosen_node, node2, node_mass):
 
     return (attr_forcex, attr_forcey)
 
-def calc_DAG(width, height, dfs, perform_crossing_minimization = True, minimization_method = "median"):
+def calc_DAG(width, height, dfs, adjacency_dict, perform_crossing_minimization = True, minimization_method = "median"):
     #main function of DAG
 
     #first remove the cycles in the DAG
     vertex_sequence = create_vertex_seqeuence_eades(adjacency_dict)
+    print("newly created vertex sequence is:", vertex_sequence)
     acyclic_adjacency_dict, reversed_list = reverse_edges(vertex_sequence, adjacency_dict)
+    print("newly created reversed list is",reversed_list)
 
     #assign vertices to layers --> still have to test this!! but doesn't break anything 
     print(acyclic_adjacency_dict)
@@ -672,7 +677,7 @@ def calc_DAG(width, height, dfs, perform_crossing_minimization = True, minimizat
     # nodes_per_layer[# of layer] = list of all nodes in that layer
 
     # create dummy vertices for edges that span multiple layers
-    dummy_nodes_per_layer, dummy_adjacency_dict = create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict)
+    dummy_nodes_per_layer, dummy_adjacency_dict, node_waypoints_ids = create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict, reversed_list)
     print("dummy_nodes_per_layer:", dummy_nodes_per_layer)
     print("dummy_adjacency_dict:", dummy_adjacency_dict)
 
@@ -721,11 +726,22 @@ def calc_DAG(width, height, dfs, perform_crossing_minimization = True, minimizat
         y_value = y_coords_dict[node_id]
         coordinates[node_id] = (x_value, y_value)
 
-   # coordinates = create_random_coordinates(width, height, adjacency_dict)
 
-    #reverse back edges that have been changed in the first step with the reversed list made in the reverse_edges function
-    #TODO
-    return coordinates #and something else such that it can read the directions of the edges?
+    
+    #reverse back edges that have been changed in the first step with the reversed list made in the reverse_edges function --> done within dummy node creation
+   
+        
+    edge_waypoints = {}
+    for edge, waypoints in node_waypoints_ids.items():       # key: (start_node_id, end_node_id, weight); value: [start_node_id, dummy_node1_id, dummy_node2_id, end_node_id]
+        edge_waypoints[edge] = []                               # edge_waypoints[same key] = [QPointF(x,y), QPointF(x,y), ..., QPointF(x,y)] = [coords of start, dummy, ..., end]
+        for waypoint_id in waypoints:
+            x_value = x_coords_dict[waypoint_id]
+            y_value = y_coords_dict[waypoint_id]
+            edge_waypoints[edge].append(QPointF(x_value, y_value))
+            
+
+    
+    return coordinates, edge_waypoints #and something else such that it can read the directions of the edges?
 
 def calc_outgoing_edges(adjacency_dict):
     #calculates for each vertex how many outgoing edges it has
@@ -835,9 +851,11 @@ def create_vertex_seqeuence_eades(adjacency_dict):
 
 def reverse_edges(vertex_sequence, adjacency_dict):
     reversed_list = [] #a list of (x,y) which indicate that the edge between xy has been reversed
+    acyclic_adjacency_dict = copy.deepcopy(adjacency_dict)
     for index, vertex in enumerate(vertex_sequence):
-        edges = adjacency_dict[vertex]
+        edges = acyclic_adjacency_dict[vertex]
         for edge in edges:
+            print("testing an edge to reverse", edge)
             if(edge[1] == True):
                 receiving_vertex = edge[0]
                 receiving_vertex_index = vertex_sequence.index(receiving_vertex)
@@ -854,13 +872,17 @@ def reverse_edges(vertex_sequence, adjacency_dict):
                     print("remove edge", edge, "from adjacency dict from", vertex)
                     new_edge_list.remove(edge) #from current vertex
                     print("remove edge", old_edge_vu, "from adjacency dict from", edge[0])
-                    adjacency_dict[edge[0]].remove(old_edge_vu) #from receiving vertex
+                    acyclic_adjacency_dict[edge[0]].remove(old_edge_vu) #from receiving vertex
                     #add new entry to dictionary
                     print("add edge", new_edge_uv, "to adjacency dict from", vertex)
                     new_edge_list.append(new_edge_uv)
-                    adjacency_dict[vertex] = new_edge_list
+                    acyclic_adjacency_dict[vertex] = new_edge_list
                     print("add edge", new_edge_vu, "to adjacency dict from", edge[0])
-                    adjacency_dict[edge[0]].append(new_edge_vu)
+                    acyclic_adjacency_dict[edge[0]].append(new_edge_vu)
+                else:
+                    print("receiving vertex index",receiving_vertex_index,"is larger or equal to index",index)
+            else:
+                print(edge[1], "is apparently False for edge",edge)
 
     #loop through the vertex sequence
     #check for each vertex if it has an edge that point to a vertex with a lower index in the list
@@ -868,7 +890,7 @@ def reverse_edges(vertex_sequence, adjacency_dict):
     #if so, reverse that edge
     #if not, continue looping
 
-    return adjacency_dict, reversed_list
+    return acyclic_adjacency_dict, reversed_list
 
 def layer_assignment_dag(dfs, adjacency_dict):
     """input: the adjacency dict and a dfs list with tuples of (parent_id, node_id)"""
@@ -1168,17 +1190,33 @@ def get_layer_neighbours(dummy_adjacency_dict, previous_layer, current_layer, de
 
 
 
-def create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict):
+def create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict, reversed_list):
 
   # the order of layer N is the list that is gotten by calling dummy_nodes_per_layer[N]
     
     dummy_adjacency_dict = copy.deepcopy(acyclic_adjacency_dict)
     dummy_nodes_per_layer = copy.deepcopy(nodes_per_layer)
 
+    node_waypoints_ids = {}             # key: list of edges where edge is (start_node_id, end_node_id, weight); value: [start_node_id, dummy_node1_id, dummy_node2_id, end_node_id]
+
+    print("reversed list is", reversed_list)
+
     for start_node_id, edges in acyclic_adjacency_dict.items():
         start_layer = layer_dict[start_node_id]
-        for edge in edges:
-            if edge[1] == True:                 # we only look at edges that go from a lower layer to a higher layer
+        for edge in edges:                      # edge is (end_node_id, truth value, weight)
+            end_node_id = edge[0]
+    
+            if (end_node_id, start_node_id) in reversed_list:           # swap truth values back for reversed edges
+                truth_value = not edge[1]
+                reversed_list.remove((end_node_id, start_node_id))
+            else:
+                truth_value = edge[1]
+
+            if truth_value == True:                 # we only look at edges that go from a lower layer to a higher layer
+                weight = edge[2]
+
+                node_waypoints_ids[(start_node_id, end_node_id, weight)] = [start_node_id]         
+
                 end_node_id = edge[0]
                 end_layer = layer_dict[end_node_id]
                 layer_difference = end_layer - start_layer
@@ -1199,15 +1237,12 @@ def create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict):
                             
                     
                         if dummy_id not in dummy_nodes_per_layer[dummy_layer]:
-                            
+                            node_waypoints_ids[(start_node_id, end_node_id, weight)].append(dummy_id)
                             dummy_nodes_per_layer[dummy_layer].append(dummy_id)
                             
-
                             if printing_mode:
                                 print("successfully created", dummy_id)
-
                             
-
                             if dummy_adjacency_dict.get(dummy_id) == None:
                                 dummy_adjacency_dict[dummy_id] = [(target_id, True, False)]        # all dummy nodes have weight False
                             else:
@@ -1222,15 +1257,11 @@ def create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict):
                             if printing_mode:
                                 print("failed to create", dummy_id)
 
-    return dummy_nodes_per_layer, dummy_adjacency_dict
+
+                node_waypoints_ids[(start_node_id, end_node_id, weight)].append(end_node_id)
+
+    print("node_waypoints_ids:", node_waypoints_ids)
+
+    return dummy_nodes_per_layer, dummy_adjacency_dict, node_waypoints_ids
 
 
-
-
-
-
-
-print("before", adjacency_dict)
-vertex_sequence = create_vertex_seqeuence_eades(adjacency_dict)
-adjac = reverse_edges(vertex_sequence, adjacency_dict)
-print("after", adjac)

@@ -7,6 +7,7 @@ from PySide6.QtGui import QAction, QKeySequence, QPainter, QPen, QColor, QBrush,
 from PySide6.QtWidgets import QMainWindow, QApplication, QGraphicsScene, QGraphicsView, QGraphicsObject, QGraphicsItem, QStyleOptionGraphicsItem, QWidget
 
 import numpy as np
+import copy
 
 import main
 
@@ -128,9 +129,12 @@ class Vertex(QGraphicsObject):
         self.id_visible = not self.id_visible
         
         
-    def update_edges(self):
+    def update_edges(self, waypoints = False, radius_change = 0):
         for (edge, next) in self.edges:
                 edge.calculate_location()
+                if len(edge.waypoints) > 2 and waypoints == True:
+                    print("update edges with waypoints =", waypoints, "; radius change =", radius_change)
+                    edge.update_waypoints(edge.waypoints, radius_change, from_outside = False)
         
     # recalculate edges after change in location
     def itemChange(self, change: QGraphicsItem.GraphicsItemChange, value):
@@ -172,13 +176,35 @@ class Edge(QGraphicsItem):
         self.calculate_location()
 
         self.arrow_size = 10
+    
+    def update_waypoints(self, waypoints_list, radius_change = 0, from_outside = True):
+        self.waypoints = copy.deepcopy(waypoints_list)
+        if len(self.waypoints) > 2:
+            for count, waypoint in enumerate(self.waypoints):
+                if count not in [0, len(self.waypoints)-1]:
+                    x_value = waypoint.x()
+                    if from_outside:
+                        y_value = -waypoint.y() + self.start.window.node_radius
+                    else:
+                        y_value = waypoint.y() # +radius_change
+                    self.waypoints[count] = QPointF(x_value, y_value)
 
-    def calculate_location(self):
+        self.calculate_location(waypoint_update = True)
+        self.update()
+        
+
+
+    def calculate_location(self, waypoint_update = False):
         self.prepareGeometryChange()
-        starting_point = self.start.pos() + self.start.boundingRect().center()
-        ending_point = self.end.pos() + self.end.boundingRect().center()
-        self.waypoints[0] = starting_point
-        self.waypoints[len(self.waypoints)-1] = ending_point
+        if waypoint_update:
+            print("calling calculate location for long")
+            starting_point = self.waypoints[0]
+            ending_point = self.waypoints[len(self.waypoints)-1]
+        else:
+            starting_point = self.start.pos() + self.start.boundingRect().center()
+            ending_point = self.end.pos() + self.end.boundingRect().center()
+            self.waypoints[0] = starting_point
+            self.waypoints[len(self.waypoints)-1] = ending_point
         
         self.line = QLineF(
             self.start.pos() + self.start.boundingRect().center(),
@@ -194,6 +220,12 @@ class Edge(QGraphicsItem):
                     self.waypoints[count+1]
                 )
                 self.lines.append(line)
+
+        if len(self.waypoints)> 2:
+            pass
+            # print("for line between nodes",self.start.id,"and",self.end.id)
+            # print("self waypoints is:", self.waypoints)
+            # print ("self lines is:",self.lines)
     
     def boundingRect(self) -> QRectF:
         return (
@@ -412,6 +444,7 @@ class MainWindow(QMainWindow):
         self.bfs = []
         self.prims = []
         self.vertices = {}
+        self.all_edges = {}
         self.tree = None
         self.treetype = None
         self.initialize_vertices()
@@ -496,14 +529,35 @@ class MainWindow(QMainWindow):
         elif self.layout == "dag dfs barycenter":
             if self.dfs == []:
                 self.depth_first_search()
-            self.coordinates = main.calc_DAG(width, height, self.dfs, minimization_method="barycenter")
+            print("self adjacency dict is", self.adjacency_dict)
+            self.coordinates, edge_waypoints = main.calc_DAG(width, height, self.dfs, self.adjacency_dict, minimization_method="barycenter")
+            print("self adjacency dict after calc dag is", self.adjacency_dict)
+            self.update_edge_waypoints(edge_waypoints)
         elif self.layout == "dag dfs median":
             if self.dfs == []:
                 self.depth_first_search()
-            self.coordinates = main.calc_DAG(width, height, self.dfs, minimization_method="median")
+            self.coordinates, edge_waypoints = main.calc_DAG(width, height, self.dfs, self.adjacency_dict, minimization_method="median")
+            self.update_edge_waypoints(edge_waypoints)
         else:
             print("asked for layout", layout)
             raise ValueError ("Unsupported layout",layout,"requested")
+
+        
+    def update_edge_waypoints(self, edge_waypoints):    # key: list of edges where edge is (start_node_id, end_node_id, weight); value: [coords of start, dummy, ..., end]
+        print("self.all_edges.keys():", self.all_edges.keys())
+
+        print("waypoint items are:",edge_waypoints)
+
+        for edge_triple, waypoints_list in edge_waypoints.items():
+            print("edge triple is",edge_triple,"; waypoints list is",waypoints_list)
+            edge_object = self.all_edges[edge_triple]       # key: (start_node_id, end_node_id, weight); value: edge object
+            edge_object.update_waypoints(waypoints_list)
+
+            print("edge from",edge_object.start.id,"to",edge_object.end.id,"gets waypoint coordinates of",waypoints_list)
+        print("edge waypoint updating complete")
+            
+        self.scene.update()
+
 
 # recreate the graph
     def regenerate(self, same_positions = False):
@@ -629,24 +683,29 @@ class MainWindow(QMainWindow):
             for e_tuple in self.adjacency_dict[start_id]:
                 end_id, to_create, weight = e_tuple
                 if to_create == True:
-                    self.scene.addItem(Edge(self.vertices[start_id],self.vertices[end_id], weight))
+                    new_edge = Edge(self.vertices[start_id],self.vertices[end_id], weight)
+                    self.scene.addItem(new_edge)
+                    self.all_edges[(start_id, end_id, weight)] = new_edge    
                     if main.printing_mode:
                         print ("added edge from", start_id, "to", end_id,"with weight",weight)
                     
     def vertices_decrease_radius(self):
         for v in self.vertices.values():
+            radius_change = v.radius
             v.radius = max(5, v.radius-5)
-            v.update_edges()        
-        # for v in self.scene.items():
-        #     if v.__name__ == 'Vertex':
-        #         v.radius = max(5, v.radius-5)
-        #         v.update_edges()
+            self.node_radius = v.radius
+            radius_change = radius_change - v.radius
+            v.update_edges(waypoints = True, radius_change = radius_change)        
         self.scene.update()
 
     def vertices_increase_radius(self):
         for v in self.vertices.values():
+            radius_change = v.radius
             v.radius += 5
-            v.update_edges()
+            self.node_radius = v.radius
+            radius_change = radius_change - v.radius
+            v.update_edges(waypoints = True, radius_change = radius_change)
+            print("radius change is ", radius_change)
         self.scene.update()
 
     def arrow_increase_size(self):
@@ -778,6 +837,7 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
 
     window = MainWindow(main.adjacency_dict, "dag dfs barycenter", default_radius=10)
+    #window = MainWindow(main.adjacency_dict, "solar deterministic", default_radius=10)
     window.show()
 
     
