@@ -149,7 +149,7 @@ class Vertex(QGraphicsObject):
         return super().itemChange(change, value)
 
 class Edge(QGraphicsItem):
-    def __init__(self, start: Vertex, end: Vertex, weight, displayed = False, segmented = True) -> None:
+    def __init__(self, start: Vertex, end: Vertex, weight, displayed = False, segmented = False, directed = False) -> None:
         super().__init__()
 
         self.__name__ = 'Edge'
@@ -157,6 +157,9 @@ class Edge(QGraphicsItem):
         self.displayed = displayed
         self.segmented = segmented
         
+        self.directed = directed
+        if main.G.is_directed() == True:
+            self.directed = True
 
         self.start = start
         self.end = end
@@ -169,7 +172,7 @@ class Edge(QGraphicsItem):
 
         self.line = QLineF()
         self.color = "black"
-        self.thickness = 2
+        self.thickness = 1
 
         self.waypoints = [self.start.pos() + self.start.boundingRect().center(), self.end.pos() + self.end.boundingRect().center()]
         
@@ -186,13 +189,15 @@ class Edge(QGraphicsItem):
                     if from_outside:
                         y_value = -waypoint.y() + self.start.window.node_radius
                     else:
-                        y_value = waypoint.y() # +radius_change
+                        y_value = waypoint.y() #- radius_change
                     self.waypoints[count] = QPointF(x_value, y_value)
 
         self.calculate_location(waypoint_update = True)
         self.update()
         
-
+    def toggle_segmentation(self):
+        self.segmented = not self.segmented
+        self.calculate_location()
 
     def calculate_location(self, waypoint_update = False):
         self.prepareGeometryChange()
@@ -247,18 +252,25 @@ class Edge(QGraphicsItem):
                 )
             )
 
-            if main.G.is_directed() == True:
+            if self.directed and self.segmented and self.start.window.check_for_layered_layout():                    # directed and segmented and layered
                for line in self.lines:
                    if line == self.lines[len(self.lines)-1]:
                     start = self.waypoints[len(self.waypoints)-2]
                     end = self.waypoints[len(self.waypoints)-1]
                     self.draw_arrow(painter, start, self.arrow_target(start,end))
                    else:
-                    painter.drawLine(line)
-                    
-            else:
+                    painter.drawLine(line)                    
+            elif self.segmented and self.start.window.check_for_layered_layout():                                    # not directed and segmented and layered
                 for line in self.lines:
                     painter.drawLine(line)
+            elif self.directed:                                     # directed and not segmented
+                start = self.line.p1()
+                end = self.line.p2()
+                self.draw_arrow(painter, start, self.arrow_target(start,end))
+            else:                                                   # neither directed nor segmented
+                painter.drawLine(self.line) 
+
+                
 
 # function adapted from the QT for Python documentation examples
     def draw_arrow(self, painter: QPainter, start: QPointF, end: QPointF):
@@ -341,6 +353,13 @@ class MainWindow(QMainWindow):
         non_tree_edge_display_action.setCheckable(True)
         non_tree_edge_display_action.setChecked(False)
         self.actions_menu.addAction(non_tree_edge_display_action)
+
+        segmentation_toggle_action = QAction("Toggle Edge Segmentation for Layered Layouts", self)
+        segmentation_toggle_action.triggered.connect(self.toggle_edge_segmentation)
+        segmentation_toggle_action.setCheckable(True)
+        if main.G.is_directed():
+            segmentation_toggle_action.setChecked(True)
+        self.actions_menu.addAction(segmentation_toggle_action)
 
         radius_increase_action = QAction("Increase Node Size",self)
         radius_increase_action.triggered.connect(self.vertices_increase_radius)
@@ -485,7 +504,12 @@ class MainWindow(QMainWindow):
             self.tree = False
             return False
 
-
+    def check_for_layered_layout(self):
+        if self.layout in ["dag dfs barycenter", "dag dfs median"]:
+            return True
+        else:
+            return False
+        
 # layout selector             
     def generate(self, layout):
         width = self.screenwidth - 50 - self.node_radius * 2
@@ -606,6 +630,7 @@ class MainWindow(QMainWindow):
         #            print("node",parent_id,"has edge to:",next.id)
                     if next == self.vertices[child_id]:
                         edge.displayed = True
+                        #edge.color = "blue"
                         edge.update()
         #                print("tree displaying edge",parent_id, "to", child_id)
 
@@ -683,7 +708,10 @@ class MainWindow(QMainWindow):
             for e_tuple in self.adjacency_dict[start_id]:
                 end_id, to_create, weight = e_tuple
                 if to_create == True:
-                    new_edge = Edge(self.vertices[start_id],self.vertices[end_id], weight)
+                    if main.G.is_directed() == True:
+                        new_edge = Edge(self.vertices[start_id],self.vertices[end_id], weight, segmented = True)
+                    else:
+                        new_edge = Edge(self.vertices[start_id],self.vertices[end_id], weight, segmented = False)
                     self.scene.addItem(new_edge)
                     self.all_edges[(start_id, end_id, weight)] = new_edge    
                     if main.printing_mode:
@@ -738,6 +766,12 @@ class MainWindow(QMainWindow):
         self.display_non_tree_edges = not self.display_non_tree_edges
         if self.check_for_tree_layout() == True:
             self.regenerate(same_positions = True)
+
+    def toggle_edge_segmentation(self):
+        for e in self.scene.items():
+            if e.__name__ == 'Edge':
+                e.toggle_segmentation()
+        self.scene.update()
 
     def depth_first_search(self, root = "most connected"):      # time complexity of DFS is O(2E) = O(E)
         if root == "most connected":
