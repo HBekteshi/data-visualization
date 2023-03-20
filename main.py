@@ -10,12 +10,12 @@ import statistics
 from PySide6.QtCore import QPointF
 
 #undirected graphs
-#G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
+G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
 #directed graphs
-G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
+#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
 #G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
 
 
@@ -858,12 +858,12 @@ def reverse_edges(vertex_sequence, adjacency_dict):
     for index, vertex in enumerate(vertex_sequence):
         edges = acyclic_adjacency_dict[vertex]
         for edge in edges:
-            print("testing an edge to reverse", edge)
+         #   print("testing an edge to reverse", edge)
             if(edge[1] == True):
                 receiving_vertex = edge[0]
                 receiving_vertex_index = vertex_sequence.index(receiving_vertex)
                 if(receiving_vertex_index < index):
-                    print("vertex with index", index, "has an edge pointing back to vertex index", receiving_vertex_index)
+             #       print("vertex with index", index, "has an edge pointing back to vertex index", receiving_vertex_index)
                     #reverse the edge
                     weight = edge[2]
                     new_edge_uv = (edge[0], False, weight)
@@ -872,20 +872,18 @@ def reverse_edges(vertex_sequence, adjacency_dict):
                     reversed_list.append((vertex, edge[0])) #add to the list of edges that have been reversed
                     new_edge_list = edges
                     #delete old entry from dictionary
-                    print("remove edge", edge, "from adjacency dict from", vertex)
+               #     print("remove edge", edge, "from adjacency dict from", vertex)
                     new_edge_list.remove(edge) #from current vertex
-                    print("remove edge", old_edge_vu, "from adjacency dict from", edge[0])
+              #      print("remove edge", old_edge_vu, "from adjacency dict from", edge[0])
                     acyclic_adjacency_dict[edge[0]].remove(old_edge_vu) #from receiving vertex
                     #add new entry to dictionary
-                    print("add edge", new_edge_uv, "to adjacency dict from", vertex)
+             #       print("add edge", new_edge_uv, "to adjacency dict from", vertex)
                     new_edge_list.append(new_edge_uv)
                     acyclic_adjacency_dict[vertex] = new_edge_list
-                    print("add edge", new_edge_vu, "to adjacency dict from", edge[0])
+            #        print("add edge", new_edge_vu, "to adjacency dict from", edge[0])
                     acyclic_adjacency_dict[edge[0]].append(new_edge_vu)
-                else:
-                    print("receiving vertex index",receiving_vertex_index,"is larger or equal to index",index)
-            else:
-                print(edge[1], "is apparently False for edge",edge)
+            
+        
 
     #loop through the vertex sequence
     #check for each vertex if it has an edge that point to a vertex with a lower index in the list

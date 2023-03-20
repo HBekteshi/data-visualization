@@ -133,7 +133,7 @@ class Vertex(QGraphicsObject):
         for (edge, next) in self.edges:
                 edge.calculate_location()
                 if len(edge.waypoints) > 2 and waypoints == True:
-                    print("update edges with waypoints =", waypoints, "; radius change =", radius_change)
+    #                print("update edges with waypoints =", waypoints, "; radius change =", radius_change)
                     edge.update_waypoints(edge.waypoints, radius_change, from_outside = False)
         
     # recalculate edges after change in location
@@ -628,7 +628,8 @@ class MainWindow(QMainWindow):
         #            print("node",parent_id,"has edge to:",next.id)
                     if next == self.vertices[child_id]:
                         edge.displayed = True
-                        #edge.color = "blue"
+                        # edge.color = "blue"               # highlighting tree edges
+                        # edge.setZValue(-0.3)
                         edge.update()
         #                print("tree displaying edge",parent_id, "to", child_id)
 
