@@ -202,7 +202,7 @@ class Edge(QGraphicsItem):
     def calculate_location(self, waypoint_update = False):
         self.prepareGeometryChange()
         if waypoint_update:
-            print("calling calculate location for long")
+            #print("calling calculate location for long")
             starting_point = self.waypoints[0]
             ending_point = self.waypoints[len(self.waypoints)-1]
         else:
@@ -553,9 +553,7 @@ class MainWindow(QMainWindow):
         elif self.layout == "dag dfs barycenter":
             if self.dfs == []:
                 self.depth_first_search()
-            print("self adjacency dict is", self.adjacency_dict)
             self.coordinates, edge_waypoints = main.calc_DAG(width, height, self.dfs, self.adjacency_dict, minimization_method="barycenter")
-            print("self adjacency dict after calc dag is", self.adjacency_dict)
             self.update_edge_waypoints(edge_waypoints)
         elif self.layout == "dag dfs median":
             if self.dfs == []:
@@ -568,17 +566,17 @@ class MainWindow(QMainWindow):
 
         
     def update_edge_waypoints(self, edge_waypoints):    # key: list of edges where edge is (start_node_id, end_node_id, weight); value: [coords of start, dummy, ..., end]
-        print("self.all_edges.keys():", self.all_edges.keys())
+  #      print("self.all_edges.keys():", self.all_edges.keys())
 
-        print("waypoint items are:",edge_waypoints)
+  #     print("waypoint items are:",edge_waypoints)
 
         for edge_triple, waypoints_list in edge_waypoints.items():
-            print("edge triple is",edge_triple,"; waypoints list is",waypoints_list)
+   #         print("edge triple is",edge_triple,"; waypoints list is",waypoints_list)
             edge_object = self.all_edges[edge_triple]       # key: (start_node_id, end_node_id, weight); value: edge object
             edge_object.update_waypoints(waypoints_list)
 
-            print("edge from",edge_object.start.id,"to",edge_object.end.id,"gets waypoint coordinates of",waypoints_list)
-        print("edge waypoint updating complete")
+   #         print("edge from",edge_object.start.id,"to",edge_object.end.id,"gets waypoint coordinates of",waypoints_list)
+    #    print("edge waypoint updating complete")
             
         self.scene.update()
 

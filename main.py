@@ -15,8 +15,8 @@ from PySide6.QtCore import QPointF
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
 #directed graphs
-#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
-G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
+G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
+#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
 
 
 printing_mode = False
@@ -63,7 +63,6 @@ for e in G.edges():
 #print(G.edges('0'))
 if printing_mode:
     print("adjacency_dict:",adjacency_dict)
-print("first adjacency_dict:",adjacency_dict)
 
 max_edges = 0
 most_connected_node_id = None
@@ -695,15 +694,17 @@ def calc_DAG(width, height, dfs, adjacency_dict, perform_crossing_minimization =
     for layer_number, vertices in dummy_nodes_per_layer.items():
 
         # distribute nodes in a layer equally across the screen width
-        layer_spacing = width / len(vertices)               
+        layer_spacing = width / (len(vertices) +1)
 
         # calculate the y-coord for the entire layer
         layer_y_coord = (layer_number + 0.5) * layer_height_spacing
 
         # Calculate the x-coord and add y-coord for each vertex in the layer
+        print("assigning initial x-coordinates for layer number", layer_number)
         for i, node_id in enumerate(vertices):
-            x_coords_dict[node_id] = i * layer_spacing + layer_spacing/2
+            x_coords_dict[node_id] = (i+1) * layer_spacing
             y_coords_dict[node_id] = layer_y_coord
+            print("initial x_coordinate of node",node_id," is now",x_coords_dict[node_id])
 
 
     # print("initial x coords dict:", x_coords_dict)
@@ -725,6 +726,7 @@ def calc_DAG(width, height, dfs, adjacency_dict, perform_crossing_minimization =
         x_value = x_coords_dict[node_id]
         y_value = y_coords_dict[node_id]
         coordinates[node_id] = (x_value, y_value)
+        print("final x_coordinate of node",node_id," is now",x_coords_dict[node_id])
 
 
     
@@ -738,7 +740,8 @@ def calc_DAG(width, height, dfs, adjacency_dict, perform_crossing_minimization =
             x_value = x_coords_dict[waypoint_id]
             y_value = y_coords_dict[waypoint_id]
             edge_waypoints[edge].append(QPointF(x_value, y_value))
-            
+        print("the node",edge[0], "gets an edge with waypoints",edge_waypoints[edge], edge_waypoints[edge])
+        
 
     
     return coordinates, edge_waypoints #and something else such that it can read the directions of the edges?
@@ -966,7 +969,7 @@ def minimize_crossings(dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dic
         
     downwards_neighbours_set.reverse()         
 
-# TODO: add iteration: after doing a pair of upward/downward passes, compare number of crossings before and after, if worse, stop and keep previous
+# iteration: after doing a pair of upward/downward passes, compare number of crossings before and after, if worse, stop and keep previous
     
     # print("upwards degrees are:",upwards_degrees)
 
@@ -1079,8 +1082,8 @@ def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter"
     proposed_positions = queue.PriorityQueue()          # contains items in the form (relative location, node_id), .get() extracts node id with smallest location
     positions_set = set()
 
-    offset_value = 100
-    median_offset_value = 75
+    offset_value = 30
+    median_offset_value = 35
     
     if method == "barycenter":
         for node_id, neighbours in node_neighbours.items():
