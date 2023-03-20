@@ -833,7 +833,7 @@ def calc_DAG(width, height, dfs, adjacency_dict, perform_crossing_minimization =
         
     return coordinates, edge_waypoints #and something else such that it can read the directions of the edges?
 
-def dummies_distance_sum(dummy_x_coords, straight_positions, method = "max"):
+def dummies_distance_sum(dummy_x_coords, straight_positions, method = "absolute"):
     distances_sum = 0
     if method == "quadratic":
         for i in range(len(dummy_x_coords)):
