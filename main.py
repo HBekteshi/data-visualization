@@ -795,7 +795,7 @@ def calc_DAG(width, height, dfs, adjacency_dict, perform_crossing_minimization =
                         if node_id == waypoint_id:
                             continue
                         elif neighbour_x < path[i].x() and neighbour_x > min_bound:
-                            min_bound = neighbour_x + 30                               # arbitrary buffer
+                            min_bound = neighbour_x + 0                               # arbitrary buffer
                         elif neighbour_x > path[i].x() and neighbour_x < max_bound:
                             max_bound = neighbour_x
                         else:

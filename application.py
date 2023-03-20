@@ -316,6 +316,9 @@ class Edge(QGraphicsItem):
             if self.directed and self.segmented and self.start.window.check_for_layered_layout():                    # directed and segmented and layered
                 if self.curved == True:
                     painter.drawPath(self.path)
+                    start = self.waypoints[len(self.waypoints)-2]
+                    end = self.waypoints[len(self.waypoints)-1]
+                    self.draw_arrow(painter, start, self.arrow_target(start,end), just_head = True)
                 else:
                     for line in self.lines:
                         if line == self.lines[len(self.lines)-1]:
@@ -340,7 +343,7 @@ class Edge(QGraphicsItem):
                 
 
 # function adapted from the QT for Python documentation examples
-    def draw_arrow(self, painter: QPainter, start: QPointF, end: QPointF):
+    def draw_arrow(self, painter: QPainter, start: QPointF, end: QPointF, just_head = False):
         painter.setBrush(QBrush(self.color))
 
         line = QLineF(end, start)
@@ -360,7 +363,8 @@ class Edge(QGraphicsItem):
         arrow_head.append(line.p1())
         arrow_head.append(arrow_p1)
         arrow_head.append(arrow_p2)
-        painter.drawLine(line)
+        if not just_head:
+            painter.drawLine(line)
         painter.drawPolygon(arrow_head)
 
 # function adapted from the QT for Python documentation examples        
