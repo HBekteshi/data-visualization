@@ -80,12 +80,20 @@ for id, adj_nodes in list(adjacency_dict.items()): #create dictionary with the s
 avg_adjacency = round(sum(adjacencies.values()) / len(adjacencies))
 print("average adjacency", avg_adjacency)
 avg_adjacencies_list = [id for id,val in adjacencies.items() if val == avg_adjacency]
-average_connected_node_id = np.random.choice(avg_adjacencies_list)
+if avg_adjacencies_list == []:
+    average_connected_node_id = None            
+    print("average is None")
+else:
+    average_connected_node_id = np.random.choice(avg_adjacencies_list)
 print("average node", average_connected_node_id)
 
 min_adjacency = min(adjacencies.values()) + 1
 min_adjacencies_list = [id for id,val in adjacencies.items() if val == min_adjacency]
-least_connected_node_id = np.random.choice(min_adjacencies_list)
+if min_adjacencies_list == []:
+    least_connected_node_id = None
+else:
+    least_connected_node_id = np.random.choice(min_adjacencies_list)
+    print("minimum is None")
 print("minimum node", least_connected_node_id)
 
 def create_random_coordinates(width, height, adjacency_dict):
@@ -680,20 +688,20 @@ def calc_DAG(width, height, dfs, adjacency_dict, perform_crossing_minimization =
 
     #first remove the cycles in the DAG
     vertex_sequence = create_vertex_seqeuence_eades(adjacency_dict)
-    print("newly created vertex sequence is:", vertex_sequence)
+    #print("newly created vertex sequence is:", vertex_sequence)
     acyclic_adjacency_dict, reversed_list = reverse_edges(vertex_sequence, adjacency_dict)
-    print("newly created reversed list is",reversed_list)
+    #print("newly created reversed list is",reversed_list)
 
     #assign vertices to layers --> still have to test this!! but doesn't break anything 
-    print(acyclic_adjacency_dict)
+    #print(acyclic_adjacency_dict)
     layer_dict, nodes_per_layer = layer_assignment_dag(dfs, acyclic_adjacency_dict)         
     # layer_dict[node_id] = # of layer of that node;  
     # nodes_per_layer[# of layer] = list of all nodes in that layer
 
     # create dummy vertices for edges that span multiple layers
     dummy_nodes_per_layer, dummy_adjacency_dict, node_waypoints_ids, dummy_layer_dict = create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict, reversed_list)
-    print("dummy_nodes_per_layer:", dummy_nodes_per_layer)
-    print("dummy_adjacency_dict:", dummy_adjacency_dict)
+    #print("dummy_nodes_per_layer:", dummy_nodes_per_layer)
+    #print("dummy_adjacency_dict:", dummy_adjacency_dict)
 
     
 
@@ -715,11 +723,11 @@ def calc_DAG(width, height, dfs, adjacency_dict, perform_crossing_minimization =
         layer_y_coord = (layer_number + 0.5) * layer_height_spacing
 
         # Calculate the x-coord and add y-coord for each vertex in the layer
-        print("assigning initial x-coordinates for layer number", layer_number)
+        #print("assigning initial x-coordinates for layer number", layer_number)
         for i, node_id in enumerate(vertices):
             x_coords_dict[node_id] = (i+1) * layer_spacing
             y_coords_dict[node_id] = layer_y_coord
-            print("initial x_coordinate of node",node_id," is now",x_coords_dict[node_id])
+            #print("initial x_coordinate of node",node_id," is now",x_coords_dict[node_id])
 
 
     # print("initial x coords dict:", x_coords_dict)
@@ -821,7 +829,7 @@ def calc_DAG(width, height, dfs, adjacency_dict, perform_crossing_minimization =
                 else:
                     point.setX(dummy_x_coords[i-1])
 
-            print("the optimization attribute of edge from",edge[0],"to", edge[1], "is now:",dummies_distance_sum(dummy_x_coords, straight_positions),"for new coordinates",dummy_x_coords)
+            #print("the optimization attribute of edge from",edge[0],"to", edge[1], "is now:",dummies_distance_sum(dummy_x_coords, straight_positions),"for new coordinates",dummy_x_coords)
         
     return coordinates, edge_waypoints #and something else such that it can read the directions of the edges?
 
@@ -1027,15 +1035,15 @@ def layer_assignment_dag(dfs, adjacency_dict):
         layer_dict[layer] += abs(minimum_val)
 
     nodes_per_layer = {key: [] for key in set(list(layer_dict.values()))}
-    print("all values layers,", layer_dict.values())
-    print("node layer dict", nodes_per_layer)
+    #print("all values layers,", layer_dict.values())
+    #print("node layer dict", nodes_per_layer)
     for node in layer_dict:
         layer_value = layer_dict[node]
         nodes_per_layer[layer_value].append(node)
 
-    print("to assign dict", to_assign)    
-    print("layer dict", layer_dict)
-    print("nodes per layer dict", nodes_per_layer)
+    #print("to assign dict", to_assign)    
+    #print("layer dict", layer_dict)
+    #print("nodes per layer dict", nodes_per_layer)
     return layer_dict, nodes_per_layer
 
 
@@ -1299,7 +1307,7 @@ def create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict, reve
 
     node_waypoints_ids = {}             # key: list of edges where edge is (start_node_id, end_node_id, weight); value: [start_node_id, dummy_node1_id, dummy_node2_id, end_node_id]
 
-    print("reversed list is", reversed_list)
+    #print("reversed list is", reversed_list)
 
     for start_node_id, edges in acyclic_adjacency_dict.items():
         start_layer = layer_dict[start_node_id]
@@ -1361,7 +1369,7 @@ def create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict, reve
 
                 node_waypoints_ids[(start_node_id, end_node_id, weight)].append(end_node_id)
 
-    print("node_waypoints_ids:", node_waypoints_ids)
+    #print("node_waypoints_ids:", node_waypoints_ids)
 
     return dummy_nodes_per_layer, dummy_adjacency_dict, node_waypoints_ids, dummy_layer_dict
 
