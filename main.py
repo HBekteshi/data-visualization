@@ -66,12 +66,26 @@ if printing_mode:
 
 max_edges = 0
 most_connected_node_id = None
+least_connected_node_id = None
+average_connected_node_id = None
+random_root_id = np.random.choice(list(adjacency_dict.keys()))
 
 for id, adj_nodes in list(adjacency_dict.items()): #create dictionary with the size of the number of edges per node
     adjacencies[id] = len(adj_nodes)
     if len(adj_nodes) > max_edges:
         max_edges = len(adj_nodes)
         most_connected_node_id = id
+
+avg_adjacency = round(sum(adjacencies.values()) / len(adjacencies))
+print("average adjacency", avg_adjacency)
+avg_adjacencies_list = [id for id,val in adjacencies.items() if val == avg_adjacency]
+average_connected_node_id = np.random.choice(avg_adjacencies_list)
+print("average node", average_connected_node_id)
+
+min_adjacency = min(adjacencies.values()) + 1
+min_adjacencies_list = [id for id,val in adjacencies.items() if val == min_adjacency]
+least_connected_node_id = np.random.choice(min_adjacencies_list)
+print("minimum node", least_connected_node_id)
 
 def create_random_coordinates(width, height, adjacency_dict):
     coordinates = {}
@@ -80,7 +94,7 @@ def create_random_coordinates(width, height, adjacency_dict):
         y_val = np.random.uniform(-height/2, height/2)
         coordinates[n] = (x_val, y_val)
     return coordinates
-    
+
 
 #random_coordinates = create_random_coordinates(100, 100)
 
