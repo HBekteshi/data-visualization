@@ -3,7 +3,7 @@ import sys
 from collections import deque
 
 from PySide6.QtCore import QRectF, Qt, QLineF, QPointF
-from PySide6.QtGui import QAction, QKeySequence, QPainter, QPen, QColor, QBrush, QPolygonF
+from PySide6.QtGui import QAction, QKeySequence, QPainter, QPen, QColor, QBrush, QPolygonF, QPainterPath
 from PySide6.QtWidgets import QMainWindow, QApplication, QGraphicsScene, QGraphicsView, QGraphicsObject, QGraphicsItem, QStyleOptionGraphicsItem, QWidget
 
 import numpy as np
@@ -149,13 +149,14 @@ class Vertex(QGraphicsObject):
         return super().itemChange(change, value)
 
 class Edge(QGraphicsItem):
-    def __init__(self, start: Vertex, end: Vertex, weight, displayed = False, segmented = False, directed = False) -> None:
+    def __init__(self, start: Vertex, end: Vertex, weight, displayed = False, segmented = False, directed = False, curved = True) -> None:
         super().__init__()
 
         self.__name__ = 'Edge'
 
         self.displayed = displayed
         self.segmented = segmented
+        self.curved = curved
         
         self.directed = directed
         if main.G.is_directed() == True:
@@ -199,6 +200,10 @@ class Edge(QGraphicsItem):
         self.segmented = not self.segmented
         self.calculate_location()
 
+    def toggle_curving(self):
+        self.curved = not self.curved
+        self.calculate_location()
+
     def calculate_location(self, waypoint_update = False):
         self.prepareGeometryChange()
         if waypoint_update:
@@ -226,17 +231,72 @@ class Edge(QGraphicsItem):
                 )
                 self.lines.append(line)
 
+        self.buildPath()
         if len(self.waypoints)> 2:
             pass
             # print("for line between nodes",self.start.id,"and",self.end.id)
             # print("self waypoints is:", self.waypoints)
             # print ("self lines is:",self.lines)
+        
+    # function for building bezier curves, adapted from https://stackoverflow.com/questions/63016214/drawing-multi-point-curve-with-pyqt5   as there's no geometric library for bezier curves in QT
+    def buildPath(self):
+        factor = 0.25
+        waypoints_list = copy.deepcopy(self.waypoints)
+        self.path = QPainterPath(waypoints_list[0])
+        if len(waypoints_list) == 2:
+            self.path.quadTo(waypoints_list[0], waypoints_list[-1])
+        else:
+            for p, current in enumerate(waypoints_list):
+                if p == 0:
+                    continue
+                elif p == len(waypoints_list) - 1 :
+                    break
+                # previous segment
+                source = QLineF(waypoints_list[p - 1], current)
+                # next segment
+                target = QLineF(current, waypoints_list[p + 1])
+                targetAngle = target.angleTo(source)
+                if targetAngle > 180:
+                    angle = (source.angle() + source.angleTo(target) / 2) % 360
+                else:
+                    angle = (target.angle() + target.angleTo(source) / 2) % 360
+
+                revTarget = QLineF.fromPolar(source.length() * factor, angle + 180).translated(current)
+                cp2 = revTarget.p2()
+
+                if p == 1:
+                    self.path.quadTo(cp2, current)
+                else:
+                    # use the control point "cp1" set in the *previous* cycle
+                    self.path.cubicTo(cp1, cp2, current)
+
+                revSource = QLineF.fromPolar(target.length() * factor, angle).translated(current)
+                cp1 = revSource.p2()
+
+            # the final curve, that joins to the last point
+            self.path.quadTo(cp1, waypoints_list[-1])
     
     def boundingRect(self) -> QRectF:
-        return (
-            QRectF(self.line.p1(), self.line.p2())
-            .normalized()
-        )
+        if self.segmented == False:
+            return (
+                QRectF(self.line.p1(), self.line.p2())
+                .normalized()
+            )
+        else:
+            min_y = 9999
+            max_y = -9999
+            min_x = 9999
+            max_x = -9999
+            for line in self.lines:
+                min_y = min(line.p1().y(), min_y)
+                min_x = min(line.p1().x(), min_x)
+                max_y = max(line.p2().y(), max_y)
+                max_x = max(line.p2().x(), max_x)
+            return (
+                QRectF(topleft = QPointF(min_x, min_y), bottomright = QPointF(max_x,max_y))
+                .normalized()
+            )
+
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget=None):
         if self.start and self.end and self.displayed:
@@ -251,18 +311,25 @@ class Edge(QGraphicsItem):
                     Qt.RoundJoin,
                 )
             )
+            
 
             if self.directed and self.segmented and self.start.window.check_for_layered_layout():                    # directed and segmented and layered
-               for line in self.lines:
-                   if line == self.lines[len(self.lines)-1]:
-                    start = self.waypoints[len(self.waypoints)-2]
-                    end = self.waypoints[len(self.waypoints)-1]
-                    self.draw_arrow(painter, start, self.arrow_target(start,end))
-                   else:
-                    painter.drawLine(line)                    
+                if self.curved == True:
+                    painter.drawPath(self.path)
+                else:
+                    for line in self.lines:
+                        if line == self.lines[len(self.lines)-1]:
+                            start = self.waypoints[len(self.waypoints)-2]
+                            end = self.waypoints[len(self.waypoints)-1]
+                            self.draw_arrow(painter, start, self.arrow_target(start,end))
+                        else:
+                            painter.drawLine(line)                    
             elif self.segmented and self.start.window.check_for_layered_layout():                                    # not directed and segmented and layered
-                for line in self.lines:
-                    painter.drawLine(line)
+                if self.curved == True:
+                    painter.drawPath(self.path)
+                else:
+                    for line in self.lines:
+                        painter.drawLine(line)
             elif self.directed:                                     # directed and not segmented
                 start = self.line.p1()
                 end = self.line.p2()
@@ -360,6 +427,12 @@ class MainWindow(QMainWindow):
         if main.G.is_directed():
             segmentation_toggle_action.setChecked(True)
         self.actions_menu.addAction(segmentation_toggle_action)
+
+        curved_segmentation_toggle_action = QAction("Toggle Edge Curving for Segmented Layout", self)
+        curved_segmentation_toggle_action.triggered.connect(self.toggle_edge_curving)
+        curved_segmentation_toggle_action.setCheckable(True)
+        curved_segmentation_toggle_action.setChecked(True)
+        self.actions_menu.addAction(curved_segmentation_toggle_action)
 
         radius_increase_action = QAction("Increase Node Size",self)
         radius_increase_action.triggered.connect(self.vertices_increase_radius)
@@ -732,7 +805,6 @@ class MainWindow(QMainWindow):
             self.node_radius = v.radius
             radius_change = radius_change - v.radius
             v.update_edges(waypoints = True, radius_change = radius_change)
-            print("radius change is ", radius_change)
         self.scene.update()
 
     def arrow_increase_size(self):
@@ -770,6 +842,12 @@ class MainWindow(QMainWindow):
         for e in self.scene.items():
             if e.__name__ == 'Edge':
                 e.toggle_segmentation()
+        self.scene.update()
+
+    def toggle_edge_curving(self):
+        for e in self.scene.items():
+            if e.__name__ == 'Edge':
+                e.toggle_curving()
         self.scene.update()
 
     def depth_first_search(self, root = "most connected"):      # time complexity of DFS is O(2E) = O(E)

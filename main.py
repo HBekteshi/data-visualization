@@ -1,6 +1,7 @@
 import networkx
 import pydot
 import numpy as np
+import scipy
 import math
 import copy
 
@@ -10,13 +11,13 @@ import statistics
 from PySide6.QtCore import QPointF
 
 #undirected graphs
-G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
+#G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
 #directed graphs
 #G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
-#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
+G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
 
 
 printing_mode = False
@@ -674,7 +675,7 @@ def calc_attr_imp(length, chosen_node, node2, node_mass):
 
     return (attr_forcex, attr_forcey)
 
-def calc_DAG(width, height, dfs, adjacency_dict, perform_crossing_minimization = True, minimization_method = "median"):
+def calc_DAG(width, height, dfs, adjacency_dict, perform_crossing_minimization = True, minimization_method = "median", straighten_edges = True):
     #main function of DAG
 
     #first remove the cycles in the DAG
@@ -690,7 +691,7 @@ def calc_DAG(width, height, dfs, adjacency_dict, perform_crossing_minimization =
     # nodes_per_layer[# of layer] = list of all nodes in that layer
 
     # create dummy vertices for edges that span multiple layers
-    dummy_nodes_per_layer, dummy_adjacency_dict, node_waypoints_ids = create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict, reversed_list)
+    dummy_nodes_per_layer, dummy_adjacency_dict, node_waypoints_ids, dummy_layer_dict = create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict, reversed_list)
     print("dummy_nodes_per_layer:", dummy_nodes_per_layer)
     print("dummy_adjacency_dict:", dummy_adjacency_dict)
 
@@ -740,25 +741,108 @@ def calc_DAG(width, height, dfs, adjacency_dict, perform_crossing_minimization =
         x_value = x_coords_dict[node_id]
         y_value = y_coords_dict[node_id]
         coordinates[node_id] = (x_value, y_value)
-        print("final x_coordinate of node",node_id," is now",x_coords_dict[node_id])
-
+        #print("final x_coordinate of node",node_id," is now",x_coords_dict[node_id])
 
     
-    #reverse back edges that have been changed in the first step with the reversed list made in the reverse_edges function --> done within dummy node creation
-   
-        
+    #reversing back edges that have been changed in the first step with the reversed list made in the reverse_edges function is done within dummy node creation   
+    
     edge_waypoints = {}
+    
     for edge, waypoints in node_waypoints_ids.items():       # key: (start_node_id, end_node_id, weight); value: [start_node_id, dummy_node1_id, dummy_node2_id, end_node_id]
         edge_waypoints[edge] = []                               # edge_waypoints[same key] = [QPointF(x,y), QPointF(x,y), ..., QPointF(x,y)] = [coords of start, dummy, ..., end]
         for waypoint_id in waypoints:
             x_value = x_coords_dict[waypoint_id]
             y_value = y_coords_dict[waypoint_id]
             edge_waypoints[edge].append(QPointF(x_value, y_value))
-        print("the node",edge[0], "gets an edge with waypoints",edge_waypoints[edge], edge_waypoints[edge])
+#        print(before straightening, "the node",edge[0], "gets an edge with waypoints",edge_waypoints[edge], edge_waypoints[edge])
         
 
-    
+    # straighten the edges
+    if straighten_edges:
+        for edge, path in edge_waypoints.items():
+
+            if len(path) == 2:
+                continue
+            straight_positions = np.empty(len(path)-2)
+            k = len(path)-2
+            dummy_x_coords = np.empty(len(path)-2)
+
+            boundaries = np.empty(len(path)-2, dtype = "object")
+
+            for i, dummy_point in enumerate(path):
+                
+                if i == 0:
+                    continue
+                elif i == k+1:
+                    break
+                else:
+                    # add boundaries from neighbours
+                    min_bound = -9999
+                    max_bound = 9999
+
+                    waypoint_id = node_waypoints_ids[edge][i]
+                    waypoint_layer = dummy_layer_dict[waypoint_id]
+                    for node_id in dummy_nodes_per_layer[waypoint_layer]:
+                        neighbour_x = x_coords_dict[node_id]
+                        if node_id == waypoint_id:
+                            continue
+                        elif neighbour_x < path[i].x() and neighbour_x > min_bound:
+                            min_bound = neighbour_x + 30                               # arbitrary buffer
+                        elif neighbour_x > path[i].x() and neighbour_x < max_bound:
+                            max_bound = neighbour_x
+                        else:
+                            continue
+                
+                    boundaries[i-1] = (min_bound, max_bound)
+
+                    # add previous coordinates
+                    dummy_x_coords[i-1] = path[i].x()
+                    straight_positions[i-1] = path[0].x() + (i/(k+1)) * (path[k+1].x() - path[0].x())      # coordinate of d_i when (u,v) is straight
+
+            original_distance = dummies_distance_sum(dummy_x_coords, straight_positions)
+
+            #print("the optimization attribute of edge from",edge[0],"to", edge[1], "is:",original_distance,"for coordinates",dummy_x_coords)
+            if original_distance > 0:
+                result = scipy.optimize.minimize(fun = dummies_distance_sum, x0 = dummy_x_coords, args = (straight_positions), bounds = boundaries)
+
+                dummy_x_coords = result.x
+
+                # if result.success == True:
+                #     dummy_x_coords = result.x
+                # else:
+                #     #raise ValueError ("scipy optimize failed, message:",result.message)
+                #     dummy_x_coords = result.x
+            
+            for i, point in enumerate(edge_waypoints[edge]):
+                if i == 0:
+                    continue
+                elif i == k+1:
+                    break
+                else:
+                    point.setX(dummy_x_coords[i-1])
+
+            print("the optimization attribute of edge from",edge[0],"to", edge[1], "is now:",dummies_distance_sum(dummy_x_coords, straight_positions),"for new coordinates",dummy_x_coords)
+        
     return coordinates, edge_waypoints #and something else such that it can read the directions of the edges?
+
+def dummies_distance_sum(dummy_x_coords, straight_positions, method = "max"):
+    distances_sum = 0
+    if method == "quadratic":
+        for i in range(len(dummy_x_coords)):
+            distances_sum += (dummy_x_coords[i] - straight_positions[i])**2
+    elif method == "absolute":
+        for i in range(len(dummy_x_coords)):
+            distances_sum = np.abs(dummy_x_coords[i] - straight_positions[i])
+    elif method == "max":
+        for i in range(len(dummy_x_coords)):
+            if i == 0:
+                max_distance = np.abs(dummy_x_coords[i] - straight_positions[i])
+            else:
+                max_distance = max(max_distance, np.abs(dummy_x_coords[i] - straight_positions[i]))
+        distances_sum = max_distance
+    else:
+        raise ValueError ("Unsupported method for dummies distance in edge straightening")
+    return distances_sum
 
 def calc_outgoing_edges(adjacency_dict):
     #calculates for each vertex how many outgoing edges it has
@@ -1211,6 +1295,7 @@ def create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict, reve
     
     dummy_adjacency_dict = copy.deepcopy(acyclic_adjacency_dict)
     dummy_nodes_per_layer = copy.deepcopy(nodes_per_layer)
+    dummy_layer_dict = copy.deepcopy(layer_dict)
 
     node_waypoints_ids = {}             # key: list of edges where edge is (start_node_id, end_node_id, weight); value: [start_node_id, dummy_node1_id, dummy_node2_id, end_node_id]
 
@@ -1254,7 +1339,8 @@ def create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict, reve
                         if dummy_id not in dummy_nodes_per_layer[dummy_layer]:
                             node_waypoints_ids[(start_node_id, end_node_id, weight)].append(dummy_id)
                             dummy_nodes_per_layer[dummy_layer].append(dummy_id)
-                            
+                            dummy_layer_dict[dummy_id] = dummy_layer
+
                             if printing_mode:
                                 print("successfully created", dummy_id)
                             
@@ -1277,6 +1363,6 @@ def create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict, reve
 
     print("node_waypoints_ids:", node_waypoints_ids)
 
-    return dummy_nodes_per_layer, dummy_adjacency_dict, node_waypoints_ids
+    return dummy_nodes_per_layer, dummy_adjacency_dict, node_waypoints_ids, dummy_layer_dict
 
 
