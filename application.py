@@ -618,15 +618,15 @@ class MainWindow(QMainWindow):
             if self.bfs == []:
                 self.breadth_first_search()
             bfs_coords = main.create_radial_coordinates(width, height, self.bfs, self.node_radius)
-            self.coordinates = main.create_force_layout_coordinates(width, height, bfs_coords)
+            self.coordinates = main.create_force_layout_coordinates(width, height, bfs_coords, self.adjacency_dict)
         elif self.layout == "force random":
             random_coords = main.create_random_coordinates(width, height, self.adjacency_dict)
-            self.coordinates = main.create_force_layout_coordinates(width, height, random_coords)
+            self.coordinates = main.create_force_layout_coordinates(width, height, random_coords, self.adjacency_dict)
         elif self.layout == "force custom":
             if self.strict_force_binding == True:
-                self.coordinates = main.create_force_layout_coordinates(width, height, self.coordinates, max_iterations=50)
+                self.coordinates = main.create_force_layout_coordinates(width, height, self.coordinates, self.adjacency_dict, max_iterations=50)
             else:
-                self.coordinates = main.create_force_layout_coordinates(self.scene.width(), self.scene.height(), self.coordinates, max_iterations=50)
+                self.coordinates = main.create_force_layout_coordinates(self.scene.width(), self.scene.height(), self.coordinates, self.adjacency_dict, max_iterations=50)
         elif self.layout == "dag dfs barycenter":
             if self.dfs == []:
                 self.depth_first_search()

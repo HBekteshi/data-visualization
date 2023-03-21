@@ -11,13 +11,13 @@ import statistics
 from PySide6.QtCore import QPointF
 
 #undirected graphs
-#G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
+G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
 #directed graphs
 #G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
-G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
+#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
 
 
 printing_mode = False
@@ -371,7 +371,7 @@ def calc_radius(width, height, max_depth):
         radius_distance = height / (max_depth + 1)
     return (radius, radius_distance)
 
-def create_force_layout_coordinates(width, height, initial_coords, C = 1, max_iterations = 200):
+def create_force_layout_coordinates(width, height, initial_coords, adjacency_dict, C = 1, max_iterations = 200):
     delta = 0.075 # given number within the range (0,1]`
     iteration_count = 0
     coords_dict = initial_coords.copy()
@@ -385,7 +385,8 @@ def create_force_layout_coordinates(width, height, initial_coords, C = 1, max_it
     nr_vertices = len(initial_coords.keys())
 
     while t_global > t_min and iteration_count < max_iterations: #change max iterations maybe
-        coords_dict = force_iteration(width, height, coords_dict, prev_force_dict, temp_dict, skew_gauge_dict, delta, area, nr_vertices, C)
+        #TODO: change adjacencies to local instead of global
+        coords_dict = force_iteration(width, height, coords_dict, prev_force_dict, temp_dict, skew_gauge_dict, delta, area, nr_vertices, C, adjacency_dict, adjacencies)
         t_global = sum(temp_dict.values()) / len(temp_dict) #update global temperature
         iteration_count += 1
 
@@ -393,7 +394,7 @@ def create_force_layout_coordinates(width, height, initial_coords, C = 1, max_it
 
 
 def force_iteration(width, height, old_coordinates_dict, prev_force_dict, temp_dict, skew_gauge_dict,
-                    delta_value, area, nr_vertices, C, use_barycenter = True, apply_boundaries = True, single_node_iteration = False):
+                    delta_value, area, nr_vertices, C, adjacency_dict, adjacencies, use_barycenter = True, apply_boundaries = True, single_node_iteration = False):
     new_coordinates_dict = copy.deepcopy(old_coordinates_dict)
 
     barycenter = [0,0]
@@ -424,7 +425,7 @@ def force_iteration(width, height, old_coordinates_dict, prev_force_dict, temp_d
 
             coords_tuple = new_coordinates_dict[id]             # (x,y) tuple
 
-            force = calc_sum_force(id, coords_tuple, new_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter)
+            force = calc_sum_force(id, coords_tuple, new_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter, adjacency_dict, adjacencies)
 
             new_x = old_coords_tuple[0] + delta_value * force[0]
             new_y = old_coords_tuple[1] + delta_value * force[1]
@@ -447,8 +448,8 @@ def force_iteration(width, height, old_coordinates_dict, prev_force_dict, temp_d
     else:
         for id in (old_coordinates_dict.keys()):
             old_coords_tuple = old_coordinates_dict[id]             # (x,y) tuple
-
-            force = calc_sum_force(id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter)
+            #TODO: change global to local adjacencies
+            force = calc_sum_force(id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter, adjacency_dict, adjacencies)
             prev_force = prev_force_dict[id]
 
             if prev_force != 0:
@@ -497,7 +498,7 @@ def force_iteration(width, height, old_coordinates_dict, prev_force_dict, temp_d
 
     return new_coordinates_dict
 
-def calc_sum_force(current_id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter, use_mass = True):
+def calc_sum_force(current_id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter, adjacency_dict, adjacencies, use_mass = True):
     #adj_nodes = calc_direct_children() #to check again          # need node list and parent id  # this only works for a tree structure
     adj_nodes = []
 
