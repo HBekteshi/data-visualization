@@ -561,6 +561,8 @@ class MainWindow(QMainWindow):
             print("scene width:", self.scene.width(), "scene height:", self.scene.height())
             print("view width:", self.view.width(), "view height:", self.view.height())
         
+        self.depth_first_search_exhaustive()
+            
         # graphics displayed in the center
         self.setCentralWidget(self.view)
 
@@ -858,16 +860,55 @@ class MainWindow(QMainWindow):
         if root == "most connected":
             root_id = main.most_connected_node_id
         self.dfs = [(root_id, root_id)]
-        self.max_depth = []
+      #  self.max_depth = []
         visited = [root_id]
         self.depth_first_search_next(self.vertices[root_id], visited)
         if len(self.dfs) < len(self.vertices.keys()):
             print("WARNING: There are", len(self.vertices.keys()) - len(self.dfs),"nodes in the",self.layout, "graph that are not connected with the rest, these are currently not displayed")
 
-        if main.printing_mode:
-            print("dfs order:",self.dfs)
+        # if main.printing_mode:
+        #     print("dfs order:",self.dfs)
+        print("dfs order:",self.dfs)
         return self.dfs
         
+    def depth_first_search_exhaustive(self, dfs_trees = None, root = "most connected", given_root_id = None, visited = None):      # time complexity of DFS is O(2E) = O(E)
+        if given_root_id != None:
+            root_id = given_root_id
+        elif root == "most connected":
+            root_id = main.most_connected_node_id
+        else:
+            raise ValueError ("No root given for exhaustive dfs")
+        
+        if dfs_trees == None:
+            dfs_trees = []
+        self.dfs = [(root_id, root_id)]
+        if visited == None:
+            visited = [root_id]
+        else:
+            visited.append(root_id)
+            # print("appending",root_id,"to visited")
+        self.depth_first_search_next(self.vertices[root_id], visited)
+
+        dfs_trees.append(self.dfs)
+
+        if len(visited) < len(self.vertices.keys()):
+            #print("There are", len(self.vertices.keys()) - len(visited),"nodes in the",self.layout, "graph that are not connected with the rest, making new dfs")
+            for node_id in self.vertices.keys():
+                if node_id not in visited:
+                    new_root = node_id
+                    #print("new root is",new_root)
+                    break
+            # print("visited list is",visited)
+
+            self.depth_first_search_exhaustive(dfs_trees, given_root_id = new_root, visited = visited)
+        else:
+            # if main.printing_mode:
+            #     print("dfs order:",self.dfs)
+            self.dfs_trees = dfs_trees
+            self.dfs = dfs_trees[0]
+            print("exhaustive dfs order:",self.dfs_trees)
+        return self.dfs_trees
+    
     #global max_depth
     def depth_first_search_next(self, vertex, visited):  
        # self.dfs.append(vertex.id)
