@@ -1410,3 +1410,6 @@ def create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict, reve
     return dummy_nodes_per_layer, dummy_adjacency_dict, node_waypoints_ids, dummy_layer_dict
 
 
+# testing stuff
+adjacency_dict_list = [adjacency_dict]
+subgraphs_included = True

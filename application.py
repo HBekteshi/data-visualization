@@ -386,11 +386,21 @@ class Edge(QGraphicsItem):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, given_adjacency_dict, initial_layout = "random", default_radius = 10) -> None:
+    def __init__(self, given_adjacency_dict_list, initial_layout = "random", default_radius = 10) -> None:
         super().__init__()
         self.setWindowTitle("Graph viewer app")
 
-        self.adjacency_dict = given_adjacency_dict
+        
+        if len(given_adjacency_dict_list) > 1:
+            self.adjacency_dict = []
+            for count in range(len(given_adjacency_dict_list)):
+                if count == len(given_adjacency_dict_list) - 1:
+                    self.inter_layer_adjacency_dict = given_adjacency_dict_list[count]
+                else:
+                    self.adjacency_dict.append(given_adjacency_dict_list[count])
+        else:
+            self.adjacency_dict = given_adjacency_dict_list
+            
 
          # Menu
         self.menu = self.menuBar()
@@ -536,9 +546,9 @@ class MainWindow(QMainWindow):
 
         
         # Coordinates
-        self.dfs = []
-        self.bfs = []
-        self.prims = []
+        self.dfs_list = []
+        self.bfs_list = []
+        self.prims_list = []
         self.vertices = {}
         self.all_edges = {}
         self.tree = None
@@ -561,7 +571,7 @@ class MainWindow(QMainWindow):
             print("scene width:", self.scene.width(), "scene height:", self.scene.height())
             print("view width:", self.view.width(), "view height:", self.view.height())
         
-        self.depth_first_search_exhaustive()
+        #self.depth_first_search_exhaustive()
             
         # graphics displayed in the center
         self.setCentralWidget(self.view)
@@ -590,54 +600,58 @@ class MainWindow(QMainWindow):
             return False
         
 # layout selector             
-    def generate(self, layout):
-        width = self.screenwidth - 50 - self.node_radius * 2
-        height = self.screenheight - 75 - self.node_radius * 2
+    def generate(self, layout, use_screen_attributes = True, width = None, height = None, index = 0):
+        if use_screen_attributes:
+            width = self.screenwidth - 50 - self.node_radius * 2
+            height = self.screenheight - 75 - self.node_radius * 2
+        else:
+            if width == None or height == None:
+                raise ValueError ("Need to input custom width or height values for the box")
 
         self.layout = layout
         if self.layout == "random":
-            self.coordinates = main.create_random_coordinates(width, height, self.adjacency_dict)
+            self.coordinates = main.create_random_coordinates(width, height, self.adjacency_dict[index])
         elif self.layout == "solar":
-            self.coordinates = main.create_solar_coordinates(width, height, self.adjacency_dict)
+            self.coordinates = main.create_solar_coordinates(width, height, self.adjacency_dict[index])
         elif self.layout == "solar deterministic":
-            self.coordinates = main.create_solar_coordinates(width, height, self.adjacency_dict, deterministic = True)
+            self.coordinates = main.create_solar_coordinates(width, height, self.adjacency_dict[index], deterministic = True)
         elif self.layout == "radial dfs":
-            if self.dfs == []:
+            if self.dfs_list == []:
                 self.depth_first_search()
             self.treetype = "dfs"                
-            self.coordinates = main.create_radial_coordinates(width, height, self.dfs, self.node_radius)
+            self.coordinates = main.create_radial_coordinates(width, height, self.dfs_list[index], self.node_radius)
         elif self.layout == "radial bfs":
-            if self.bfs == []:
+            if self.bfs_list == []:
                 self.breadth_first_search()
             self.treetype = "bfs"
-            self.coordinates = main.create_radial_coordinates(width, height, self.bfs, self.node_radius)
+            self.coordinates = main.create_radial_coordinates(width, height, self.bfs_list[index], self.node_radius)
         elif self.layout == "radial prims":
-            if self.prims == []:
+            if self.prims_list == []:
                 self.prims_algorithm()
             self.treetype = "prims"
-            self.coordinates = main.create_radial_coordinates(width, height, self.prims, self.node_radius)
+            self.coordinates = main.create_radial_coordinates(width, height, self.prims_list[index], self.node_radius)
         elif self.layout == "force bfs":
-            if self.bfs == []:
+            if self.bfs_list == []:
                 self.breadth_first_search()
             bfs_coords = main.create_radial_coordinates(width, height, self.bfs, self.node_radius)
-            self.coordinates = main.create_force_layout_coordinates(width, height, bfs_coords, self.adjacency_dict)
+            self.coordinates = main.create_force_layout_coordinates(width, height, bfs_coords, self.adjacency_dict[index])
         elif self.layout == "force random":
-            random_coords = main.create_random_coordinates(width, height, self.adjacency_dict)
-            self.coordinates = main.create_force_layout_coordinates(width, height, random_coords, self.adjacency_dict)
+            random_coords = main.create_random_coordinates(width, height, self.adjacency_dict[index])
+            self.coordinates = main.create_force_layout_coordinates(width, height, random_coords, self.adjacency_dict[index])
         elif self.layout == "force custom":
             if self.strict_force_binding == True:
-                self.coordinates = main.create_force_layout_coordinates(width, height, self.coordinates, self.adjacency_dict, max_iterations=50)
+                self.coordinates = main.create_force_layout_coordinates(width, height, self.coordinates, self.adjacency_dict[index], max_iterations=50)
             else:
-                self.coordinates = main.create_force_layout_coordinates(self.scene.width(), self.scene.height(), self.coordinates, self.adjacency_dict, max_iterations=50)
+                self.coordinates = main.create_force_layout_coordinates(self.scene.width(), self.scene.height(), self.coordinates, self.adjacency_dict[index], max_iterations=50)
         elif self.layout == "dag dfs barycenter":
-            if self.dfs == []:
+            if self.dfs_list == []:
                 self.depth_first_search()
-            self.coordinates, edge_waypoints = main.calc_DAG(width, height, self.dfs, self.adjacency_dict, minimization_method="barycenter")
+            self.coordinates, edge_waypoints = main.calc_DAG(width, height, self.dfs_list[index], self.adjacency_dict[index], minimization_method="barycenter")
             self.update_edge_waypoints(edge_waypoints)
         elif self.layout == "dag dfs median":
-            if self.dfs == []:
+            if self.dfs_list == []:
                 self.depth_first_search()
-            self.coordinates, edge_waypoints = main.calc_DAG(width, height, self.dfs, self.adjacency_dict, minimization_method="median")
+            self.coordinates, edge_waypoints = main.calc_DAG(width, height, self.dfs_list[index], self.adjacency_dict[index], minimization_method="median")
             self.update_edge_waypoints(edge_waypoints)
         else:
             print("asked for layout", layout)
@@ -693,24 +707,25 @@ class MainWindow(QMainWindow):
        # get self.dfs, for parent in selfdfs element [0], check all the edges for next to be element [1], turn on that edge only; make sure update function doesn't update other edges
         if self.check_for_tree_layout() and not self.display_non_tree_edges:
             if self.treetype == "dfs":
-                node_list = self.dfs
+                tree = self.dfs_list
             elif self.treetype == "bfs":
-                node_list = self.bfs
+                tree = self.bfs_list
             elif self.treetype == "prims":
-                node_list = self.prims
+                tree = self.prims_list
             else:
                 raise ValueError ("No selected node list in given tree layout")
-        
-            for parent_id, child_id in node_list:
-        #        print("testing to see if tree displays edge", parent_id,"to",child_id)
-                for edge, next in self.vertices[parent_id].edges:
-        #            print("node",parent_id,"has edge to:",next.id)
-                    if next == self.vertices[child_id]:
-                        edge.displayed = True
-                        # edge.color = "blue"               # highlighting tree edges
-                        # edge.setZValue(-0.3)
-                        edge.update()
-        #                print("tree displaying edge",parent_id, "to", child_id)
+
+            for node_list in tree:
+                for parent_id, child_id in node_list:
+            #        print("testing to see if tree displays edge", parent_id,"to",child_id)
+                    for edge, next in self.vertices[parent_id].edges:
+            #            print("node",parent_id,"has edge to:",next.id)
+                        if next == self.vertices[child_id]:
+                            edge.displayed = True
+                            # edge.color = "blue"               # highlighting tree edges
+                            # edge.setZValue(-0.3)
+                            edge.update()
+            #                print("tree displaying edge",parent_id, "to", child_id)
 
         self.update_status()                
         
@@ -773,17 +788,17 @@ class MainWindow(QMainWindow):
 
 # part of graph initialization:
         
-    def initialize_vertices(self):
-        for vertex_id in self.adjacency_dict.keys():
+    def initialize_vertices(self, index = 0):
+        for vertex_id in self.adjacency_dict[index].keys():
             new_vertex = Vertex(self, vertex_id, 0, 0, radius = self.node_radius)
             self.vertices[vertex_id] = new_vertex
             self.scene.addItem(new_vertex)
         self.initialize_edges()
 
 
-    def initialize_edges(self):
-        for start_id in self.adjacency_dict.keys():        
-            for e_tuple in self.adjacency_dict[start_id]:
+    def initialize_edges(self, index = 0):
+        for start_id in self.adjacency_dict[index].keys():        
+            for e_tuple in self.adjacency_dict[index][start_id]:
                 end_id, to_create, weight = e_tuple
                 if to_create == True:
                     if main.G.is_directed() == True:
@@ -856,7 +871,7 @@ class MainWindow(QMainWindow):
                 e.toggle_curving()
         self.scene.update()
 
-    def depth_first_search(self, root = "most connected"):      # time complexity of DFS is O(2E) = O(E)
+    def depth_first_search(self, root = "most connected", index = 0):      # time complexity of DFS is O(2E) = O(E)
         if root == "most connected":
             root_id = main.most_connected_node_id
         self.dfs = [(root_id, root_id)]
@@ -869,6 +884,9 @@ class MainWindow(QMainWindow):
         # if main.printing_mode:
         #     print("dfs order:",self.dfs)
         print("dfs order:",self.dfs)
+
+        self.dfs_list.append(self.dfs)
+
         return self.dfs
         
     def depth_first_search_exhaustive(self, dfs_trees = None, root = "most connected", given_root_id = None, visited = None):      # time complexity of DFS is O(2E) = O(E)
@@ -903,7 +921,7 @@ class MainWindow(QMainWindow):
             self.depth_first_search_exhaustive(dfs_trees, given_root_id = new_root, visited = visited)
         else:
             # if main.printing_mode:
-            #     print("dfs order:",self.dfs)
+            #     print("exhaustive dfs order:",self.dfs_trees)
             self.dfs_trees = dfs_trees
             self.dfs = dfs_trees[0]
             print("exhaustive dfs order:",self.dfs_trees)
@@ -939,6 +957,9 @@ class MainWindow(QMainWindow):
 
         if len(self.bfs) < len(self.vertices.keys()):
             print("WARNING: There are", len(self.vertices.keys()) - len(self.bfs),"nodes in the",self.layout, "graph that are not connected with the rest, these are currently not displayed")
+
+        self.bfs_list.append(self.bfs)
+            
         return self.bfs
 
 
@@ -980,6 +1001,9 @@ class MainWindow(QMainWindow):
 
         if main.printing_mode:
             print("prims order:", self.prims)
+
+        self.prims_list.append(self.prims)
+
         return self.prims
 
 
@@ -992,7 +1016,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict, "dag dfs barycenter", default_radius=10)
+    window = MainWindow(main.adjacency_dict_list, "dag dfs barycenter", default_radius=10)
     #window = MainWindow(main.adjacency_dict, "solar deterministic", default_radius=10)
     window.show()
 
