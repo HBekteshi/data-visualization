@@ -16,8 +16,43 @@ from PySide6.QtCore import QPointF
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
 #directed graphs
-G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
+#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
 #G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
+
+A = pydot.graph_from_dot_file('data/devonshiredebate_withonlytwoclusters.dot')
+subgraphs = A[0].get_subgraphs()
+subgraph_youngest = subgraphs[0]
+subgraph_gap = subgraphs[1]
+all_edges = A[0].get_edge_list()
+inter_layer_edges = []
+
+
+for edge in all_edges:
+    source = edge.get_source()
+    destination = edge.get_destination()
+    subgraph_youngest_nodes = subgraph_youngest.obj_dict["nodes"]
+    subgraph_gap_nodes = subgraph_gap.obj_dict["nodes"]
+    #print("source", source)
+    #print("destination", destination)
+    if source in subgraph_youngest_nodes and destination in subgraph_youngest_nodes:
+        subgraph_youngest.add_edge(edge)
+        #print("both nodes are in youngest")
+    elif source in subgraph_gap_nodes and destination in subgraph_gap_nodes:
+        subgraph_gap.add_edge(edge)
+        #print("both nodes are in gap")
+    else:
+        inter_layer_edges.append(edge)
+        #print("nodes are in gap and youngest")
+
+print("edges subgraph", subgraph_youngest.get_edges())
+print("edges subgraph", subgraph_gap.get_edges())
+
+
+
+
+G = networkx.DiGraph(networkx.nx_pydot.from_pydot(subgraphs[0]))
+G2 = networkx.DiGraph(networkx.nx_pydot.from_pydot(subgraphs[1]))
+
 
 
 printing_mode = False
