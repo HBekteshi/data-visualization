@@ -617,22 +617,22 @@ class MainWindow(QMainWindow):
             self.coordinates = main.create_solar_coordinates(width, height, self.adjacency_dict[index], deterministic = True)
         elif self.layout == "radial dfs":
             if self.dfs_list == []:
-                self.depth_first_search()
+                self.depth_first_search(root=main.most_connected_node_id[index])
             self.treetype = "dfs"                
             self.coordinates = main.create_radial_coordinates(width, height, self.dfs_list[index], self.node_radius)
         elif self.layout == "radial bfs":
             if self.bfs_list == []:
-                self.breadth_first_search()
+                self.breadth_first_search(root=main.most_connected_node_id[index])
             self.treetype = "bfs"
             self.coordinates = main.create_radial_coordinates(width, height, self.bfs_list[index], self.node_radius)
         elif self.layout == "radial prims":
             if self.prims_list == []:
-                self.prims_algorithm()
+                self.prims_algorithm(root=main.most_connected_node_id[index])
             self.treetype = "prims"
             self.coordinates = main.create_radial_coordinates(width, height, self.prims_list[index], self.node_radius)
         elif self.layout == "force bfs":
             if self.bfs_list == []:
-                self.breadth_first_search()
+                self.breadth_first_search(root=main.most_connected_node_id[index])
             bfs_coords = main.create_radial_coordinates(width, height, self.bfs, self.node_radius)
             self.coordinates = main.create_force_layout_coordinates(width, height, bfs_coords, self.adjacency_dict[index])
         elif self.layout == "force random":
@@ -645,12 +645,12 @@ class MainWindow(QMainWindow):
                 self.coordinates = main.create_force_layout_coordinates(self.scene.width(), self.scene.height(), self.coordinates, self.adjacency_dict[index], max_iterations=50)
         elif self.layout == "dag dfs barycenter":
             if self.dfs_list == []:
-                self.depth_first_search()
+                self.depth_first_search(root=main.most_connected_node_id[index])
             self.coordinates, edge_waypoints = main.calc_DAG(width, height, self.dfs_list[index], self.adjacency_dict[index], minimization_method="barycenter")
             self.update_edge_waypoints(edge_waypoints)
         elif self.layout == "dag dfs median":
             if self.dfs_list == []:
-                self.depth_first_search()
+                self.depth_first_search(root=main.most_connected_node_id[index])
             self.coordinates, edge_waypoints = main.calc_DAG(width, height, self.dfs_list[index], self.adjacency_dict[index], minimization_method="median")
             self.update_edge_waypoints(edge_waypoints)
         else:
@@ -871,9 +871,8 @@ class MainWindow(QMainWindow):
                 e.toggle_curving()
         self.scene.update()
 
-    def depth_first_search(self, root = "most connected", index = 0):      # time complexity of DFS is O(2E) = O(E)
-        if root == "most connected":
-            root_id = main.most_connected_node_id
+    def depth_first_search(self, root, index = 0):      # time complexity of DFS is O(2E) = O(E)
+        root_id = root
         self.dfs = [(root_id, root_id)]
       #  self.max_depth = []
         visited = [root_id]

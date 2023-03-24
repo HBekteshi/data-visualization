@@ -16,11 +16,12 @@ from PySide6.QtCore import QPointF
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
 #directed graphs
-#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
+G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
 #G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
 
 A = pydot.graph_from_dot_file('data/devonshiredebate_withonlytwoclusters.dot')
 subgraphs = A[0].get_subgraphs()
+
 subgraph_youngest = subgraphs[0]
 subgraph_gap = subgraphs[1]
 all_edges = A[0].get_edge_list()
@@ -48,88 +49,118 @@ print("edges subgraph", subgraph_youngest.get_edges())
 print("edges subgraph", subgraph_gap.get_edges())
 
 
-
-
-G = networkx.DiGraph(networkx.nx_pydot.from_pydot(subgraphs[0]))
-G2 = networkx.DiGraph(networkx.nx_pydot.from_pydot(subgraphs[1]))
+G_youngest = networkx.DiGraph(networkx.nx_pydot.from_pydot(subgraphs[0]))
+G_gap = networkx.DiGraph(networkx.nx_pydot.from_pydot(subgraphs[1]))
+subgraphs_list = [G_youngest, G_gap]
 
 
 
 printing_mode = False
+subgraphs_included = True #set to False when loading a graph without subgraphs
 
 print("Data loaded")
 
+adjacency_dict_list = []
 adjacency_dict = {}
+adjacency_dict_sub1 = {}
+adjacency_dict_sub2 = {}
+adjacency_dict_interlayer = {}
 adjacencies = {}
+adjacencies_sub1 = {}
+adjacencies_sub2 = {}
+    
+def add_nodes_adjacency_dict(adjacency_dict, graph):
+    for n in graph.nodes():
+        if printing_mode:
+            print(f"Added node with id {n}")
+        adjacency_dict[n] = []
 
-for n in G.nodes():
-    if printing_mode:
-        print(f"Added node with id {n}")
-    adjacency_dict[n] = []
 
 # the les miserables import has a node with id '\\n' and no connections
 
-    
 # the first time an edge appears it is marked True, and it will be rendered
 # the second time the same edge appears it is marked False, so it will not be rendered
-    
-weightcheck = True
-weighted = True
-for e in G.edges():
-    u, v = e
-    if weightcheck:
-        try:
+def add_edges_to_adjacency_dict(adjacency_dict, G):   
+    weightcheck = True
+    weighted = True
+    for e in G.edges():
+        u, v = e
+        if weightcheck:
+            try:
+                weight = G[u][v]["weight"]
+            except:
+                weighted = False
+            finally:
+                weightcheck = False
+        if weighted:
             weight = G[u][v]["weight"]
-        except:
-            weighted = False
-        finally:
-            weightcheck = False
-    if weighted:
-        weight = G[u][v]["weight"]
-        adjacency_dict[u].append((v,True, weight))          # True = will be rendered graphically; False = has already been rendered graphically
-        adjacency_dict[v].append((u,False, weight))         # for directed graph, make sure direction is u-->v for True 
-    
-    else:
-        adjacency_dict[u].append((v,True, 1))          # True = will be rendered graphically; False = has already been rendered graphically
-        adjacency_dict[v].append((u,False,1))         # for directed graph, make sure direction is u-->v for True 
-    if printing_mode:
-        print(f"Added edge from {u} to {v}")
+            adjacency_dict[u].append((v,True, weight))          # True = will be rendered graphically; False = has already been rendered graphically
+            adjacency_dict[v].append((u,False, weight))         # for directed graph, make sure direction is u-->v for True 
+        
+        else:
+            adjacency_dict[u].append((v,True, 1))          # True = will be rendered graphically; False = has already been rendered graphically
+            adjacency_dict[v].append((u,False,1))         # for directed graph, make sure direction is u-->v for True 
+        if printing_mode:
+            print(f"Added edge from {u} to {v}")
 
+max_edges = 0
+most_connected_node_id = []
+
+# uncomment if we want to use this again
+# least_connected_node_id = None
+# average_connected_node_id = None
+# random_root_id = np.random.choice(list(adjacency_dict.keys()))
+
+def create_adjacencies(adjacencies, adjacency_dict):
+    for id, adj_nodes in list(adjacency_dict.items()): #create dictionary with the size of the number of edges per node
+        adjacencies[id] = len(adj_nodes)
+            
+if(subgraphs_included == False):
+    add_nodes_adjacency_dict(adjacency_dict, G)
+    add_edges_to_adjacency_dict(adjacency_dict, G)
+    create_adjacencies(adjacencies, adjacency_dict)
+    most_connected_node_id.append(max(zip(adjacencies.values(), adjacencies.keys()))[1]) #retrieve id with max adjacency, add to list
+    adjacency_dict_list.append(adjacency_dict)
+else:
+    add_nodes_adjacency_dict(adjacency_dict_sub1, subgraphs_list[0])
+    add_edges_to_adjacency_dict(adjacency_dict_sub1, subgraphs_list[0])
+    create_adjacencies(adjacencies_sub1, adjacency_dict_sub1)
+    most_connected_node_id.append(max(zip(adjacencies_sub1.values(), adjacencies_sub1.keys()))[1]) #retrieve id with max adjacency, add to list
+    adjacency_dict_list.append(adjacency_dict_sub1)
+
+    add_nodes_adjacency_dict(adjacency_dict_sub2, subgraphs_list[1])
+    add_edges_to_adjacency_dict(adjacency_dict_sub2, subgraphs_list[1])
+    create_adjacencies(adjacencies_sub2, adjacency_dict_sub2)
+    most_connected_node_id.append(max(zip(adjacencies_sub2.values(), adjacencies_sub2.keys()))[1]) #retrieve id with max adjacency, add to list
+    adjacency_dict_list.append(adjacency_dict_sub2)
+    adjacency_dict_list.append(adjacency_dict_interlayer)
+
+
+print("adjacency_dict_list", adjacency_dict_list)
 
 #print(G.edges('0'))
 if printing_mode:
     print("adjacency_dict:",adjacency_dict)
 
-max_edges = 0
-most_connected_node_id = None
-least_connected_node_id = None
-average_connected_node_id = None
-random_root_id = np.random.choice(list(adjacency_dict.keys()))
+# if we want to apply average and minimum adjacency again, uncomment
+# avg_adjacency = round(sum(adjacencies.values()) / len(adjacencies))
+# print("average adjacency", avg_adjacency)
+# avg_adjacencies_list = [id for id,val in adjacencies.items() if val == avg_adjacency]
+# if avg_adjacencies_list == []:
+#     average_connected_node_id = None            
+#     print("average is None")
+# else:
+#     average_connected_node_id = np.random.choice(avg_adjacencies_list)
+# print("average node", average_connected_node_id)
 
-for id, adj_nodes in list(adjacency_dict.items()): #create dictionary with the size of the number of edges per node
-    adjacencies[id] = len(adj_nodes)
-    if len(adj_nodes) > max_edges:
-        max_edges = len(adj_nodes)
-        most_connected_node_id = id
-
-avg_adjacency = round(sum(adjacencies.values()) / len(adjacencies))
-print("average adjacency", avg_adjacency)
-avg_adjacencies_list = [id for id,val in adjacencies.items() if val == avg_adjacency]
-if avg_adjacencies_list == []:
-    average_connected_node_id = None            
-    print("average is None")
-else:
-    average_connected_node_id = np.random.choice(avg_adjacencies_list)
-print("average node", average_connected_node_id)
-
-min_adjacency = min(adjacencies.values()) + 1
-min_adjacencies_list = [id for id,val in adjacencies.items() if val == min_adjacency]
-if min_adjacencies_list == []:
-    least_connected_node_id = None
-else:
-    least_connected_node_id = np.random.choice(min_adjacencies_list)
-    print("minimum is None")
-print("minimum node", least_connected_node_id)
+# min_adjacency = min(adjacencies.values()) + 1
+# min_adjacencies_list = [id for id,val in adjacencies.items() if val == min_adjacency]
+# if min_adjacencies_list == []:
+#     least_connected_node_id = None
+# else:
+#     least_connected_node_id = np.random.choice(min_adjacencies_list)
+#     print("minimum is None")
+# print("minimum node", least_connected_node_id)
 
 def create_random_coordinates(width, height, adjacency_dict):
     coordinates = {}
@@ -1408,8 +1439,3 @@ def create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict, reve
     #print("node_waypoints_ids:", node_waypoints_ids)
 
     return dummy_nodes_per_layer, dummy_adjacency_dict, node_waypoints_ids, dummy_layer_dict
-
-
-# testing stuff
-adjacency_dict_list = [adjacency_dict]
-subgraphs_included = True
