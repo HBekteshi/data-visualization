@@ -616,7 +616,21 @@ class MainWindow(QMainWindow):
         else:
             return False
         
-# layout selector             
+    def translate_coordinates(self, xtrans, ytrans, coordinates):
+        """
+        get a x and y translation as input, and a coordinates dictionary with node ids as key and a tuple as coordinates as a value
+        """
+        translated_coordinates = coordinates.copy()
+
+        for node_id, val in coordinates.items():
+            new_x = val[0] + xtrans
+            new_y = val[1] + ytrans
+            translated_coordinates[node_id] = (new_x, new_y)
+
+        return translated_coordinates    
+        
+        
+ # layout selector             
     def generate(self, layout, use_screen_attributes = True, width = None, height = None, index = 0):
         if use_screen_attributes:
             width = self.screenwidth - 50 - self.node_radius * 2
@@ -666,7 +680,11 @@ class MainWindow(QMainWindow):
 
         elif self.layout == "force random":
             random_coords = main.create_random_coordinates(width, height, self.adjacency_dict[index])
-            self.coordinates[index] = main.create_force_layout_coordinates(width, height, random_coords, self.adjacency_dict[index], index = index)
+            untranslated_coordinates = main.create_force_layout_coordinates(width/2, height, random_coords, self.adjacency_dict[index], index = index)
+            if index == 0:
+                self.coordinates[index] = self.translate_coordinates(-width/2, 0, untranslated_coordinates)
+            else:
+                self.coordinates[index] = self.translate_coordinates(width/2, 0, untranslated_coordinates)
             
         elif self.layout == "force custom":
             if self.strict_force_binding == True:
@@ -693,7 +711,6 @@ class MainWindow(QMainWindow):
         
 #        print("the resulting coordinates on index",index, "are for node",self.coordinates[index].keys())
 
-        
     def update_edge_waypoints(self, edge_waypoints):    # key: list of edges where edge is (start_node_id, end_node_id, weight); value: [coords of start, dummy, ..., end]
   #      print("self.all_edges.keys():", self.all_edges.keys())
 

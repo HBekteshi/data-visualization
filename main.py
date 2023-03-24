@@ -150,7 +150,7 @@ else:
     add_nodes_adjacency_dict(adjacency_dict_interlayer, subgraphs_list[0]) 
     add_nodes_adjacency_dict(adjacency_dict_interlayer, subgraphs_list[1])
     add_edges_to_adjacency_dict(adjacency_dict_interlayer, inter_layer_edges)
-    # delete nodes from dict which have no interlayer edges
+    # ignore nodes from dict which have no interlayer edges
     adjacency_dict_interlayer = {id:val for id, val in adjacency_dict_interlayer.items() if val != []}
     # add to adjacency dict list
     adjacency_dict_list.append(adjacency_dict_interlayer)
