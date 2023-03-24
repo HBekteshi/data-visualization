@@ -15,7 +15,7 @@ printing_mode = False
 subgraphs_included = True #set to False when loading a graph without subgraphs
 
 #undirected graphs
-#G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
+G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
@@ -72,7 +72,7 @@ adjacency_dict = {}
 adjacency_dict_sub1 = {}
 adjacency_dict_sub2 = {}
 adjacency_dict_interlayer = {}
-adjacencies = {}
+adjacencies = []
 adjacencies_sub1 = {}
 adjacencies_sub2 = {}
     
@@ -122,14 +122,12 @@ def create_adjacencies(adjacencies, adjacency_dict):
     for id, adj_nodes in list(adjacency_dict.items()): #create dictionary with the size of the number of edges per node
         adjacencies[id] = len(adj_nodes)
     return adjacencies
-            
-adjacencies = []
 
 if(subgraphs_included == False):
     add_nodes_adjacency_dict(adjacency_dict, G)
     add_edges_to_adjacency_dict(adjacency_dict, G)
-    adjacencies.append(create_adjacencies(adjacencies, adjacency_dict))
-    most_connected_node_id.append(max(zip(adjacencies.values(), adjacencies.keys()))[1]) #retrieve id with max adjacency, add to list
+    adjacencies.append(create_adjacencies(adjacencies_sub1, adjacency_dict))
+    most_connected_node_id.append(max(zip(adjacencies[0].values(), adjacencies[0].keys()))[1]) #retrieve id with max adjacency, add to list
     adjacency_dict_list.append(adjacency_dict)
 else:
     add_nodes_adjacency_dict(adjacency_dict_sub1, subgraphs_list[0])
