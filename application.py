@@ -88,6 +88,8 @@ class Vertex(QGraphicsObject):
         if main.printing_mode:
             print("node", self.id, "is currently at", self.pos())
             print("moving node",self.id,"from",self.x_coord,self.y_coord,"to",x,y)
+            
+        #print("moving node",self.id,"from",self.x_coord,self.y_coord,"to",x,y)
         
         self.setPos(x, y)
         self.x_coord = x
@@ -489,15 +491,18 @@ class MainWindow(QMainWindow):
 
         radial_bfs_regeneration_action = QAction("Generate Radial BFS Tree Layout", self)
         radial_bfs_regeneration_action.triggered.connect(self.regenerate_radial_bfs)
-        self.layouts_menu.addAction(radial_bfs_regeneration_action)
+        if main.subgraphs_included == False:
+            self.layouts_menu.addAction(radial_bfs_regeneration_action)
 
         radial_dfs_regeneration_action = QAction("Generate Radial DFS Tree Layout", self)
         radial_dfs_regeneration_action.triggered.connect(self.regenerate_radial_dfs)
-        self.layouts_menu.addAction(radial_dfs_regeneration_action)
+        if main.subgraphs_included == False:
+            self.layouts_menu.addAction(radial_dfs_regeneration_action)
 
         radial_prims_regeneration_action = QAction("Generate Radial Prim's Tree Layout", self)
         radial_prims_regeneration_action.triggered.connect(self.regenerate_radial_prims)
-        self.layouts_menu.addAction(radial_prims_regeneration_action)
+        if main.subgraphs_included == False:
+            self.layouts_menu.addAction(radial_prims_regeneration_action)
 
         force_random_regeneration_action = QAction("Generate Force Directed Random-Initialized Layout", self)
         force_random_regeneration_action.triggered.connect(self.regenerate_force_random)
@@ -506,7 +511,7 @@ class MainWindow(QMainWindow):
         force_bfs_regeneration_action = QAction("Generate Force Directed BFS-Initialized Layout", self)
         force_bfs_regeneration_action.triggered.connect(self.regenerate_force_bfs)
         if main.subgraphs_included == False:
-            self.layouts_menu.addAction(force_bf_regeneration_action)         # do not include this with subgraphs until bfs is exhaustive
+            self.layouts_menu.addAction(force_bfs_regeneration_action)         # do not include this with subgraphs until bfs is exhaustive
 
         dag_dfs_barycenter_regeneration_action = QAction("Generate DAG DFS-Initialized Layout (Barycenter crossing minimization)", self)
         dag_dfs_barycenter_regeneration_action.triggered.connect(self.regenerate_dag_dfs_barycenter)
@@ -622,10 +627,11 @@ class MainWindow(QMainWindow):
         if len(self.coordinates) < (index+1):
             self.coordinates.append([])
 
+                
         self.layout = layout
         if self.layout == "random":
             self.coordinates[index] = main.create_random_coordinates(width, height, self.adjacency_dict[index])
-        elif self.layout == "solar":
+        elif self.layout == ("solar" or "solar random"):
             self.coordinates[index] = main.create_solar_coordinates(width, height, self.adjacency_dict[index], index = index)
         elif self.layout == "solar deterministic":
             self.coordinates[index] = main.create_solar_coordinates(width, height, self.adjacency_dict[index], index = index, deterministic = True)
@@ -666,12 +672,14 @@ class MainWindow(QMainWindow):
                 self.coordinates[index] = main.create_force_layout_coordinates(width, height, self.coordinates[index], self.adjacency_dict[index], max_iterations=50, index = index)
             else:
                 self.coordinates[index] = main.create_force_layout_coordinates(self.scene.width(), self.scene.height(), self.coordinates[index], self.adjacency_dict[index], max_iterations=50, index = index)
+
         elif self.layout == "dag dfs barycenter":
             if self.dfs_list == []:
                 for count in range(len(self.vertices)):
                     self.depth_first_search(root=main.most_connected_node_id[count], index = count)
             self.coordinates[index], edge_waypoints = main.calc_DAG(width, height, self.dfs_list[index], self.adjacency_dict[index], minimization_method="barycenter")
             self.update_edge_waypoints(edge_waypoints)
+            
         elif self.layout == "dag dfs median":
             if self.dfs_list == []:
                 for count in range(len(self.vertices)):
@@ -680,7 +688,9 @@ class MainWindow(QMainWindow):
             self.update_edge_waypoints(edge_waypoints)
         else:
             print("asked for layout", layout)
-            raise ValueError ("Unsupported layout",layout,"requested")
+            raise ValueError ("Unsupported layout "+layout+" requested")
+        
+#        print("the resulting coordinates on index",index, "are for node",self.coordinates[index].keys())
 
         
     def update_edge_waypoints(self, edge_waypoints):    # key: list of edges where edge is (start_node_id, end_node_id, weight); value: [coords of start, dummy, ..., end]
@@ -716,7 +726,12 @@ class MainWindow(QMainWindow):
 
 
         # move the vertices to their new positions
+     #   print("self coordinates index 0 keys:",self.coordinates[0].keys())
+      #  print("self coordinates index 1 keys", self.coordinates[1].keys())
+
         for index in range(len(self.coordinates)):
+            #print("moving all vertices of index",index)
+            #print("these are:",self.coordinates[index].keys())
             for vertex_id in self.coordinates[index].keys():
                 x,y = self.coordinates[index][vertex_id]
 
@@ -1048,7 +1063,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict_list, "radial bfs", default_radius=10)
+    window = MainWindow(main.adjacency_dict_list, "solar", default_radius=10)
     window.show()
 
     

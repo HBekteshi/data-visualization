@@ -15,7 +15,7 @@ printing_mode = False
 subgraphs_included = True #set to False when loading a graph without subgraphs
 
 #undirected graphs
-G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
+#G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
