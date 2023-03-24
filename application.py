@@ -393,9 +393,6 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Graph viewer app")
 
-        
-            
-
          # Menu
         self.menu = self.menuBar()
         self.file_menu = self.menu.addMenu("File")
@@ -544,7 +541,7 @@ class MainWindow(QMainWindow):
 
         
         self.vertices = []
-        
+        self.inter_layer_adjacency_dict = None
         
         if len(given_adjacency_dict_list) > 1:
             self.adjacency_dict = []
@@ -570,6 +567,10 @@ class MainWindow(QMainWindow):
         
         for count in range(len(self.vertices)):
             self.initialize_vertices(index = count)
+
+        if self.inter_layer_adjacency_dict != None:
+            print("initializing interlayer edges based on dict", self.inter_layer_adjacency_dict)
+            self.initialize_interlayer_edges()
 
         # Default Settings
         self.layout = self.default_layout
@@ -851,6 +852,24 @@ class MainWindow(QMainWindow):
                     self.all_edges[(start_id, end_id, weight)] = new_edge    
                     if main.printing_mode:
                         print ("added edge from", start_id, "to", end_id,"with weight",weight)
+
+    def initialize_interlayer_edges(self):
+        for start_id in self.inter_layer_adjacency_dict.keys():
+            start_index = self.all_vertices[start_id].subgraph            
+            for e_tuple in self.inter_layer_adjacency_dict[start_id]:
+                end_id, to_create, weight = e_tuple
+                end_index = self.all_vertices[end_id].subgraph
+                if to_create == True:
+                    if main.G.is_directed() == True:
+                        new_edge = Edge(self.vertices[start_index][start_id],self.vertices[end_index][end_id], weight, segmented = True)
+                    else:
+                        new_edge = Edge(self.vertices[start_index][start_id],self.vertices[end_index][end_id], weight, segmented = False)
+                    self.scene.addItem(new_edge)
+                    self.all_edges[(start_id, end_id, weight)] = new_edge    
+                  #  if main.printing_mode:
+                   #     print ("added edge from", start_id, "to", end_id,"with weight",weight)                    
+                    print ("added interlayer edge from", start_id, "to", end_id,"with weight",weight)                    
+
                     
     def vertices_decrease_radius(self):
         for vertices_list in self.vertices:
@@ -1063,7 +1082,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict_list, "solar", default_radius=10)
+    window = MainWindow(main.adjacency_dict_list, "solar deterministic", default_radius=10)
     window.show()
 
     
