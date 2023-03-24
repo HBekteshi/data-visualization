@@ -12,7 +12,7 @@ import copy
 import main
 
 class Vertex(QGraphicsObject):
-    def __init__(self, window, id, x_coord, y_coord, radius = 25, subgraph = None, displayed = False, id_visible = True) -> None:
+    def __init__(self, window, id, x_coord, y_coord, radius = 25, subgraph = 0, displayed = False, id_visible = True) -> None:
         super().__init__()
 
         self.window = window
@@ -50,7 +50,7 @@ class Vertex(QGraphicsObject):
         self.x_coord = x
         self.y_coord = -y
 
-        self.window.update_node_position(self.id, self.x_coord, self.y_coord)
+        self.window.update_node_position(self.id, self.x_coord, self.y_coord, index = self.subgraph)
 
         self.window.scene.update()
 
@@ -505,7 +505,8 @@ class MainWindow(QMainWindow):
 
         force_bfs_regeneration_action = QAction("Generate Force Directed BFS-Initialized Layout", self)
         force_bfs_regeneration_action.triggered.connect(self.regenerate_force_bfs)
-        self.layouts_menu.addAction(force_bfs_regeneration_action)
+        if main.subgraphs_included == False:
+            self.layouts_menu.addAction(force_bf_regeneration_action)         # do not include this with subgraphs until bfs is exhaustive
 
         dag_dfs_barycenter_regeneration_action = QAction("Generate DAG DFS-Initialized Layout (Barycenter crossing minimization)", self)
         dag_dfs_barycenter_regeneration_action.triggered.connect(self.regenerate_dag_dfs_barycenter)
@@ -560,7 +561,10 @@ class MainWindow(QMainWindow):
         self.all_edges = {}
         self.tree = None
         self.treetype = None
-        self.initialize_vertices()
+        self.coordinates = []
+        
+        for count in range(len(self.vertices)):
+            self.initialize_vertices(index = count)
 
         # Default Settings
         self.layout = self.default_layout
@@ -587,8 +591,8 @@ class MainWindow(QMainWindow):
     def update_status(self):
         self.status.showMessage("Graph loaded and displayed - layout: "+self.layout)
 
-    def update_node_position(self, node_id, x, y):
-        self.coordinates[node_id] = (x,y)
+    def update_node_position(self, node_id, x, y, index = 0):
+        self.coordinates[index][node_id] = (x,y)
 
     def check_for_tree_layout(self):
         if self.layout == "force custom":
@@ -615,50 +619,64 @@ class MainWindow(QMainWindow):
             if width == None or height == None:
                 raise ValueError ("Need to input custom width or height values for the box")
 
+        if len(self.coordinates) < (index+1):
+            self.coordinates.append([])
+
         self.layout = layout
         if self.layout == "random":
-            self.coordinates = main.create_random_coordinates(width, height, self.adjacency_dict[index])
+            self.coordinates[index] = main.create_random_coordinates(width, height, self.adjacency_dict[index])
         elif self.layout == "solar":
-            self.coordinates = main.create_solar_coordinates(width, height, self.adjacency_dict[index], index = index)
+            self.coordinates[index] = main.create_solar_coordinates(width, height, self.adjacency_dict[index], index = index)
         elif self.layout == "solar deterministic":
-            self.coordinates = main.create_solar_coordinates(width, height, self.adjacency_dict[index], index = index, deterministic = True)
+            self.coordinates[index] = main.create_solar_coordinates(width, height, self.adjacency_dict[index], index = index, deterministic = True)
         elif self.layout == "radial dfs":
             if self.dfs_list == []:
-                self.depth_first_search(root=main.most_connected_node_id[index], index = index)
+                for count in range(len(self.vertices)):
+                    self.depth_first_search(root=main.most_connected_node_id[count], index = count)
             self.treetype = "dfs"                
-            self.coordinates = main.create_radial_coordinates(width, height, self.dfs_list[index], self.node_radius)
+            self.coordinates[index] = main.create_radial_coordinates(width, height, self.dfs_list[index], self.node_radius)
         elif self.layout == "radial bfs":
             if self.bfs_list == []:
-                self.breadth_first_search(root=main.most_connected_node_id[index], index = index)
+                for count in range(len(self.vertices)):
+                    self.breadth_first_search(root=main.most_connected_node_id[count], index = count)
+                    
             self.treetype = "bfs"
-            self.coordinates = main.create_radial_coordinates(width, height, self.bfs_list[index], self.node_radius)
+            self.coordinates[index] = main.create_radial_coordinates(width, height, self.bfs_list[index], self.node_radius)
         elif self.layout == "radial prims":
             if self.prims_list == []:
-                self.prims_algorithm(root=main.most_connected_node_id[index], index = index)
+                for count in range(len(self.vertices)):
+                    self.prims_algorithm(root=main.most_connected_node_id[count], index = count)
             self.treetype = "prims"
-            self.coordinates = main.create_radial_coordinates(width, height, self.prims_list[index], self.node_radius)
-        elif self.layout == "force bfs":
+            self.coordinates[index] = main.create_radial_coordinates(width, height, self.prims_list[index], self.node_radius)
+            
+        elif self.layout == "force bfs":            # do not use this until bfs has been made exhaustive
             if self.bfs_list == []:
-                self.breadth_first_search(root=main.most_connected_node_id[index])
-            bfs_coords = main.create_radial_coordinates(width, height, self.bfs, self.node_radius)
-            self.coordinates = main.create_force_layout_coordinates(width, height, bfs_coords, self.adjacency_dict[index], index = index)
+                for count in range(len(self.vertices)):
+                    self.breadth_first_search(root=main.most_connected_node_id[count], index = count)
+            bfs_coords = main.create_radial_coordinates(width, height, self.bfs_list[index], self.node_radius)
+            print("calculating force bfs coordinates for index",index)
+            self.coordinates[index] = main.create_force_layout_coordinates(width, height, bfs_coords, self.adjacency_dict[index], index = index)
+
         elif self.layout == "force random":
             random_coords = main.create_random_coordinates(width, height, self.adjacency_dict[index])
-            self.coordinates = main.create_force_layout_coordinates(width, height, random_coords, self.adjacency_dict[index], index = index)
+            self.coordinates[index] = main.create_force_layout_coordinates(width, height, random_coords, self.adjacency_dict[index], index = index)
+            
         elif self.layout == "force custom":
             if self.strict_force_binding == True:
-                self.coordinates = main.create_force_layout_coordinates(width, height, self.coordinates, self.adjacency_dict[index], max_iterations=50, index = index)
+                self.coordinates[index] = main.create_force_layout_coordinates(width, height, self.coordinates[index], self.adjacency_dict[index], max_iterations=50, index = index)
             else:
-                self.coordinates = main.create_force_layout_coordinates(self.scene.width(), self.scene.height(), self.coordinates, self.adjacency_dict[index], max_iterations=50, index = index)
+                self.coordinates[index] = main.create_force_layout_coordinates(self.scene.width(), self.scene.height(), self.coordinates[index], self.adjacency_dict[index], max_iterations=50, index = index)
         elif self.layout == "dag dfs barycenter":
             if self.dfs_list == []:
-                self.depth_first_search(root=main.most_connected_node_id[index], index = index)
-            self.coordinates, edge_waypoints = main.calc_DAG(width, height, self.dfs_list[index], self.adjacency_dict[index], minimization_method="barycenter")
+                for count in range(len(self.vertices)):
+                    self.depth_first_search(root=main.most_connected_node_id[count], index = count)
+            self.coordinates[index], edge_waypoints = main.calc_DAG(width, height, self.dfs_list[index], self.adjacency_dict[index], minimization_method="barycenter")
             self.update_edge_waypoints(edge_waypoints)
         elif self.layout == "dag dfs median":
             if self.dfs_list == []:
-                self.depth_first_search(root=main.most_connected_node_id[index], index = index)
-            self.coordinates, edge_waypoints = main.calc_DAG(width, height, self.dfs_list[index], self.adjacency_dict[index], minimization_method="median")
+                for count in range(len(self.vertices)):
+                    self.depth_first_search(root=main.most_connected_node_id[count], index = count)
+            self.coordinates[index], edge_waypoints = main.calc_DAG(width, height, self.dfs_list[index], self.adjacency_dict[index], minimization_method="median")
             self.update_edge_waypoints(edge_waypoints)
         else:
             print("asked for layout", layout)
@@ -689,27 +707,28 @@ class MainWindow(QMainWindow):
 
         # create new set of coordinates based on the current layout
         if not same_positions:
-            self.generate(self.layout)
+            for index in range(len(self.vertices)):
+                self.generate(self.layout, index = index)
         
         if (self.first_generation == False and self.check_for_tree_layout() == True):
             for item in self.scene.items():
                 item.displayed = False
 
 
-
         # move the vertices to their new positions
-        for vertex_id in self.coordinates.keys():
-            x,y = self.coordinates[vertex_id]
+        for index in range(len(self.coordinates)):
+            for vertex_id in self.coordinates[index].keys():
+                x,y = self.coordinates[index][vertex_id]
 
-            if main.printing_mode:
-                print("reset vertex",vertex_id,"at x_val",x,"and y_val",-y)
+                if main.printing_mode:
+                    print("reset vertex",vertex_id,"at x_val",x,"and y_val",-y)
 
-            self.all_vertices[vertex_id].moveVertex(x,-y)
-            
-            if self.check_for_tree_layout() and not self.display_non_tree_edges:
-                self.all_vertices[vertex_id].turnVisible(edge_update = False)
-            else:
-                self.all_vertices[vertex_id].turnVisible()
+                self.all_vertices[vertex_id].moveVertex(x,-y)
+                
+                if self.check_for_tree_layout() and not self.display_non_tree_edges:
+                    self.all_vertices[vertex_id].turnVisible(edge_update = False)
+                else:
+                    self.all_vertices[vertex_id].turnVisible()
                 
     # get self.dfs, for parent in selfdfs element [0], check all the edges for next to be element [1], turn on that edge only; make sure update function doesn't update other edges
         if self.check_for_tree_layout() and not self.display_non_tree_edges:
@@ -1030,7 +1049,6 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
 
     window = MainWindow(main.adjacency_dict_list, "radial bfs", default_radius=10)
-    #window = MainWindow(main.adjacency_dict, "solar deterministic", default_radius=10)
     window.show()
 
     

@@ -459,7 +459,7 @@ def create_force_layout_coordinates(width, height, initial_coords, adjacency_dic
     nr_vertices = len(initial_coords.keys())
 
     while t_global > t_min and iteration_count < max_iterations: #change max iterations maybe
-        coords_dict = force_iteration(width, height, coords_dict, prev_force_dict, temp_dict, skew_gauge_dict, delta, area, nr_vertices, C, adjacency_dict, adjacencies = adjacencies[index])
+        coords_dict = force_iteration(width, height, coords_dict, prev_force_dict, temp_dict, skew_gauge_dict, delta, area, nr_vertices, C, adjacency_dict, local_adjacencies = adjacencies[index])
         t_global = sum(temp_dict.values()) / len(temp_dict) #update global temperature
         iteration_count += 1
 
@@ -467,7 +467,7 @@ def create_force_layout_coordinates(width, height, initial_coords, adjacency_dic
 
 
 def force_iteration(width, height, old_coordinates_dict, prev_force_dict, temp_dict, skew_gauge_dict,
-                    delta_value, area, nr_vertices, C, adjacency_dict, adjacencies, use_barycenter = True, apply_boundaries = True, single_node_iteration = False):
+                    delta_value, area, nr_vertices, C, local_adjacency_dict, local_adjacencies, use_barycenter = True, apply_boundaries = True, single_node_iteration = False):
     new_coordinates_dict = copy.deepcopy(old_coordinates_dict)
 
     barycenter = [0,0]
@@ -489,40 +489,51 @@ def force_iteration(width, height, old_coordinates_dict, prev_force_dict, temp_d
 
     
     if single_node_iteration == True:
+        
+        raise ValueError ("Single node iteration is not currently supported.")
+        # rounds = nr_vertices
 
-        rounds = nr_vertices
+        # for i in range(rounds):
+        #     # decide which node out of the list (random) --> id is the id of that node
+        #     id = np.random.choice(list(old_coordinates_dict.keys()))
 
-        for i in range(rounds):
-            # decide which node out of the list (random) --> id is the id of that node
-            id = np.random.choice(list(old_coordinates_dict.keys()))
+        #     coords_tuple = new_coordinates_dict[id]             # (x,y) tuple
 
-            coords_tuple = new_coordinates_dict[id]             # (x,y) tuple
+        #     force = calc_sum_force(id, coords_tuple, new_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter, adjacency_dict, local_adjacencies)
 
-            force = calc_sum_force(id, coords_tuple, new_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter, adjacency_dict, adjacencies)
+        #     new_x = old_coords_tuple[0] + delta_value * force[0]
+        #     new_y = old_coords_tuple[1] + delta_value * force[1]
 
-            new_x = old_coords_tuple[0] + delta_value * force[0]
-            new_y = old_coords_tuple[1] + delta_value * force[1]
-
-            if apply_boundaries == True:
-                if abs(new_x) > width/2:
-                    if new_x > 0:
-                        new_x = width/2
-                    else:
-                        new_x = -width/2
+        #     if apply_boundaries == True:
+        #         if abs(new_x) > width/2:
+        #             if new_x > 0:
+        #                 new_x = width/2
+        #             else:
+        #                 new_x = -width/2
                 
-                if abs(new_y) > height/2:
-                    if new_y > 0:
-                        new_y = height/2
-                    else:
-                        new_y = -height/2
+        #         if abs(new_y) > height/2:
+        #             if new_y > 0:
+        #                 new_y = height/2
+        #             else:
+        #                 new_y = -height/2
 
-            new_coordinates_dict[id] = (new_x, new_y)
+        #     new_coordinates_dict[id] = (new_x, new_y)
 
     else:
-        for id in (old_coordinates_dict.keys()):
-            old_coords_tuple = old_coordinates_dict[id]             # (x,y) tuple
+   #     print("local adj dict keys is",local_adjacency_dict.keys())
+      #  print("old coords dict keys is", old_coordinates_dict.keys())
+        for id in (local_adjacency_dict.keys()):
+            try:
+                old_coords_tuple = old_coordinates_dict[id]             # (x,y) tuple
+            except:
+              #  print("passing force iteration for node",id)    
+                continue
+                # print("local adj dict keys is",local_adjacency_dict.keys())
+                # print("old coords dict keys is", old_coordinates_dict.keys())
+                # print("breaking node id is",id)
+                # raise ValueError("breaking node_id is",id)
             #TODO: change global to local adjacencies
-            force = calc_sum_force(id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter, adjacency_dict, adjacencies)
+            force = calc_sum_force(id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter, local_adjacency_dict, local_adjacencies)
             prev_force = prev_force_dict[id]
 
             if prev_force != 0:
@@ -571,11 +582,11 @@ def force_iteration(width, height, old_coordinates_dict, prev_force_dict, temp_d
 
     return new_coordinates_dict
 
-def calc_sum_force(current_id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter, adjacency_dict, adjacencies, use_mass = True):
+def calc_sum_force(current_id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter, local_adjacency_dict, local_adjacencies, use_mass = True):
     #adj_nodes = calc_direct_children() #to check again          # need node list and parent id  # this only works for a tree structure
     adj_nodes = []
 
-    for edge in adjacency_dict[current_id]:
+    for edge in local_adjacency_dict[current_id]:
         adj_nodes.append(edge[0])           # appends ID of neighbour vertex
 
    # print("ideal length of an edge is calculated to be", length)
@@ -583,7 +594,7 @@ def calc_sum_force(current_id, old_coords_tuple, old_coordinates_dict, area, nr_
 
 # attractive forces:
     
-    node_mass = 1 + adjacencies[current_id]/2
+    node_mass = 1 + local_adjacencies[current_id]/2
     c_grav = 1/16               # 1 with normal eades, now 1/16 for impulse
     #rand_vec = (np.random.uniform(-32, 32), np.random.uniform(-32, 32)) #randon disturbance vector for force/impuls init
     # [0,0] was original for eades algorithm, initialize impulse p now with all these things
@@ -606,16 +617,24 @@ def calc_sum_force(current_id, old_coords_tuple, old_coordinates_dict, area, nr_
   # print("with only attractive forces, node", current_id,"gets a force of",force)
         
 # repulsive forces:
+    for node_id in local_adjacency_dict.keys():
+        try:
+            if node_id != current_id:
+                node_coords = old_coordinates_dict[node_id]
 
-    for node_id in old_coordinates_dict.keys():
-        if node_id != current_id:
-            node_coords = old_coordinates_dict[node_id]
-
-            if node_coords != old_coords_tuple:             # check that the nodes are not in the same location
-              #  print("inequality testing", node_coords,old_coords_tuple)
-                dx, dy = calc_rep_force_eades(128, node_coords, old_coords_tuple) #change 1 to length for fruchterman and vice versa
-                force[0] += dx
-                force[1] += dy 
+                if node_coords != old_coords_tuple:             # check that the nodes are not in the same location
+                #  print("inequality testing", node_coords,old_coords_tuple)
+                    dx, dy = calc_rep_force_eades(128, node_coords, old_coords_tuple) #change 1 to length for fruchterman and vice versa
+                    force[0] += dx
+                    force[1] += dy 
+                    
+        except:
+            #print("passing repulsion on node",node_id)
+            continue
+            # print("breaking node_id is",node_id)
+            # print("local adj dict keys is",local_adjacency_dict.keys())
+            # raise ValueError("old coords dict keys is", old_coordinates_dict.keys())
+        
 
 # modifications:
 
