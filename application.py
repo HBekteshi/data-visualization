@@ -938,6 +938,8 @@ class MainWindow(QMainWindow):
     def breadth_first_search(self, root = "most connected"):
         if root == "most connected":
             root_id = main.most_connected_node_id
+        else:
+            root_id = root
         self.bfs = []
         queue = [(root_id, root_id)]
         visited = [root_id]
@@ -966,6 +968,9 @@ class MainWindow(QMainWindow):
     def prims_algorithm(self, root = "most connected"):
         if root == "most connected":
             root_id = main.most_connected_node_id
+        else:
+            root_id = root
+
         self.prims = [(root_id, root_id)]
         visited = [root_id] 
         distances = {}
