@@ -49,13 +49,13 @@ for edge in all_edges:
         subgraph_gap.add_edge(edge)
         #print("both nodes are in gap")
     else:
-        inter_layer_edges.append(edge)
+        inter_layer_edges.append((source, destination))
         #print("nodes are in gap and youngest")
 
 #print("edges subgraph", subgraph_youngest.get_edges())
 #print("edges subgraph", subgraph_gap.get_edges())
 
-
+G_parent = networkx.DiGraph(networkx.nx_pydot.from_pydot(A[0]))
 G_youngest = networkx.DiGraph(networkx.nx_pydot.from_pydot(subgraphs[0]))
 G_gap = networkx.DiGraph(networkx.nx_pydot.from_pydot(subgraphs[1]))
 subgraphs_list = [G_youngest, G_gap]
@@ -76,8 +76,11 @@ adjacencies = []
 adjacencies_sub1 = {}
 adjacencies_sub2 = {}
     
-def add_nodes_adjacency_dict(adjacency_dict, graph):
-    for n in graph.nodes():
+def add_nodes_adjacency_dict(adjacency_dict, G):
+    """
+    receives a list of nodes and initialize it as adjacency dict keys
+    """
+    for n in G.nodes():
         if printing_mode:
             print(f"Added node with id {n}")
         adjacency_dict[n] = []
@@ -87,10 +90,10 @@ def add_nodes_adjacency_dict(adjacency_dict, graph):
 
 # the first time an edge appears it is marked True, and it will be rendered
 # the second time the same edge appears it is marked False, so it will not be rendered
-def add_edges_to_adjacency_dict(adjacency_dict, G):   
+def add_edges_to_adjacency_dict(adjacency_dict, edges):   
     weightcheck = True
     weighted = True
-    for e in G.edges():
+    for e in edges:
         u, v = e
         if weightcheck:
             try:
@@ -125,22 +128,31 @@ def create_adjacencies(adjacencies, adjacency_dict):
 
 if(subgraphs_included == False):
     add_nodes_adjacency_dict(adjacency_dict, G)
-    add_edges_to_adjacency_dict(adjacency_dict, G)
+    add_edges_to_adjacency_dict(adjacency_dict, G.edges())
     adjacencies.append(create_adjacencies(adjacencies_sub1, adjacency_dict))
     most_connected_node_id.append(max(zip(adjacencies[0].values(), adjacencies[0].keys()))[1]) #retrieve id with max adjacency, add to list
     adjacency_dict_list.append(adjacency_dict)
 else:
     add_nodes_adjacency_dict(adjacency_dict_sub1, subgraphs_list[0])
-    add_edges_to_adjacency_dict(adjacency_dict_sub1, subgraphs_list[0])
+    add_edges_to_adjacency_dict(adjacency_dict_sub1, subgraphs_list[0].edges())
     adjacencies.append(create_adjacencies(adjacencies_sub1, adjacency_dict_sub1))
     most_connected_node_id.append(max(zip(adjacencies_sub1.values(), adjacencies_sub1.keys()))[1]) #retrieve id with max adjacency, add to list
     adjacency_dict_list.append(adjacency_dict_sub1)
 
     add_nodes_adjacency_dict(adjacency_dict_sub2, subgraphs_list[1])
-    add_edges_to_adjacency_dict(adjacency_dict_sub2, subgraphs_list[1])
+    add_edges_to_adjacency_dict(adjacency_dict_sub2, subgraphs_list[1].edges())
     adjacencies.append(create_adjacencies(adjacencies_sub2, adjacency_dict_sub2))
     most_connected_node_id.append(max(zip(adjacencies_sub2.values(), adjacencies_sub2.keys()))[1]) #retrieve id with max adjacency, add to list
     adjacency_dict_list.append(adjacency_dict_sub2)
+
+    print("interlayer edges", inter_layer_edges)
+    # add all nodes to dict to be able to add interlayer edges, and add the edges
+    add_nodes_adjacency_dict(adjacency_dict_interlayer, subgraphs_list[0]) 
+    add_nodes_adjacency_dict(adjacency_dict_interlayer, subgraphs_list[1])
+    add_edges_to_adjacency_dict(adjacency_dict_interlayer, inter_layer_edges)
+    # delete nodes from dict which have no interlayer edges
+    adjacency_dict_interlayer = {id:val for id, val in adjacency_dict_interlayer.items() if val != []}
+    # add to adjacency dict list
     adjacency_dict_list.append(adjacency_dict_interlayer)
 
 
