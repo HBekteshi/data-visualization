@@ -12,7 +12,7 @@ import copy
 import main
 
 class Vertex(QGraphicsObject):
-    def __init__(self, window, id, x_coord, y_coord, radius = 25, displayed = False, id_visible = True) -> None:
+    def __init__(self, window, id, x_coord, y_coord, radius = 25, subgraph = None, displayed = False, id_visible = True) -> None:
         super().__init__()
 
         self.window = window
@@ -21,6 +21,7 @@ class Vertex(QGraphicsObject):
         self.radius = radius
         self.x_coord = x_coord
         self.y_coord = y_coord
+        self.subgraph = subgraph
         
         self.color = "#f3f6f4"
         self.id_visible = id_visible
@@ -391,15 +392,6 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Graph viewer app")
 
         
-        if len(given_adjacency_dict_list) > 1:
-            self.adjacency_dict = []
-            for count in range(len(given_adjacency_dict_list)):
-                if count == len(given_adjacency_dict_list) - 1:
-                    self.inter_layer_adjacency_dict = given_adjacency_dict_list[count]
-                else:
-                    self.adjacency_dict.append(given_adjacency_dict_list[count])
-        else:
-            self.adjacency_dict = given_adjacency_dict_list
             
 
          # Menu
@@ -545,11 +537,26 @@ class MainWindow(QMainWindow):
         #self.scene.setSceneRect(-self.screenwidth/2 + 25, -self.screenheight/2 + 50, self.screenwidth - 50, self.screenheight - 75)
 
         
+        self.vertices = []
+        
+        
+        if len(given_adjacency_dict_list) > 1:
+            self.adjacency_dict = []
+            for count in range(len(given_adjacency_dict_list)):
+                if count == len(given_adjacency_dict_list) - 1:
+                    self.inter_layer_adjacency_dict = given_adjacency_dict_list[count]
+                else:
+                    self.adjacency_dict.append(given_adjacency_dict_list[count])
+                    self.vertices.append({})
+        else:
+            self.adjacency_dict = given_adjacency_dict_list
+            self.vertices.append({})
+
         # Coordinates
         self.dfs_list = []
         self.bfs_list = []
         self.prims_list = []
-        self.vertices = {}
+        self.all_vertices = {}
         self.all_edges = {}
         self.tree = None
         self.treetype = None
@@ -612,45 +619,45 @@ class MainWindow(QMainWindow):
         if self.layout == "random":
             self.coordinates = main.create_random_coordinates(width, height, self.adjacency_dict[index])
         elif self.layout == "solar":
-            self.coordinates = main.create_solar_coordinates(width, height, self.adjacency_dict[index])
+            self.coordinates = main.create_solar_coordinates(width, height, self.adjacency_dict[index], index = index)
         elif self.layout == "solar deterministic":
-            self.coordinates = main.create_solar_coordinates(width, height, self.adjacency_dict[index], deterministic = True)
+            self.coordinates = main.create_solar_coordinates(width, height, self.adjacency_dict[index], index = index, deterministic = True)
         elif self.layout == "radial dfs":
             if self.dfs_list == []:
-                self.depth_first_search(root=main.most_connected_node_id[index])
+                self.depth_first_search(root=main.most_connected_node_id[index], index = index)
             self.treetype = "dfs"                
             self.coordinates = main.create_radial_coordinates(width, height, self.dfs_list[index], self.node_radius)
         elif self.layout == "radial bfs":
             if self.bfs_list == []:
-                self.breadth_first_search(root=main.most_connected_node_id[index])
+                self.breadth_first_search(root=main.most_connected_node_id[index], index = index)
             self.treetype = "bfs"
             self.coordinates = main.create_radial_coordinates(width, height, self.bfs_list[index], self.node_radius)
         elif self.layout == "radial prims":
             if self.prims_list == []:
-                self.prims_algorithm(root=main.most_connected_node_id[index])
+                self.prims_algorithm(root=main.most_connected_node_id[index], index = index)
             self.treetype = "prims"
             self.coordinates = main.create_radial_coordinates(width, height, self.prims_list[index], self.node_radius)
         elif self.layout == "force bfs":
             if self.bfs_list == []:
                 self.breadth_first_search(root=main.most_connected_node_id[index])
             bfs_coords = main.create_radial_coordinates(width, height, self.bfs, self.node_radius)
-            self.coordinates = main.create_force_layout_coordinates(width, height, bfs_coords, self.adjacency_dict[index])
+            self.coordinates = main.create_force_layout_coordinates(width, height, bfs_coords, self.adjacency_dict[index], index = index)
         elif self.layout == "force random":
             random_coords = main.create_random_coordinates(width, height, self.adjacency_dict[index])
-            self.coordinates = main.create_force_layout_coordinates(width, height, random_coords, self.adjacency_dict[index])
+            self.coordinates = main.create_force_layout_coordinates(width, height, random_coords, self.adjacency_dict[index], index = index)
         elif self.layout == "force custom":
             if self.strict_force_binding == True:
-                self.coordinates = main.create_force_layout_coordinates(width, height, self.coordinates, self.adjacency_dict[index], max_iterations=50)
+                self.coordinates = main.create_force_layout_coordinates(width, height, self.coordinates, self.adjacency_dict[index], max_iterations=50, index = index)
             else:
-                self.coordinates = main.create_force_layout_coordinates(self.scene.width(), self.scene.height(), self.coordinates, self.adjacency_dict[index], max_iterations=50)
+                self.coordinates = main.create_force_layout_coordinates(self.scene.width(), self.scene.height(), self.coordinates, self.adjacency_dict[index], max_iterations=50, index = index)
         elif self.layout == "dag dfs barycenter":
             if self.dfs_list == []:
-                self.depth_first_search(root=main.most_connected_node_id[index])
+                self.depth_first_search(root=main.most_connected_node_id[index], index = index)
             self.coordinates, edge_waypoints = main.calc_DAG(width, height, self.dfs_list[index], self.adjacency_dict[index], minimization_method="barycenter")
             self.update_edge_waypoints(edge_waypoints)
         elif self.layout == "dag dfs median":
             if self.dfs_list == []:
-                self.depth_first_search(root=main.most_connected_node_id[index])
+                self.depth_first_search(root=main.most_connected_node_id[index], index = index)
             self.coordinates, edge_waypoints = main.calc_DAG(width, height, self.dfs_list[index], self.adjacency_dict[index], minimization_method="median")
             self.update_edge_waypoints(edge_waypoints)
         else:
@@ -697,14 +704,14 @@ class MainWindow(QMainWindow):
             if main.printing_mode:
                 print("reset vertex",vertex_id,"at x_val",x,"and y_val",-y)
 
-            self.vertices[vertex_id].moveVertex(x,-y)
+            self.all_vertices[vertex_id].moveVertex(x,-y)
             
             if self.check_for_tree_layout() and not self.display_non_tree_edges:
-                self.vertices[vertex_id].turnVisible(edge_update = False)
+                self.all_vertices[vertex_id].turnVisible(edge_update = False)
             else:
-                self.vertices[vertex_id].turnVisible()
-            
-       # get self.dfs, for parent in selfdfs element [0], check all the edges for next to be element [1], turn on that edge only; make sure update function doesn't update other edges
+                self.all_vertices[vertex_id].turnVisible()
+                
+    # get self.dfs, for parent in selfdfs element [0], check all the edges for next to be element [1], turn on that edge only; make sure update function doesn't update other edges
         if self.check_for_tree_layout() and not self.display_non_tree_edges:
             if self.treetype == "dfs":
                 tree = self.dfs_list
@@ -718,9 +725,9 @@ class MainWindow(QMainWindow):
             for node_list in tree:
                 for parent_id, child_id in node_list:
             #        print("testing to see if tree displays edge", parent_id,"to",child_id)
-                    for edge, next in self.vertices[parent_id].edges:
+                    for edge, next in self.all_vertices[parent_id].edges:
             #            print("node",parent_id,"has edge to:",next.id)
-                        if next == self.vertices[child_id]:
+                        if next == self.all_vertices[child_id]:
                             edge.displayed = True
                             # edge.color = "blue"               # highlighting tree edges
                             # edge.setZValue(-0.3)
@@ -790,10 +797,11 @@ class MainWindow(QMainWindow):
         
     def initialize_vertices(self, index = 0):
         for vertex_id in self.adjacency_dict[index].keys():
-            new_vertex = Vertex(self, vertex_id, 0, 0, radius = self.node_radius)
-            self.vertices[vertex_id] = new_vertex
+            new_vertex = Vertex(self, vertex_id, 0, 0, radius = self.node_radius, subgraph = index)
+            self.vertices[index][vertex_id] = new_vertex
+            self.all_vertices[vertex_id] = new_vertex
             self.scene.addItem(new_vertex)
-        self.initialize_edges()
+        self.initialize_edges(index)
 
 
     def initialize_edges(self, index = 0):
@@ -802,30 +810,32 @@ class MainWindow(QMainWindow):
                 end_id, to_create, weight = e_tuple
                 if to_create == True:
                     if main.G.is_directed() == True:
-                        new_edge = Edge(self.vertices[start_id],self.vertices[end_id], weight, segmented = True)
+                        new_edge = Edge(self.vertices[index][start_id],self.vertices[index][end_id], weight, segmented = True)
                     else:
-                        new_edge = Edge(self.vertices[start_id],self.vertices[end_id], weight, segmented = False)
+                        new_edge = Edge(self.vertices[index][start_id],self.vertices[index][end_id], weight, segmented = False)
                     self.scene.addItem(new_edge)
                     self.all_edges[(start_id, end_id, weight)] = new_edge    
                     if main.printing_mode:
                         print ("added edge from", start_id, "to", end_id,"with weight",weight)
                     
     def vertices_decrease_radius(self):
-        for v in self.vertices.values():
-            radius_change = v.radius
-            v.radius = max(5, v.radius-5)
-            self.node_radius = v.radius
-            radius_change = radius_change - v.radius
-            v.update_edges(waypoints = True, radius_change = radius_change)        
+        for vertices_list in self.vertices:
+            for v in vertices_list.values():
+                radius_change = v.radius
+                v.radius = max(5, v.radius-5)
+                self.node_radius = v.radius
+                radius_change = radius_change - v.radius
+                v.update_edges(waypoints = True, radius_change = radius_change)        
         self.scene.update()
 
     def vertices_increase_radius(self):
-        for v in self.vertices.values():
-            radius_change = v.radius
-            v.radius += 5
-            self.node_radius = v.radius
-            radius_change = radius_change - v.radius
-            v.update_edges(waypoints = True, radius_change = radius_change)
+        for vertices_list in self.vertices:
+            for v in vertices_list.values():
+                radius_change = v.radius
+                v.radius += 5
+                self.node_radius = v.radius
+                radius_change = radius_change - v.radius
+                v.update_edges(waypoints = True, radius_change = radius_change)
         self.scene.update()
 
     def arrow_increase_size(self):
@@ -876,19 +886,18 @@ class MainWindow(QMainWindow):
         self.dfs = [(root_id, root_id)]
       #  self.max_depth = []
         visited = [root_id]
-        self.depth_first_search_next(self.vertices[root_id], visited)
-        if len(self.dfs) < len(self.vertices.keys()):
-            print("WARNING: There are", len(self.vertices.keys()) - len(self.dfs),"nodes in the",self.layout, "graph that are not connected with the rest, these are currently not displayed")
+        self.depth_first_search_next(self.vertices[index][root_id], visited)
+        if len(self.dfs) < len(self.vertices[index].keys()):
+            print("WARNING: There are", len(self.vertices[index].keys()) - len(self.dfs),"nodes in the",self.layout, "graph that are not connected with the rest, these are currently not displayed")
 
         # if main.printing_mode:
         #     print("dfs order:",self.dfs)
-        print("dfs order:",self.dfs)
 
         self.dfs_list.append(self.dfs)
 
         return self.dfs
         
-    def depth_first_search_exhaustive(self, dfs_trees = None, root = "most connected", given_root_id = None, visited = None):      # time complexity of DFS is O(2E) = O(E)
+    def depth_first_search_exhaustive(self, dfs_trees = None, root = "most connected", given_root_id = None, visited = None, index = 0):      # time complexity of DFS is O(2E) = O(E)
         if given_root_id != None:
             root_id = given_root_id
         elif root == "most connected":
@@ -904,13 +913,13 @@ class MainWindow(QMainWindow):
         else:
             visited.append(root_id)
             # print("appending",root_id,"to visited")
-        self.depth_first_search_next(self.vertices[root_id], visited)
+        self.depth_first_search_next(self.vertices[index][root_id], visited)
 
         dfs_trees.append(self.dfs)
 
-        if len(visited) < len(self.vertices.keys()):
-            #print("There are", len(self.vertices.keys()) - len(visited),"nodes in the",self.layout, "graph that are not connected with the rest, making new dfs")
-            for node_id in self.vertices.keys():
+        if len(visited) < len(self.vertices[index].keys()):
+            #print("There are", len(self.vertices[index].keys()) - len(visited),"nodes in the",self.layout, "(sub)graph that are not connected with the rest, making new dfs")
+            for node_id in self.vertices[index].keys():
                 if node_id not in visited:
                     new_root = node_id
                     #print("new root is",new_root)
@@ -935,7 +944,7 @@ class MainWindow(QMainWindow):
                 visited.append(next.id)
                 self.depth_first_search_next(next, visited)
 
-    def breadth_first_search(self, root = "most connected"):
+    def breadth_first_search(self, root = "most connected", index = 0):
         if root == "most connected":
             root_id = main.most_connected_node_id
         else:
@@ -948,7 +957,7 @@ class MainWindow(QMainWindow):
             if main.printing_mode:
                 print("Vertex_id, parent_id: ", vertex_id, parent_id)
             self.bfs.append((parent_id, vertex_id)) #keep track of the visited vertices
-            for (edge, next) in self.vertices[vertex_id].edges:
+            for (edge, next) in self.vertices[index][vertex_id].edges:
                 if next.id not in visited: #if vertex not visited, append to visited
                     visited.append(next.id)
                     queue.append((next.id, vertex_id)) # its ID and
@@ -956,8 +965,8 @@ class MainWindow(QMainWindow):
         if main.printing_mode:
             print("bfs order:", self.bfs)
 
-        if len(self.bfs) < len(self.vertices.keys()):
-            print("WARNING: There are", len(self.vertices.keys()) - len(self.bfs),"nodes in the",self.layout, "graph that are not connected with the rest, these are currently not displayed")
+        if len(self.bfs) < len(self.vertices[index].keys()):
+            print("WARNING: There are", len(self.vertices[index].keys()) - len(self.bfs),"nodes in the",self.layout, "graph that are not connected with the rest, these are currently not displayed")
 
         self.bfs_list.append(self.bfs)
             
@@ -965,7 +974,7 @@ class MainWindow(QMainWindow):
 
 
 
-    def prims_algorithm(self, root = "most connected"):
+    def prims_algorithm(self, root = "most connected", index = 0):
         if root == "most connected":
             root_id = main.most_connected_node_id
         else:
@@ -975,12 +984,12 @@ class MainWindow(QMainWindow):
         visited = [root_id] 
         distances = {}
         #distances = queue.PriorityQueue()  maybe change it to priorityqueue after it's done for performance reasons
-        for (edge, next) in self.vertices[root_id].edges:
+        for (edge, next) in self.vertices[index][root_id].edges:
             distances[next.id] = (edge.weight, root_id)     # (distance, parent)
 
-        while (len(self.prims) != len(self.vertices.keys())):       # make sure no duplicates go into self.prims
+        while (len(self.prims) != len(self.vertices[index].keys())):       # make sure no duplicates go into self.prims
             if len(distances.keys()) == 0:      # if there are no more vertices to check (dictionary is empty)
-                print("WARNING: There are",len(self.vertices.keys()) - len(self.prims),"nodes in the",self.layout, "graph that are not connected with the rest, these are currently not displayed")
+                print("WARNING: There are",len(self.vertices[index].keys()) - len(self.prims),"nodes in the",self.layout, "graph that are not connected with the rest, these are currently not displayed")
                 break
                 #raise ValueError ("There are nodes in the graph that are not connected with the rest")
                 # TODO: handle this situation, maybe make a new tree with an unused node as new root
@@ -999,7 +1008,7 @@ class MainWindow(QMainWindow):
 
             del distances[min_node_id]
 
-            for (edge, next) in self.vertices[min_node_id].edges:   # add new neighbours of new mst node to checking dictionary
+            for (edge, next) in self.vertices[index][min_node_id].edges:   # add new neighbours of new mst node to checking dictionary
                 if next.id not in visited:
                     distances[next.id] = (edge.weight, min_node_id)
 
@@ -1020,7 +1029,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict_list, "dag dfs barycenter", default_radius=10)
+    window = MainWindow(main.adjacency_dict_list, "radial bfs", default_radius=10)
     #window = MainWindow(main.adjacency_dict, "solar deterministic", default_radius=10)
     window.show()
 

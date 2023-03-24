@@ -10,16 +10,23 @@ import statistics
 
 from PySide6.QtCore import QPointF
 
+# settings
+printing_mode = False
+subgraphs_included = True #set to False when loading a graph without subgraphs
+
 #undirected graphs
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
 #directed graphs
-G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
+#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
 #G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
 
 A = pydot.graph_from_dot_file('data/devonshiredebate_withonlytwoclusters.dot')
+
+    
+
 subgraphs = A[0].get_subgraphs()
 
 subgraph_youngest = subgraphs[0]
@@ -45,18 +52,18 @@ for edge in all_edges:
         inter_layer_edges.append(edge)
         #print("nodes are in gap and youngest")
 
-print("edges subgraph", subgraph_youngest.get_edges())
-print("edges subgraph", subgraph_gap.get_edges())
+#print("edges subgraph", subgraph_youngest.get_edges())
+#print("edges subgraph", subgraph_gap.get_edges())
 
 
 G_youngest = networkx.DiGraph(networkx.nx_pydot.from_pydot(subgraphs[0]))
 G_gap = networkx.DiGraph(networkx.nx_pydot.from_pydot(subgraphs[1]))
 subgraphs_list = [G_youngest, G_gap]
 
+if subgraphs_included:              # TODO: fix this temporary measure, so main.G.isdirected() call gets something decent
+    G = G_youngest
 
 
-printing_mode = False
-subgraphs_included = True #set to False when loading a graph without subgraphs
 
 print("Data loaded")
 
@@ -114,29 +121,32 @@ most_connected_node_id = []
 def create_adjacencies(adjacencies, adjacency_dict):
     for id, adj_nodes in list(adjacency_dict.items()): #create dictionary with the size of the number of edges per node
         adjacencies[id] = len(adj_nodes)
+    return adjacencies
             
+adjacencies = []
+
 if(subgraphs_included == False):
     add_nodes_adjacency_dict(adjacency_dict, G)
     add_edges_to_adjacency_dict(adjacency_dict, G)
-    create_adjacencies(adjacencies, adjacency_dict)
+    adjacencies.append(create_adjacencies(adjacencies, adjacency_dict))
     most_connected_node_id.append(max(zip(adjacencies.values(), adjacencies.keys()))[1]) #retrieve id with max adjacency, add to list
     adjacency_dict_list.append(adjacency_dict)
 else:
     add_nodes_adjacency_dict(adjacency_dict_sub1, subgraphs_list[0])
     add_edges_to_adjacency_dict(adjacency_dict_sub1, subgraphs_list[0])
-    create_adjacencies(adjacencies_sub1, adjacency_dict_sub1)
+    adjacencies.append(create_adjacencies(adjacencies_sub1, adjacency_dict_sub1))
     most_connected_node_id.append(max(zip(adjacencies_sub1.values(), adjacencies_sub1.keys()))[1]) #retrieve id with max adjacency, add to list
     adjacency_dict_list.append(adjacency_dict_sub1)
 
     add_nodes_adjacency_dict(adjacency_dict_sub2, subgraphs_list[1])
     add_edges_to_adjacency_dict(adjacency_dict_sub2, subgraphs_list[1])
-    create_adjacencies(adjacencies_sub2, adjacency_dict_sub2)
+    adjacencies.append(create_adjacencies(adjacencies_sub2, adjacency_dict_sub2))
     most_connected_node_id.append(max(zip(adjacencies_sub2.values(), adjacencies_sub2.keys()))[1]) #retrieve id with max adjacency, add to list
     adjacency_dict_list.append(adjacency_dict_sub2)
     adjacency_dict_list.append(adjacency_dict_interlayer)
 
 
-print("adjacency_dict_list", adjacency_dict_list)
+#print("adjacency_dict_list", adjacency_dict_list)
 
 #print(G.edges('0'))
 if printing_mode:
@@ -173,13 +183,13 @@ def create_random_coordinates(width, height, adjacency_dict):
 
 #random_coordinates = create_random_coordinates(100, 100)
 
-def create_solar_coordinates(width, height, adjacency_dict, deterministic = False):
+def create_solar_coordinates(width, height, adjacency_dict, deterministic = False, index = 0):
     coordinates = {}
 
-    max_adjacency = max(adjacencies.values()) #retrieve the max adjacency
-    nr_rings = len(set(adjacencies.values())) #calculate # of rings based on the # of unique values in adjacency numbers
+    max_adjacency = max(adjacencies[index].values()) #retrieve the max adjacency
+    nr_rings = len(set(adjacencies[index].values())) #calculate # of rings based on the # of unique values in adjacency numbers
 
-    rings_dict = assign_to_rings(adjacencies)
+    rings_dict = assign_to_rings(adjacencies[index])
 
     if deterministic == False:
         coordinates = convert_to_solar_coordinates(rings_dict, nr_rings, max_adjacency, height, width)
@@ -437,7 +447,7 @@ def calc_radius(width, height, max_depth):
         radius_distance = height / (max_depth + 1)
     return (radius, radius_distance)
 
-def create_force_layout_coordinates(width, height, initial_coords, adjacency_dict, C = 1, max_iterations = 200):
+def create_force_layout_coordinates(width, height, initial_coords, adjacency_dict, C = 1, max_iterations = 200, index = 0):
     delta = 0.075 # given number within the range (0,1]`
     iteration_count = 0
     coords_dict = initial_coords.copy()
@@ -451,8 +461,7 @@ def create_force_layout_coordinates(width, height, initial_coords, adjacency_dic
     nr_vertices = len(initial_coords.keys())
 
     while t_global > t_min and iteration_count < max_iterations: #change max iterations maybe
-        #TODO: change adjacencies to local instead of global
-        coords_dict = force_iteration(width, height, coords_dict, prev_force_dict, temp_dict, skew_gauge_dict, delta, area, nr_vertices, C, adjacency_dict, adjacencies)
+        coords_dict = force_iteration(width, height, coords_dict, prev_force_dict, temp_dict, skew_gauge_dict, delta, area, nr_vertices, C, adjacency_dict, adjacencies = adjacencies[index])
         t_global = sum(temp_dict.values()) / len(temp_dict) #update global temperature
         iteration_count += 1
 
