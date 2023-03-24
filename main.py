@@ -145,7 +145,6 @@ else:
     most_connected_node_id.append(max(zip(adjacencies_sub2.values(), adjacencies_sub2.keys()))[1]) #retrieve id with max adjacency, add to list
     adjacency_dict_list.append(adjacency_dict_sub2)
 
-    print("interlayer edges", inter_layer_edges)
     # add all nodes to dict to be able to add interlayer edges, and add the edges
     add_nodes_adjacency_dict(adjacency_dict_interlayer, subgraphs_list[0]) 
     add_nodes_adjacency_dict(adjacency_dict_interlayer, subgraphs_list[1])

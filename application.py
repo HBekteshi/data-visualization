@@ -569,9 +569,11 @@ class MainWindow(QMainWindow):
             self.initialize_vertices(index = count)
 
         if self.inter_layer_adjacency_dict != None:
-            print("initializing interlayer edges based on dict", self.inter_layer_adjacency_dict)
+            #print("initializing interlayer edges based on dict", self.inter_layer_adjacency_dict)
             self.initialize_interlayer_edges()
 
+        # Subgraph settings
+        self.default_subgraph_distance = (self.screenwidth - 50 - self.node_radius * 2) / 2            
         # Default Settings
         self.layout = self.default_layout
         self.first_generation = True
@@ -579,8 +581,9 @@ class MainWindow(QMainWindow):
         self.dynamic_forces = True
         self.strict_force_binding = True
         self.regenerate()
- 
+
         
+ 
         self.view.show()
 
         if main.printing_mode:
@@ -616,7 +619,7 @@ class MainWindow(QMainWindow):
         else:
             return False
         
-    def translate_coordinates(self, xtrans, ytrans, coordinates):
+    def translate_coordinates(self, coordinates, xtrans = 0, ytrans = 0):
         """
         get a x and y translation as input, and a coordinates dictionary with node ids as key and a tuple as coordinates as a value
         """
@@ -680,11 +683,7 @@ class MainWindow(QMainWindow):
 
         elif self.layout == "force random":
             random_coords = main.create_random_coordinates(width, height, self.adjacency_dict[index])
-            untranslated_coordinates = main.create_force_layout_coordinates(width/2, height, random_coords, self.adjacency_dict[index], index = index)
-            if index == 0:
-                self.coordinates[index] = self.translate_coordinates(-width/2, 0, untranslated_coordinates)
-            else:
-                self.coordinates[index] = self.translate_coordinates(width/2, 0, untranslated_coordinates)
+            self.coordinates[index] = main.create_force_layout_coordinates(width/2, height, random_coords, self.adjacency_dict[index], index = index)
             
         elif self.layout == "force custom":
             if self.strict_force_binding == True:
@@ -728,11 +727,14 @@ class MainWindow(QMainWindow):
 
 
 # recreate the graph
-    def regenerate(self, same_positions = False):
+    def regenerate(self, same_positions = False, subgraph_distance = None):
         if main.printing_mode:
             print("calling regenerate")
             print("asking for layout", self.layout)
 
+        if subgraph_distance == None:
+            subgraph_distance = self.default_subgraph_distance
+            
         # create new set of coordinates based on the current layout
         if not same_positions:
             for index in range(len(self.vertices)):
@@ -741,6 +743,14 @@ class MainWindow(QMainWindow):
         if (self.first_generation == False and self.check_for_tree_layout() == True):
             for item in self.scene.items():
                 item.displayed = False
+
+        if len(self.vertices) > 1:
+            for index, untranslated_coordinates in enumerate(self.coordinates):
+                if index == 0:
+                    self.coordinates[index] = self.translate_coordinates(untranslated_coordinates, -subgraph_distance/2, 0)
+                else:
+                    self.coordinates[index] = self.translate_coordinates(untranslated_coordinates, subgraph_distance/2, 0)
+
 
 
         # move the vertices to their new positions
@@ -883,9 +893,8 @@ class MainWindow(QMainWindow):
                         new_edge = Edge(self.vertices[start_index][start_id],self.vertices[end_index][end_id], weight, segmented = False)
                     self.scene.addItem(new_edge)
                     self.all_edges[(start_id, end_id, weight)] = new_edge    
-                  #  if main.printing_mode:
-                   #     print ("added edge from", start_id, "to", end_id,"with weight",weight)                    
-                    print ("added interlayer edge from", start_id, "to", end_id,"with weight",weight)                    
+                    if main.printing_mode:
+                        print ("added interlayer edge from", start_id, "to", end_id,"with weight",weight)                    
 
                     
     def vertices_decrease_radius(self):
