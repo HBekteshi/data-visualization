@@ -702,7 +702,7 @@ class MainWindow(QMainWindow):
         
         
  # layout selector             
-    def generate(self, layout, use_screen_attributes = True, width = None, height = None, index = 0):
+    def generate(self, layout, subgraph_distance = None, use_screen_attributes = True, width = None, height = None, index = 0, random_subgraph_shuffle = False):
         if use_screen_attributes:
             width = self.screenwidth - 50 - self.node_radius * 2
             height = self.screenheight - 75 - self.node_radius * 2
@@ -716,7 +716,10 @@ class MainWindow(QMainWindow):
                 
         self.layout = layout
         if self.layout == "random":
-            self.coordinates[index] = main.create_random_coordinates(width, height, self.adjacency_dict[index])
+            if main.subgraphs_included and not random_subgraph_shuffle:
+                self.coordinates[index] = main.create_random_coordinates(width/2, height, self.adjacency_dict[index])
+            else:
+                self.coordinates[index] = main.create_random_coordinates(width, height, self.adjacency_dict[index])
         elif self.layout == ("solar" or "solar random"):
             self.coordinates[index] = main.create_solar_coordinates(width, height, self.adjacency_dict[index], index = index)
         elif self.layout == "solar deterministic":
@@ -750,8 +753,21 @@ class MainWindow(QMainWindow):
             self.coordinates[index] = main.create_force_layout_coordinates(width, height, bfs_coords, self.adjacency_dict[index], index = index)
 
         elif self.layout == "force random":
-            random_coords = main.create_random_coordinates(width, height, self.adjacency_dict[index])
-            self.coordinates[index] = main.create_force_layout_coordinates(width/2, height, random_coords, self.adjacency_dict[index], index = index)
+            
+            if main.subgraphs_included:
+                random_coords = main.create_random_coordinates(width/2, height, self.adjacency_dict[index])
+                self.coordinates[index] = main.create_force_layout_coordinates(width/2, height, random_coords, self.adjacency_dict[index], max_iterations = 150, index = index)
+                if index == 0:
+                    self.coordinates[index] = self.translate_coordinates(self.coordinates[index], -subgraph_distance/2, 0)
+                else:
+                    self.coordinates[index] = self.translate_coordinates(self.coordinates[index], subgraph_distance/2, 0)
+
+                self.coordinates[index] = main.create_force_layout_coordinates(width, height, self.coordinates[index], self.adjacency_dict[index], max_iterations = 50, index = index)       # extra iterations
+
+            else:
+                random_coords = main.create_random_coordinates(width, height, self.adjacency_dict[index])
+                self.coordinates[index] = main.create_force_layout_coordinates(width, height, random_coords, self.adjacency_dict[index], index = index)
+
             
         elif self.layout == "force custom":
             if self.strict_force_binding == True:
@@ -806,13 +822,13 @@ class MainWindow(QMainWindow):
         # create new set of coordinates based on the current layout
         if not same_positions:
             for index in range(len(self.vertices)):
-                self.generate(self.layout, index = index)
+                self.generate(self.layout, index = index, subgraph_distance = subgraph_distance)
         
         if (self.first_generation == False and self.check_for_tree_layout() == True):
             for item in self.scene.items():
                 item.displayed = False
 
-        if len(self.vertices) > 1 and self.layout != "force custom":
+        if len(self.vertices) > 1 and self.layout not in ["force custom", "force random"]:
             for index, untranslated_coordinates in enumerate(self.coordinates):
                 if index == 0:
                     self.coordinates[index] = self.translate_coordinates(untranslated_coordinates, -subgraph_distance/2, 0)
