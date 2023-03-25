@@ -3,7 +3,7 @@ import sys
 from collections import deque
 
 from PySide6.QtCore import QRectF, Qt, QLineF, QPointF
-from PySide6.QtGui import QAction, QKeySequence, QPainter, QPen, QColor, QBrush, QPolygonF, QPainterPath
+from PySide6.QtGui import QAction, QKeySequence, QPainter, QPen, QColor, QBrush, QPolygonF, QPainterPath, QPainterPathStroker
 from PySide6.QtWidgets import QMainWindow, QApplication, QGraphicsScene, QGraphicsView, QGraphicsObject, QGraphicsItem, QStyleOptionGraphicsItem, QWidget
 
 import numpy as np
@@ -93,13 +93,15 @@ class Vertex(QGraphicsObject):
         
         self.setPos(x, y)
         self.x_coord = x
-        self.y_coord = y
+        self.y_coord = -y
         self.update_edges()
 
     def addEdge(self, edge_tuple):          # format (edge object, other vertex object)
         self.edges.append(edge_tuple)
         edge_tuple[0].displayed = self.displayed
 
+    def physical_location(self) -> QRectF:
+        return QRectF(self.x_coord, -self.y_coord, self.radius*2, self.radius*2)
         
     def boundingRect(self) -> QRectF:
         return QRectF(0,0,self.radius*2,self.radius*2)        
@@ -384,7 +386,67 @@ class Edge(QGraphicsItem):
 
         return target
 
+class VertexBoxes(QGraphicsItem):
+    def __init__(self, window):
+        super().__init__()
+        self.path_list = []
+        self.boxes = []
+        self.outlines = []
+        self.window = window
+
+
+        # outline settings
+        self.thickness = 2
+        self.color = "brown"
         
+
+    def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget=None):
+        painter.setRenderHints(QPainter.Antialiasing)
+
+        pen_fifteen = QPen(
+                QColor(self.color),
+                self.thickness,
+                Qt.SolidLine,
+                Qt.RoundCap,
+                Qt.RoundJoin,
+            )
+
+        painter.setPen(pen_fifteen)
+
+
+        painter.setBrush(QBrush(QColor(self.color)))
+        self.update_path()
+
+        old_man = QPainterPathStroker(pen_fifteen)
+
+        for box in self.boxes:
+            outline = old_man.createStroke(box)
+            painter.drawPath(outline)
+
+        
+    def update_path(self):
+        self.boxes = []
+        self.outlines = []
+        self.path_list = []
+        self.big_path = QPainterPath()
+        
+        for index in range(len(self.window.vertices)):
+            path = QPainterPath()
+            for vertex_object in self.window.vertices[index].values():
+                path.addRect(vertex_object.physical_location())
+            self.path_list.append(path)
+            self.big_path.addPath(path)
+            
+        for path in self.path_list:
+            box = path.controlPointRect()
+            box_path = QPainterPath() 
+            box_path.addRect(box)
+            self.boxes.append(box_path)
+
+        
+    def boundingRect(self):
+        self.update_path()
+        return self.big_path.controlPointRect()
 
 
 
@@ -461,7 +523,7 @@ class MainWindow(QMainWindow):
         dynamic_force_layout_action.triggered.connect(self.toggle_dynamic_forces)
         self.actions_menu.addAction(dynamic_force_layout_action)
         dynamic_force_layout_action.setCheckable(True)
-        dynamic_force_layout_action.setChecked(True)
+        dynamic_force_layout_action.setChecked(False)
 
         force_custom_regeneration_action = QAction("Apply Force Direction on Current Layout", self)
         force_custom_regeneration_action.setShortcut(Qt.Key_F)
@@ -542,6 +604,7 @@ class MainWindow(QMainWindow):
         
         self.vertices = []
         self.inter_layer_adjacency_dict = None
+        self.vertex_boxes = VertexBoxes(window = self)
         
         if len(given_adjacency_dict_list) > 1:
             self.adjacency_dict = []
@@ -551,6 +614,9 @@ class MainWindow(QMainWindow):
                 else:
                     self.adjacency_dict.append(given_adjacency_dict_list[count])
                     self.vertices.append({})
+            self.vertex_boxes.update_path()
+            self.scene.addItem(self.vertex_boxes)
+
         else:
             self.adjacency_dict = given_adjacency_dict_list
             self.vertices.append({})
@@ -573,12 +639,14 @@ class MainWindow(QMainWindow):
             self.initialize_interlayer_edges()
 
         # Subgraph settings
-        self.default_subgraph_distance = (self.screenwidth - 50 - self.node_radius * 2) / 2            
+        self.default_subgraph_distance = (self.screenwidth - 50 - self.node_radius * 2)  / 2        
+        self.show_subgraph_boxes = True  
+
         # Default Settings
         self.layout = self.default_layout
         self.first_generation = True
         self.display_non_tree_edges = False
-        self.dynamic_forces = True
+        self.dynamic_forces = False
         self.strict_force_binding = True
         self.regenerate()
 
@@ -744,7 +812,7 @@ class MainWindow(QMainWindow):
             for item in self.scene.items():
                 item.displayed = False
 
-        if len(self.vertices) > 1:
+        if len(self.vertices) > 1 and self.layout != "force custom":
             for index, untranslated_coordinates in enumerate(self.coordinates):
                 if index == 0:
                     self.coordinates[index] = self.translate_coordinates(untranslated_coordinates, -subgraph_distance/2, 0)
@@ -766,7 +834,7 @@ class MainWindow(QMainWindow):
                 if main.printing_mode:
                     print("reset vertex",vertex_id,"at x_val",x,"and y_val",-y)
 
-                self.all_vertices[vertex_id].moveVertex(x,-y)
+                self.all_vertices[vertex_id].moveVertex(x,y)
                 
                 if self.check_for_tree_layout() and not self.display_non_tree_edges:
                     self.all_vertices[vertex_id].turnVisible(edge_update = False)
@@ -1108,7 +1176,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict_list, "solar deterministic", default_radius=10)
+    window = MainWindow(main.adjacency_dict_list, "force random", default_radius=10)
     window.show()
 
     
