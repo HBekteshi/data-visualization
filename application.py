@@ -903,7 +903,7 @@ class MainWindow(QMainWindow):
             print("scene width:", self.scene.width(), "scene height:", self.scene.height())
             print("view width:", self.view.width(), "view height:", self.view.height())
         
-    # TODO: deleted , angle, distance, scale, visibility  as arguments so i can actually run it, need to add this back later I guess??
+    # TODO: deleted , angle, distance, scale, visibility  as arguments so i can actually run it, are these parameters necessary though?
     def edge_bundling(self, max_loops = 1, edge_objects = None, k=0.1):        # TODO: set other necessary constants, pass them along to the appropriate functions
         if edge_objects == None:
             edge_objects = self.interlayer_edge_objects     #self.interlayer_edge_objects is the list af all edge objects that need to be bundled    
@@ -978,7 +978,6 @@ class MainWindow(QMainWindow):
         return angle_compatability
 
     def scale_compat(self, e1, e2):
-        # TODO: calculate scale compatibility between e1 and e2
         e1_vec = (e1.end.x_coord - e1.start.x_coord, e1.end.y_coord - e1.start.y_coord) 
         e2_vec = (e2.end.x_coord - e2.start.x_coord, e2.end.y_coord - e2.start.y_coord) 
         p_length = math.sqrt(e1_vec[0] * e1_vec[0] + e1_vec[1] * e1_vec[1])
@@ -991,7 +990,6 @@ class MainWindow(QMainWindow):
         return scale_compatability
 
     def distance_compat(self, e1, e2):
-        # TODO: calculate distance compatibility between e1 and e2
         e1_vec = (e1.end.x_coord - e1.start.x_coord, e1.end.y_coord - e1.start.y_coord) 
         e2_vec = (e2.end.x_coord - e2.start.x_coord, e2.end.y_coord - e2.start.y_coord) 
         p_length = math.sqrt(e1_vec[0] * e1_vec[0] + e1_vec[1] * e1_vec[1])
