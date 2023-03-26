@@ -939,12 +939,10 @@ class MainWindow(QMainWindow):
                 #    continue
 
                 # calculate edge vectors from the edge object in (x,y) tuples
-                e1_vec = (edge_objects[i].end.x_coord - edge_objects[i].start.x_coord, edge_objects[i].end.y_coord - edge_objects[i].start.y_coord) 
-                e2_vec = (edge_objects[j].end.x_coord - edge_objects[j].start.x_coord, edge_objects[j].end.y_coord - edge_objects[j].start.y_coord) 
-                compat = self.main_compat(e1_vec, e2_vec)
+                compat = self.main_compat(edge_objects[i], edge_objects[j])
 
                 if compat > 0:
-                    force1, force2 = self.force_calculation(edge_objects[i], edge_objects[j], compat)
+                    force1, force2 = self.force_calculation(edge_objects[i], edge_objects[j], compat, 1) #scale = 1, idk if this is right? for what is the scale used?
 
                     for k in range(1, len(edge_objects[i].waypoints) - 1):
                         dx = scale * (force1[k][0] + force2[k][0])
@@ -968,36 +966,115 @@ class MainWindow(QMainWindow):
         return self.angle_compat(e1, e2) * self.scale_compat(e1, e2) * self.distance_compat(e1, e2) * self.visibility_compat(e1, e2)
 
     def angle_compat(self, e1, e2):
-        print("e1", e1)
-        p_times_q_dot = e1[0] * e2[0] + e1[1] * e2[1]
-        p_length = math.sqrt(e1[0] * e1[0] + e1[1] * e1[1])
-        q_length = math.sqrt(e2[0] * e2[0] + e2[1] * e2[1])
+        #print("e1", e1)
+        e1_vec = (e1.end.x_coord - e1.start.x_coord, e1.end.y_coord - e1.start.y_coord) 
+        e2_vec = (e2.end.x_coord - e2.start.x_coord, e2.end.y_coord - e2.start.y_coord) 
+        p_times_q_dot = e1_vec[0] * e2_vec[0] + e1_vec[1] * e2_vec[1]
+        p_length = math.sqrt(e1_vec[0] * e1_vec[0] + e1_vec[1] * e1_vec[1])
+        q_length = math.sqrt(e2_vec[0] * e2_vec[0] + e2_vec[1] * e2_vec[1])
         dot_pq =  p_times_q_dot / (p_length * q_length)
         angle_compatability = abs(dot_pq)
-        print("angle compatability between edges", e1, "and", e2, "is", angle_compatability)
+        #print("angle compatability between edges", e1, "and", e2_vec, "is", angle_compatability)
         return angle_compatability
 
     def scale_compat(self, e1, e2):
         # TODO: calculate scale compatibility between e1 and e2
-        p_length = math.sqrt(e1[0] * e1[0] + e1[1] * e1[1])
-        q_length = math.sqrt(e2[0] * e2[0] + e2[1] * e2[1])
+        e1_vec = (e1.end.x_coord - e1.start.x_coord, e1.end.y_coord - e1.start.y_coord) 
+        e2_vec = (e2.end.x_coord - e2.start.x_coord, e2.end.y_coord - e2.start.y_coord) 
+        p_length = math.sqrt(e1_vec[0] * e1_vec[0] + e1_vec[1] * e1_vec[1])
+        q_length = math.sqrt(e2_vec[0] * e2_vec[0] + e2_vec[1] * e2_vec[1])
         l_avg = (p_length + q_length)/2
         min_length = min(p_length, q_length)
         max_length = max(p_length, q_length)
         scale_compatability = 2 / ((l_avg * min_length) + (max_length / l_avg))
-        print("scale compatability between edges", e1, "and", e2, "is", scale_compatability)
+        #print("scale compatability between edges", e1_vec, "and", e2_vec, "is", scale_compatability)
         return scale_compatability
 
     def distance_compat(self, e1, e2):
         # TODO: calculate distance compatibility between e1 and e2
-        return
+        e1_vec = (e1.end.x_coord - e1.start.x_coord, e1.end.y_coord - e1.start.y_coord) 
+        e2_vec = (e2.end.x_coord - e2.start.x_coord, e2.end.y_coord - e2.start.y_coord) 
+        p_length = math.sqrt(e1_vec[0] * e1_vec[0] + e1_vec[1] * e1_vec[1])
+        q_length = math.sqrt(e2_vec[0] * e2_vec[0] + e2_vec[1] * e2_vec[1])
+        l_avg = (p_length + q_length)/2
+        p_midpoint = ((e1.start.x_coord + e1.end.x_coord) / 2, (e1.start.y_coord + e1.end.y_coord) / 2) 
+        q_midpoint = ((e2.start.x_coord + e2.end.x_coord) / 2, (e2.start.y_coord + e2.end.y_coord) / 2) 
+        dist_pm_qm = math.sqrt((p_midpoint[0] - q_midpoint[0]) * (p_midpoint[0] - q_midpoint[0]) + 
+                               (p_midpoint[1] - q_midpoint[1]) * (p_midpoint[1] - q_midpoint[1]))
+        distance_compatability = l_avg / (l_avg + dist_pm_qm)
+        #print("distance compatability between edges", e1_vec, "and", e2_vec, "is", distance_compatability)
+        return distance_compatability
 
     def visibility_compat(self, e1, e2):
         # TODO: calculate visibility compatibility between e1 and e2
-        return
+        e1_vec = (e1.end.x_coord - e1.start.x_coord, e1.end.y_coord - e1.start.y_coord) 
+        e2_vec = (e2.end.x_coord - e2.start.x_coord, e2.end.y_coord - e2.start.y_coord) 
+        vis_pq = 0.5 #TODO i do not get wat Im means. What is I? Replace the  placeholders with actual formula
+        vis_qp = 0.5
+        visibility_compatability = min(vis_pq, vis_qp)
+        #print("visibility compatability between edges", e1_vec, "and", e2_vec, "is", visibility_compatability)
+        return visibility_compatability
 
-    def force_calculation(self, p1, p2, compat_value, scale):
+    def force_calculation(self, e1, e2, compat_value, scale):
         # TODO: calculate force on each waypoint of the two edges and return position modification of those waypoints
+        k_stiff = 0.5 # global stiffness constant, the larger the less likely the edges will bundle
+        #initialize force lists
+        force_e1 = []
+        force_e2 = []
+        e1_vec = (e1.end.x_coord - e1.start.x_coord, e1.end.y_coord - e1.start.y_coord) 
+        e2_vec = (e2.end.x_coord - e2.start.x_coord, e2.end.y_coord - e2.start.y_coord) 
+        e1_length = math.sqrt(e1_vec[0] * e1_vec[0] + e1_vec[1] * e1_vec[1])
+        e2_length = math.sqrt(e2_vec[0] * e2_vec[0] + e2_vec[1] * e2_vec[1])
+        np_e1 = len(e1.waypoints)
+        np_e2 = len(e2.waypoints)
+        segment_length_e1 = e1_length / np_e1
+        segment_length_e2 = e2_length / np_e2
+        kp_e1 = k_stiff / segment_length_e1
+        kp_e2 = k_stiff / segment_length_e2
+
+        for count, waypoint in enumerate(e1.waypoints):
+            if not force_e1:
+                force_e1.append(0)
+            elif len(force_e1) == len(e1.waypoints) - 1:
+                force_e1.append(0)
+            else: 
+                dist_prev_curr_waypoint_e1 = math.sqrt((e1.waypoints[count-1].x() - waypoint.x()) * (e1.waypoints[count-1].x() - waypoint.x())
+                                                    + (e1.waypoints[count-1].y() - waypoint.y()) * (e1.waypoints[count-1].y() - waypoint.y()))
+                dist_prev_next_waypoint_e1 = math.sqrt((waypoint.x() - e1.waypoints[count+1].x()) * (waypoint.x() - e1.waypoints[count+1].x())
+                                                       + (waypoint.y() - e1.waypoints[count+1].y() * waypoint.y() - e1.waypoints[count+1].y()))
+                
+                force_electro = 0
+                for count, waypoint in enumerate(e1.waypoints):
+                    dist_pq = math.sqrt((waypoint.x() - e2.waypoints[count].x()) * (waypoint.x() - e2.waypoints[count].x()) +
+                                        (waypoint.y() - e2.waypoints[count].y()) * (waypoint.y() - e2.waypoints[count].y()))
+                    force_electro += compat_value / dist_pq
+
+                force_waypoint = kp_e1 * (dist_prev_curr_waypoint_e1 + dist_prev_next_waypoint_e1) * force_electro
+                force_e1.append(force_waypoint)
+
+        for count, waypoint in enumerate(e2.waypoints):
+            if not force_e2:
+                force_e2.append(0)
+            elif len(force_e2) == len(e2.waypoints) - 1:
+                force_e2.append(0)
+            else: 
+                dist_prev_curr_waypoint_e2 = math.sqrt((e2.waypoints[count].x() - waypoint.x()) * (e2.waypoints[count].x() - waypoint.x())
+                                                    + (e2.waypoints[count].y() - waypoint.y()) * (e2.waypoints[count].y() - waypoint.y()))
+                dist_prev_next_waypoint_e2 = math.sqrt((waypoint.x() - e2.waypoints[count+1].x()) * (waypoint.x() - e2.waypoints[count+1].x())
+                                                       + (waypoint.y() - e2.waypoints[count+1].y() * waypoint.y() - e2.waypoints[count+1].y()))
+                
+                force_electro = 0
+                for count, waypoint in enumerate(e1.waypoints):
+                    dist_pq = math.sqrt((waypoint.x() - e2.waypoints[count].x()) * (waypoint.x() - e2.waypoints[count].x()) +
+                                        (waypoint.y() - e2.waypoints[count].y()) * (waypoint.y() - e2.waypoints[count].y()))
+                    force_electro += compat_value / dist_pq
+
+                force_waypoint = kp_e2 * (dist_prev_curr_waypoint_e2 + dist_prev_next_waypoint_e2)
+                force_e2.append(force_waypoint)
+
+    
+        return force_e1, force_e2
+
         return
 
     def regenerate_random(self):
