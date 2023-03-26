@@ -8,6 +8,7 @@ from PySide6.QtWidgets import QMainWindow, QApplication, QGraphicsScene, QGraphi
 
 import numpy as np
 import copy
+import math
 
 import main
 
@@ -902,35 +903,40 @@ class MainWindow(QMainWindow):
             print("scene width:", self.scene.width(), "scene height:", self.scene.height())
             print("view width:", self.view.width(), "view height:", self.view.height())
         
-
-    def edge_bundling(self, angle, distance, scale, visibility , max_loops = 1, edge_objects = None, k=0.1):        # TODO: set other necessary constants, pass them along to the appropriate functions
+    # TODO: deleted , angle, distance, scale, visibility  as arguments so i can actually run it, need to add this back later I guess??
+    def edge_bundling(self, max_loops = 1, edge_objects = None, k=0.1):        # TODO: set other necessary constants, pass them along to the appropriate functions
         if edge_objects == None:
             edge_objects = self.interlayer_edge_objects     #self.interlayer_edge_objects is the list af all edge objects that need to be bundled    
             
         for cycle in range(max_loops):
             self.subdivide_all_edges(edge_objects, cycle)
-            self.perform_edge_bundling(edge_objects)
+            self.perform_edge_bundling(edge_objects, 1, 1, 1, 1)
 
-    def subdivide_edge(self, cycle):
-        n = 2 ** (cycle - 1)
-        for i in range(len(self.waypoints) - 1):
-            x1, y1 = self.waypoints[i]
-            x2, y2 = self.waypoints[i + 1]
-            for j in range(n):
-                ratio = (j + 1) / (n + 1)
-                x_new = x1 * (1 - ratio) + x2 * ratio
-                y_new = y1 * (1 - ratio) + y2 * ratio
-                self.waypoints.insert(i + j + 1, (x_new, y_new))
+    def subdivide_edge(self, edge, cycle):
+        n = 2 * (cycle - 1)
+        for index, waypoint in enumerate(edge.waypoints):
+            if index != len(edge.waypoints) - 1:
+                print("index", index)
+                print(len(edge.waypoints))
+                x1 = waypoint.x()
+                y1 = waypoint.y()
+                x2 = edge.waypoints[index + 1].x()
+                y2 = edge.waypoints[index + 1].y()
+                for j in range(n):
+                    ratio = (j + 1) / (n + 1)
+                    x_new = x1 * (1 - ratio) + x2 * ratio
+                    y_new = y1 * (1 - ratio) + y2 * ratio
+                    edge.waypoints.insert(index + j + 1, (x_new, y_new))
 
     def subdivide_all_edges(self, edge_objects, cycle):
         for edge in edge_objects:
-            edge.subdivide_edge(cycle)
+            self.subdivide_edge(edge, cycle)
 
     def perform_edge_bundling(self, edge_objects, angle, distance, visibility, scale):
         for i in range(len(edge_objects)):
             for j in range(i+1, len(edge_objects)):
-                if edge_objects[i].interlayer != edge_objects[j].interlayer:
-                    continue
+                #if edge_objects[i].interlayer() != edge_objects[j].interlayer:
+                #    continue
 
                 compat = self.main_compat(edge_objects[i], edge_objects[j])
 
@@ -959,8 +965,17 @@ class MainWindow(QMainWindow):
         return self.angle_compat(e1, e2) * self.scale_compat(e1, e2) * self.distance_compat(e1, e2) * self.visibility_compat(e1, e2)
 
     def angle_compat(self, e1, e2):
-        # TODO: calculate angle compatibility between e1 and e2
-        return
+        # calculate edge vectors from the edge object in (x,y) tuples
+        e1_vec = (e1.end.x_coord - e1.start.x_coord, e1.end.y_coord - e1.start.y_coord) 
+        e2_vec = (e2.end.x_coord - e2.start.x_coord, e2.end.y_coord - e2.start.y_coord) 
+        print("e1 vec", e1_vec)
+        p_times_q_dot = e1_vec[0] * e2_vec[0] + e1_vec[1] * e2_vec[1]
+        p_length = math.sqrt(e1_vec[0] * e1_vec[0] + e1_vec[1] * e1_vec[1])
+        q_length = math.sqrt(e2_vec[0] * e2_vec[0] + e2_vec[1] * e2_vec[1])
+        dot_pq =  p_times_q_dot / (p_length * q_length)
+        angle_compatability = abs(dot_pq)
+        print("angle compatability between edges", e1_vec, "and", e2_vec, "is", angle_compatability)
+        return angle_compatability
 
     def scale_compat(self, e1, e2):
         # TODO: calculate scale compatibility between e1 and e2
