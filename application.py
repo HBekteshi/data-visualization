@@ -903,7 +903,7 @@ class MainWindow(QMainWindow):
             print("view width:", self.view.width(), "view height:", self.view.height())
         
 
-    def edge_bundling(self, max_loops = 1, edge_objects = None):        # TODO: set other necessary constants, pass them along to the appropriate functions
+    def edge_bundling(self, angle, distance, scale, visibility , max_loops = 1, edge_objects = None, k=0.1):        # TODO: set other necessary constants, pass them along to the appropriate functions
         if edge_objects == None:
             edge_objects = self.interlayer_edge_objects     #self.interlayer_edge_objects is the list af all edge objects that need to be bundled    
             
@@ -911,15 +911,72 @@ class MainWindow(QMainWindow):
             self.subdivide_all_edges(edge_objects, cycle)
             self.perform_edge_bundling(edge_objects)
 
+    def subdivide_edge(self, cycle):
+        n = 2 ** (cycle - 1)
+        for i in range(len(self.waypoints) - 1):
+            x1, y1 = self.waypoints[i]
+            x2, y2 = self.waypoints[i + 1]
+            for j in range(n):
+                ratio = (j + 1) / (n + 1)
+                x_new = x1 * (1 - ratio) + x2 * ratio
+                y_new = y1 * (1 - ratio) + y2 * ratio
+                self.waypoints.insert(i + j + 1, (x_new, y_new))
 
     def subdivide_all_edges(self, edge_objects, cycle):
-        #TODO
-        #call subdivision function in all given edge objects
-        pass
+        for edge in edge_objects:
+            edge.subdivide_edge(cycle)
 
-    def perform_edge_bundling(self, edge_objects):
-        #TODO
-        pass
+    def perform_edge_bundling(self, edge_objects, angle, distance, visibility, scale):
+        for i in range(len(edge_objects)):
+            for j in range(i+1, len(edge_objects)):
+                if edge_objects[i].interlayer != edge_objects[j].interlayer:
+                    continue
+
+                compat = self.main_compat(edge_objects[i], edge_objects[j])
+
+                if compat > 0:
+                    force1, force2 = self.force_calculation(edge_objects[i], edge_objects[j], compat)
+
+                    for k in range(1, len(edge_objects[i].waypoints) - 1):
+                        dx = scale * (force1[k][0] + force2[k][0])
+                        dy = scale * (force1[k][1] + force2[k][1])
+                        edge_objects[i].waypoints[k] = (edge_objects[i].waypoints[k][0] + dx, edge_objects[i].waypoints[k][1] + dy)
+
+    def bundle_edges(self, e1, e2, compat_value, scale):
+        force_values_e1 = []
+        force_values_e2 = []
+        for i in range(len(e1[0].waypoints)):
+            if i == 0 or i == len(e1[0].waypoints) - 1:
+                force_values_e1.append((0, 0))
+                force_values_e2.append((0, 0))
+                continue
+            f_e1, f_e2 = self.force_calculation(e1[0].waypoints[i], e2[0].waypoints[i], compat_value, scale)
+            force_values_e1.append(f_e1)
+            force_values_e2.append(f_e2)
+        return force_values_e1, force_values_e2
+
+    def main_compat(self, e1, e2):
+        return self.angle_compat(e1, e2) * self.scale_compat(e1, e2) * self.distance_compat(e1, e2) * self.visibility_compat(e1, e2)
+
+    def angle_compat(self, e1, e2):
+        # TODO: calculate angle compatibility between e1 and e2
+        return
+
+    def scale_compat(self, e1, e2):
+        # TODO: calculate scale compatibility between e1 and e2
+        return
+
+    def distance_compat(self, e1, e2):
+        # TODO: calculate distance compatibility between e1 and e2
+        return
+
+    def visibility_compat(self, e1, e2):
+        # TODO: calculate visibility compatibility between e1 and e2
+        return
+
+    def force_calculation(self, p1, p2, compat_value, scale):
+        # TODO: calculate force on each waypoint of the two edges and return position modification of those waypoints
+        return
 
     def regenerate_random(self):
         self.layout = "random"
