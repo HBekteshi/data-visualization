@@ -604,6 +604,7 @@ class MainWindow(QMainWindow):
         
         self.vertices = []
         self.inter_layer_adjacency_dict = None
+        self.interlayer_edge_objects = []
         self.vertex_boxes = VertexBoxes(window = self)
         
         if len(given_adjacency_dict_list) > 1:
@@ -648,6 +649,7 @@ class MainWindow(QMainWindow):
         self.display_non_tree_edges = False
         self.dynamic_forces = False
         self.strict_force_binding = True
+        self.edge_bundling_bool = True                   # todo: add layout option for toggling this is subgraphs are included
         self.regenerate()
 
         
@@ -880,7 +882,12 @@ class MainWindow(QMainWindow):
                             edge.update()
             #                print("tree displaying edge",parent_id, "to", child_id)
 
-        self.update_status()                
+        self.update_status()               
+
+
+        if self.edge_bundling_bool and main.subgraphs_included:
+            self.edge_bundling()
+        
         
         new_bounding_rect = self.scene.itemsBoundingRect()
         self.scene.setSceneRect(new_bounding_rect)
@@ -894,6 +901,23 @@ class MainWindow(QMainWindow):
             print("view width:", self.view.width(), "view height:", self.view.height())
         
 
+    def edge_bundling(self, max_loops = 1, edge_objects = None):        # TODO: set other necessary constants, pass them along to the appropriate functions
+        if edge_objects == None:
+            edge_objects = self.interlayer_edge_objects     #self.interlayer_edge_objects is the list af all edge objects that need to be bundled    
+            
+        for cycle in range(max_loops):
+            self.subdivide_all_edges(edge_objects, cycle)
+            self.perform_edge_bundling(edge_objects)
+
+
+    def subdivide_all_edges(self, edge_objects, cycle):
+        #TODO
+        #call subdivision function in all given edge objects
+        pass
+
+    def perform_edge_bundling(self, edge_objects):
+        #TODO
+        pass
 
     def regenerate_random(self):
         self.layout = "random"
@@ -961,6 +985,7 @@ class MainWindow(QMainWindow):
                         new_edge = Edge(self.vertices[index][start_id],self.vertices[index][end_id], weight, segmented = False)
                     self.scene.addItem(new_edge)
                     self.all_edges[(start_id, end_id, weight)] = new_edge    
+                    self.interlayer_edge_objects.append(new_edge)
                     if main.printing_mode:
                         print ("added edge from", start_id, "to", end_id,"with weight",weight)
 
