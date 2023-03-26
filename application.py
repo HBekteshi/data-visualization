@@ -938,7 +938,10 @@ class MainWindow(QMainWindow):
                 #if edge_objects[i].interlayer() != edge_objects[j].interlayer:
                 #    continue
 
-                compat = self.main_compat(edge_objects[i], edge_objects[j])
+                # calculate edge vectors from the edge object in (x,y) tuples
+                e1_vec = (edge_objects[i].end.x_coord - edge_objects[i].start.x_coord, edge_objects[i].end.y_coord - edge_objects[i].start.y_coord) 
+                e2_vec = (edge_objects[j].end.x_coord - edge_objects[j].start.x_coord, edge_objects[j].end.y_coord - edge_objects[j].start.y_coord) 
+                compat = self.main_compat(e1_vec, e2_vec)
 
                 if compat > 0:
                     force1, force2 = self.force_calculation(edge_objects[i], edge_objects[j], compat)
@@ -965,21 +968,25 @@ class MainWindow(QMainWindow):
         return self.angle_compat(e1, e2) * self.scale_compat(e1, e2) * self.distance_compat(e1, e2) * self.visibility_compat(e1, e2)
 
     def angle_compat(self, e1, e2):
-        # calculate edge vectors from the edge object in (x,y) tuples
-        e1_vec = (e1.end.x_coord - e1.start.x_coord, e1.end.y_coord - e1.start.y_coord) 
-        e2_vec = (e2.end.x_coord - e2.start.x_coord, e2.end.y_coord - e2.start.y_coord) 
-        print("e1 vec", e1_vec)
-        p_times_q_dot = e1_vec[0] * e2_vec[0] + e1_vec[1] * e2_vec[1]
-        p_length = math.sqrt(e1_vec[0] * e1_vec[0] + e1_vec[1] * e1_vec[1])
-        q_length = math.sqrt(e2_vec[0] * e2_vec[0] + e2_vec[1] * e2_vec[1])
+        print("e1", e1)
+        p_times_q_dot = e1[0] * e2[0] + e1[1] * e2[1]
+        p_length = math.sqrt(e1[0] * e1[0] + e1[1] * e1[1])
+        q_length = math.sqrt(e2[0] * e2[0] + e2[1] * e2[1])
         dot_pq =  p_times_q_dot / (p_length * q_length)
         angle_compatability = abs(dot_pq)
-        print("angle compatability between edges", e1_vec, "and", e2_vec, "is", angle_compatability)
+        print("angle compatability between edges", e1, "and", e2, "is", angle_compatability)
         return angle_compatability
 
     def scale_compat(self, e1, e2):
         # TODO: calculate scale compatibility between e1 and e2
-        return
+        p_length = math.sqrt(e1[0] * e1[0] + e1[1] * e1[1])
+        q_length = math.sqrt(e2[0] * e2[0] + e2[1] * e2[1])
+        l_avg = (p_length + q_length)/2
+        min_length = min(p_length, q_length)
+        max_length = max(p_length, q_length)
+        scale_compatability = 2 / ((l_avg * min_length) + (max_length / l_avg))
+        print("scale compatability between edges", e1, "and", e2, "is", scale_compatability)
+        return scale_compatability
 
     def distance_compat(self, e1, e2):
         # TODO: calculate distance compatibility between e1 and e2
