@@ -574,11 +574,13 @@ class MainWindow(QMainWindow):
 
         dag_dfs_barycenter_regeneration_action = QAction("Generate DAG DFS-Initialized Layout (Barycenter crossing minimization)", self)
         dag_dfs_barycenter_regeneration_action.triggered.connect(self.regenerate_dag_dfs_barycenter)
-        self.layouts_menu.addAction(dag_dfs_barycenter_regeneration_action)
+        if main.subgraphs_included == False:
+            self.layouts_menu.addAction(dag_dfs_barycenter_regeneration_action)
 
         dag_dfs_median_regeneration_action = QAction("Generate DAG DFS-Initialized Layout (Median crossing minimization)", self)
         dag_dfs_median_regeneration_action.triggered.connect(self.regenerate_dag_dfs_median)
-        self.layouts_menu.addAction(dag_dfs_median_regeneration_action)
+        if main.subgraphs_included == False:
+            self.layouts_menu.addAction(dag_dfs_median_regeneration_action)
 
          # Status Bar
         self.status = self.statusBar()
