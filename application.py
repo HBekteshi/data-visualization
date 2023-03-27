@@ -163,6 +163,7 @@ class Edge(QGraphicsItem):
         self.displayed = displayed
         self.segmented = segmented
         self.curved = curved
+        self.track_drawing = False
         
         self.directed = directed
         if main.G.is_directed() == True:
@@ -186,6 +187,10 @@ class Edge(QGraphicsItem):
         self.calculate_location()
 
         self.arrow_size = 10
+
+        
+        if self.start.id == "n332" and self.end.id == "n154":
+            self.track_drawing = True
     
     def update_waypoints(self, waypoints_list, radius_change = 0, from_outside = True):
         self.waypoints = copy.deepcopy(waypoints_list)
@@ -238,11 +243,12 @@ class Edge(QGraphicsItem):
                 self.lines.append(line)
 
         self.buildPath()
-        if len(self.waypoints)> 2:
-            pass
+
+        if len(self.waypoints)> 2 and self.track_drawing:
             # print("for line between nodes",self.start.id,"and",self.end.id)
             # print("self waypoints is:", self.waypoints)
             # print ("self lines is:",self.lines)
+            pass
         
     # function for building bezier curves, adapted from https://stackoverflow.com/questions/63016214/drawing-multi-point-curve-with-pyqt5   as there's no geometric library for bezier curves in QT
     def buildPath(self):
@@ -319,13 +325,17 @@ class Edge(QGraphicsItem):
             )
             
 
-            if self.directed and self.segmented and self.start.window.check_for_layered_layout():                    # directed and segmented and layered
+            if self.directed and self.segmented and (self.start.window.check_for_layered_layout() or main.subgraphs_included):                    # directed and segmented and layered
                 if self.curved == True:
+                    # if self.track_drawing:
+                    #     print("directed, segmented, curved")
                     painter.drawPath(self.path)
                     start = self.waypoints[len(self.waypoints)-2]
                     end = self.waypoints[len(self.waypoints)-1]
                     self.draw_arrow(painter, start, self.arrow_target(start,end), just_head = True)
                 else:
+                    # if self.track_drawing:
+                    #     print("directed, segmented, no curves")
                     for line in self.lines:
                         if line == self.lines[len(self.lines)-1]:
                             start = self.waypoints[len(self.waypoints)-2]
@@ -333,7 +343,7 @@ class Edge(QGraphicsItem):
                             self.draw_arrow(painter, start, self.arrow_target(start,end))
                         else:
                             painter.drawLine(line)                    
-            elif self.segmented and self.start.window.check_for_layered_layout():                                    # not directed and segmented and layered
+            elif self.segmented and (self.start.window.check_for_layered_layout() or main.subgraphs_included):                                    # not directed and segmented and layered
                 if self.curved == True:
                     painter.drawPath(self.path)
                 else:
@@ -904,24 +914,42 @@ class MainWindow(QMainWindow):
             print("scene width:", self.scene.width(), "scene height:", self.scene.height())
             print("view width:", self.view.width(), "view height:", self.view.height())
         
-    # TODO: deleted , angle, distance, scale, visibility  as arguments so i can actually run it, are these parameters necessary though?
-    def edge_bundling(self, max_loops = 5, edge_objects = None, k=0.1, s_0 = 0.04, compat_threshold = 0.05):        # TODO: set other necessary constants, pass them along to the appropriate functions
+    def edge_bundling(self, max_loops = 2, edge_objects = None, k=0.1, s_0 = 0.04, compat_threshold = 0.05):
         if edge_objects == None:
             edge_objects = self.interlayer_edge_objects     #self.interlayer_edge_objects is the list af all edge objects that need to be bundled    
             
+        for edge in edge_objects:           # reset waypoints in case the layout is regenerated
+            start = edge.waypoints[0]
+            end = edge.waypoints[-1]
+            edge.waypoints = [start,end]
+
         # for edge in edge_objects:
         #         print("edge from",edge.start.id,"to",edge.end.id,"has waypoints", edge.waypoints)
-
+        for edge in edge_objects:
+            if edge.start.id == "n332" and edge.end.id == "n154":
+                print("before cycles, edge from",edge.start.id,"to",edge.end.id,"has waypoints", edge.waypoints, "and lines",edge.lines)    
+                print("this edge is segmented?",edge.segmented)
+            
         for cycle in range(max_loops):
             print("starting cycle",cycle)
             self.subdivide_all_edges(edge_objects)
             self.perform_edge_bundling(edge_objects, cycle, s_0, compat_threshold)
 
         for edge in edge_objects:
-            print("after cycle", max_loops - 1,", edge from",edge.start.id,"to",edge.end.id,"has waypoints", edge.waypoints)
-
+            if edge.start.id == "n332" and edge.end.id == "n154":
+                print("after cycle", max_loops - 1,", edge from",edge.start.id,"to",edge.end.id,"has waypoints", edge.waypoints, "and lines",edge.lines)    
+        
         # for edge in edge_objects:
-        #     edge.calculate_location(waypoint_update = True)
+        #     print("after cycle", max_loops - 1,", edge from",edge.start.id,"to",edge.end.id,"has waypoints", edge.waypoints)
+
+        for edge in edge_objects:
+            edge.calculate_location(waypoint_update = True)
+
+        for edge in edge_objects:
+            if edge.start.id == "n332" and edge.end.id == "n154":
+                print("after calculate location, edge from",edge.start.id,"to",edge.end.id,"has waypoints", edge.waypoints, "and lines",edge.lines)    
+        
+        self.scene.update()
 
     def subdivide_edge(self, edge):
      #   n = 2 * (cycle - 1)
@@ -1256,7 +1284,7 @@ class MainWindow(QMainWindow):
                         new_edge = Edge(self.vertices[index][start_id],self.vertices[index][end_id], weight, segmented = False)
                     self.scene.addItem(new_edge)
                     self.all_edges[(start_id, end_id, weight)] = new_edge    
-                    self.interlayer_edge_objects.append(new_edge)
+        
                     if main.printing_mode:
                         print ("added edge from", start_id, "to", end_id,"with weight",weight)
 
@@ -1272,7 +1300,8 @@ class MainWindow(QMainWindow):
                     else:
                         new_edge = Edge(self.vertices[start_index][start_id],self.vertices[end_index][end_id], weight, segmented = False)
                     self.scene.addItem(new_edge)
-                    self.all_edges[(start_id, end_id, weight)] = new_edge    
+                    self.all_edges[(start_id, end_id, weight)] = new_edge   
+                    self.interlayer_edge_objects.append(new_edge) 
                     if main.printing_mode:
                         print ("added interlayer edge from", start_id, "to", end_id,"with weight",weight)                    
 
