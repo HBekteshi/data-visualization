@@ -904,33 +904,37 @@ class MainWindow(QMainWindow):
             print("view width:", self.view.width(), "view height:", self.view.height())
         
     # TODO: deleted , angle, distance, scale, visibility  as arguments so i can actually run it, are these parameters necessary though?
-    def edge_bundling(self, max_loops = 1, edge_objects = None, k=0.1):        # TODO: set other necessary constants, pass them along to the appropriate functions
+    def edge_bundling(self, max_loops = 4, edge_objects = None, k=0.1):        # TODO: set other necessary constants, pass them along to the appropriate functions
         if edge_objects == None:
             edge_objects = self.interlayer_edge_objects     #self.interlayer_edge_objects is the list af all edge objects that need to be bundled    
             
         for cycle in range(max_loops):
-            self.subdivide_all_edges(edge_objects, cycle)
+            self.subdivide_all_edges(edge_objects)
             self.perform_edge_bundling(edge_objects, 1, 1, 1, 1)
 
-    def subdivide_edge(self, edge, cycle):
-        n = 2 * (cycle - 1)
-        for index, waypoint in enumerate(edge.waypoints):
-            if index != len(edge.waypoints) - 1:
-                print("index", index)
-                print(len(edge.waypoints))
+    def subdivide_edge(self, edge):
+     #   n = 2 * (cycle - 1)
+        old_waypoints = copy.deepcopy(edge.waypoints)
+
+        for index, waypoint in enumerate(old_waypoints):
+            if index != len(old_waypoints) - 1:
+                
                 x1 = waypoint.x()
                 y1 = waypoint.y()
-                x2 = edge.waypoints[index + 1].x()
-                y2 = edge.waypoints[index + 1].y()
-                for j in range(n):
-                    ratio = (j + 1) / (n + 1)
-                    x_new = x1 * (1 - ratio) + x2 * ratio
-                    y_new = y1 * (1 - ratio) + y2 * ratio
-                    edge.waypoints.insert(index + j + 1, (x_new, y_new))
+                x2 = old_waypoints[index + 1].x()
+                y2 = old_waypoints[index + 1].y()
 
-    def subdivide_all_edges(self, edge_objects, cycle):
+                x_new = (x1 + x2) / 2
+                y_new = (y1 + y2) / 2
+
+                edge.waypoints.insert(index + 1, QPointF(x_new, y_new))
+
+        # print("waypoints length is",len(edge.waypoints))
+
+
+    def subdivide_all_edges(self, edge_objects):
         for edge in edge_objects:
-            self.subdivide_edge(edge, cycle)
+            self.subdivide_edge(edge)
 
     def perform_edge_bundling(self, edge_objects, angle, distance, visibility, scale):
         for i in range(len(edge_objects)):
@@ -943,6 +947,7 @@ class MainWindow(QMainWindow):
 
                 if compat > 0:
                     force1, force2 = self.force_calculation(edge_objects[i], edge_objects[j], compat, 1) #scale = 1, idk if this is right? for what is the scale used?
+                    print("force1, force2", force1, force2)
 
                     for k in range(1, len(edge_objects[i].waypoints) - 1):
                         dx = scale * (force1[k][0] + force2[k][0])
@@ -1004,14 +1009,52 @@ class MainWindow(QMainWindow):
         return distance_compatability
 
     def visibility_compat(self, e1, e2):
-        # TODO: calculate visibility compatibility between e1 and e2
-        e1_vec = (e1.end.x_coord - e1.start.x_coord, e1.end.y_coord - e1.start.y_coord) 
-        e2_vec = (e2.end.x_coord - e2.start.x_coord, e2.end.y_coord - e2.start.y_coord) 
-        vis_pq = 0.5 #TODO i do not get wat Im means. What is I? Replace the  placeholders with actual formula
-        vis_qp = 0.5
+
+        e1_start = (e1.start.x_coord, e1.start.y_coord)
+        e1_end = (e1.end.x_coord, e1.end.y_coord)
+        e2_start = (e2.start.x_coord, e2.start.y_coord)
+        e2_end = (e2.end.x_coord, e2.end.y_coord)
+        vis_pq = self.visibility(e1_start,e1_end, e2_start,e2_end)
+        vis_qp = self.visibility(e2_start,e2_end, e1_start,e1_end)
         visibility_compatability = min(vis_pq, vis_qp)
-        #print("visibility compatability between edges", e1_vec, "and", e2_vec, "is", visibility_compatability)
+        
+        #print("visibility compatability between edges", e1_start, e1_end "and", e2_start, e2_end, "is", visibility_compatability)
+        if visibility_compatability != 0:
+            print("visibility compatability between edges is", visibility_compatability)
         return visibility_compatability
+    
+    def visibility(self, p_start,p_end, q_start, q_end):
+        # project q on p
+        p_start = np.array(p_start)
+        p_end = np.array(p_end)
+        q_start = np.array(q_start)
+        q_end = np.array(q_end)
+
+        start_vec = q_start - p_start
+        end_vec = q_end - p_end
+        p_vec = p_end - p_start
+
+        i_0 = p_start + np.dot(start_vec, p_vec) / np.dot(p_vec, p_vec) * p_vec
+        i_1 = p_start + np.dot(end_vec, p_vec) / np.dot(p_vec, p_vec) * p_vec
+
+        I_m = self.find_midpoint(i_0, i_1)
+        P_m = self.find_midpoint(p_start, p_end)
+
+        vis_pq = max(0, 1 - 2 * (main.calc_eucl_dist(P_m[0], P_m[1], I_m[0], I_m[1]))) 
+        return vis_pq
+        # p_vec = np.array(e1_end[0] - e1_start[0], e1_end[1] - e1_start[1]) 
+        # q_vec = np.array(e2_end[0] - e2_start[0], e2_end[1] - e2_start[1]) 
+
+        # # project q on p
+        # p_norm = np.sqrt(sum(p_vec**2))
+        # i_vec = (np.dot(p_vec, q_vec) / p_norm**2) * p_vec
+        
+    
+    def find_midpoint(self, start, end):
+        x1, y1 = start
+        x2, y2 = end
+        return ((x1 + x2) / 2, (y1 + y2)/2)
+
 
     def force_calculation(self, e1, e2, compat_value, scale):
         # TODO: calculate force on each waypoint of the two edges and return position modification of those waypoints
@@ -1036,9 +1079,11 @@ class MainWindow(QMainWindow):
             elif len(force_e1) == len(e1.waypoints) - 1:
                 force_e1.append(0)
             else: 
+                print("types in force calculation are",type(e1.waypoints[count-1]), type(waypoint))
+                #print(e1.waypoints[count-1][0], e1.waypoints[count-1].x())
                 dist_prev_curr_waypoint_e1 = math.sqrt((e1.waypoints[count-1].x() - waypoint.x()) * (e1.waypoints[count-1].x() - waypoint.x())
                                                     + (e1.waypoints[count-1].y() - waypoint.y()) * (e1.waypoints[count-1].y() - waypoint.y()))
-                dist_prev_next_waypoint_e1 = math.sqrt((waypoint.x() - e1.waypoints[count+1].x()) * (waypoint.x() - e1.waypoints[count+1].x())
+                dist_curr_next_waypoint_e1 = math.sqrt((waypoint.x() - e1.waypoints[count+1].x()) * (waypoint.x() - e1.waypoints[count+1].x())
                                                        + (waypoint.y() - e1.waypoints[count+1].y() * waypoint.y() - e1.waypoints[count+1].y()))
                 
                 force_electro = 0
@@ -1047,7 +1092,7 @@ class MainWindow(QMainWindow):
                                         (waypoint.y() - e2.waypoints[count].y()) * (waypoint.y() - e2.waypoints[count].y()))
                     force_electro += compat_value / dist_pq
 
-                force_waypoint = kp_e1 * (dist_prev_curr_waypoint_e1 + dist_prev_next_waypoint_e1) * force_electro
+                force_waypoint = kp_e1 * (dist_prev_curr_waypoint_e1 + dist_curr_next_waypoint_e1) * force_electro
                 force_e1.append(force_waypoint)
 
         for count, waypoint in enumerate(e2.waypoints):
@@ -1373,7 +1418,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict_list, "force random", default_radius=10)
+    window = MainWindow(main.adjacency_dict_list, "solar deterministic", default_radius=10)
     window.show()
 
     
