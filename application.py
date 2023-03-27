@@ -963,6 +963,11 @@ class MainWindow(QMainWindow):
                         dx_j = vector_j[0] * force2[k]
                         dy_j = vector_j[1] * force2[k]
 
+                        print("dx_i", dx_i)
+                        print("dy_i", dy_i)
+                        print("dx_j", dx_j)
+                        print("dy_j", dy_j)
+
                         edge_objects[i].waypoints[k] = QPointF(edge_objects[i].waypoints[k].x() + dx_i, edge_objects[i].waypoints[k].y() + dy_i)
                         edge_objects[j].waypoints[k] = QPointF(edge_objects[j].waypoints[k].x() + dx_j, edge_objects[j].waypoints[k].y() + dy_j)
 
@@ -1092,6 +1097,11 @@ class MainWindow(QMainWindow):
             elif len(force_e1) == len(e1.waypoints) - 1:
                 force_e1.append(0)
             else: 
+
+                print("prev waypoint e1", (e1.waypoints[count-1].x(), e1.waypoints[count-1].y()))
+                print("curr waypoint e1", (waypoint.x(), waypoint.y()))
+                print("next waypoint e1", (e1.waypoints[count+1].x(), e1.waypoints[count+1].y()))
+
                 dist_prev_curr_waypoint_e1 = math.sqrt((e1.waypoints[count-1].x() - waypoint.x()) ** 2
                                                     + (e1.waypoints[count-1].y() - waypoint.y()) **2) 
                 dist_curr_next_waypoint_e1 = math.sqrt((waypoint.x() - e1.waypoints[count+1].x()) **2   
@@ -1103,8 +1113,12 @@ class MainWindow(QMainWindow):
                                         (waypoint.y() - e2.waypoints[count].y()) * (waypoint.y() - e2.waypoints[count].y()))
                     if dist_pq != 0:
                         force_electro += compat_value / dist_pq
+                print("force electro e1", force_electro)
 
-                force_waypoint = kp_e1 * (dist_prev_curr_waypoint_e1 + dist_curr_next_waypoint_e1) * force_electro
+                print("kp e1", kp_e1)
+                print("dist_prev_curr e1", dist_prev_curr_waypoint_e1)
+                print("dist_curr_next e1", dist_curr_next_waypoint_e1)
+                force_waypoint = kp_e1 * (dist_prev_curr_waypoint_e1 + dist_curr_next_waypoint_e1) + force_electro
                 force_e1.append(force_waypoint)
 
         for count, waypoint in enumerate(e2.waypoints):
@@ -1113,6 +1127,10 @@ class MainWindow(QMainWindow):
             elif len(force_e2) == len(e2.waypoints) - 1:
                 force_e2.append(0)
             else: 
+                print("prev waypoint e2", (e2.waypoints[count-1].x(), e2.waypoints[count-1].y()))
+                print("curr waypoint e2", (waypoint.x(), waypoint.y()))
+                print("next waypoint e2", (e2.waypoints[count+1].x(), e2.waypoints[count+1].y()))
+
                 dist_prev_curr_waypoint_e2 = math.sqrt((e2.waypoints[count-1].x() - waypoint.x()) ** 2
                                                     + (e2.waypoints[count-1].y() - waypoint.y()) **2) 
                 dist_curr_next_waypoint_e2 = math.sqrt((waypoint.x() - e2.waypoints[count+1].x()) **2   
@@ -1124,8 +1142,13 @@ class MainWindow(QMainWindow):
                                         (waypoint.y() - e2.waypoints[count].y()) * (waypoint.y() - e2.waypoints[count].y()))
                     if dist_pq != 0:
                         force_electro += compat_value / dist_pq
+                        
+                print("force electro e2", force_electro)
+                print("kp e2", kp_e2)
+                print("dist_prev_curr e2", dist_prev_curr_waypoint_e2)
+                print("dist_curr_next e2", dist_curr_next_waypoint_e2)
 
-                force_waypoint = kp_e2 * (dist_prev_curr_waypoint_e2 + dist_curr_next_waypoint_e2)
+                force_waypoint = kp_e2 * (dist_prev_curr_waypoint_e2 + dist_curr_next_waypoint_e2) + force_electro
                 force_e2.append(force_waypoint)
 
     
