@@ -910,7 +910,7 @@ class MainWindow(QMainWindow):
             
         for cycle in range(max_loops):
             self.subdivide_all_edges(edge_objects)
-            self.perform_edge_bundling(edge_objects, 1, 1, 1, 1)
+            self.perform_edge_bundling(edge_objects)
 
     def subdivide_edge(self, edge):
      #   n = 2 * (cycle - 1)
@@ -936,7 +936,7 @@ class MainWindow(QMainWindow):
         for edge in edge_objects:
             self.subdivide_edge(edge)
 
-    def perform_edge_bundling(self, edge_objects, angle, distance, visibility, scale):
+    def perform_edge_bundling(self, edge_objects):
         for i in range(len(edge_objects)):
             for j in range(i+1, len(edge_objects)):
                 #if edge_objects[i].interlayer() != edge_objects[j].interlayer:
@@ -944,31 +944,44 @@ class MainWindow(QMainWindow):
 
                 # calculate edge vectors from the edge object in (x,y) tuples
                 compat = self.main_compat(edge_objects[i], edge_objects[j])
-
+                    
                 if compat > 0:
-                    force1, force2 = self.force_calculation(edge_objects[i], edge_objects[j], compat, 1) #scale = 1, idk if this is right? for what is the scale used?
+                    force1, force2 = self.force_calculation(edge_objects[i], edge_objects[j], compat, 1)
                     print("force1, force2", force1, force2)
 
                     for k in range(1, len(edge_objects[i].waypoints) - 1):
-                        dx = scale * (force1[k][0] + force2[k][0])
-                        dy = scale * (force1[k][1] + force2[k][1])
-                        edge_objects[i].waypoints[k] = (edge_objects[i].waypoints[k][0] + dx, edge_objects[i].waypoints[k][1] + dy)
 
-    def bundle_edges(self, e1, e2, compat_value, scale):
-        force_values_e1 = []
-        force_values_e2 = []
-        for i in range(len(e1[0].waypoints)):
-            if i == 0 or i == len(e1[0].waypoints) - 1:
-                force_values_e1.append((0, 0))
-                force_values_e2.append((0, 0))
-                continue
-            f_e1, f_e2 = self.force_calculation(e1[0].waypoints[i], e2[0].waypoints[i], compat_value, scale)
-            force_values_e1.append(f_e1)
-            force_values_e2.append(f_e2)
-        return force_values_e1, force_values_e2
+                        waypoint_i = edge_objects[i].waypoints[k]
+                        waypoint_j = edge_objects[j].waypoints[k]
+
+                        vector_i = (waypoint_j.x() - waypoint_i.x(), waypoint_j.y() - waypoint_i.y())
+                        vector_j = (-vector_i[0], -vector_i[1])
+
+                        dx_i  = vector_i[0] * force1[k]         # magnitude * direction
+                        dy_i  = vector_i[1] * force1[k]
+
+                        dx_j = vector_j[0] * force2[k]
+                        dy_j = vector_j[1] * force2[k]
+
+                        edge_objects[i].waypoints[k] = QPointF(edge_objects[i].waypoints[k].x() + dx_i, edge_objects[i].waypoints[k].y() + dy_i)
+                        edge_objects[j].waypoints[k] = QPointF(edge_objects[j].waypoints[k].x() + dx_j, edge_objects[j].waypoints[k].y() + dy_j)
+
+    # def bundle_edges(self, e1, e2, compat_value, scale):
+    #     force_values_e1 = []
+    #     force_values_e2 = []
+    #     for i in range(len(e1[0].waypoints)):
+    #         if i == 0 or i == len(e1[0].waypoints) - 1:
+    #             force_values_e1.append((0, 0))
+    #             force_values_e2.append((0, 0))
+    #             continue
+    #         f_e1, f_e2 = self.force_calculation(e1[0].waypoints[i], e2[0].waypoints[i], compat_value, scale)
+    #         force_values_e1.append(f_e1)
+    #         force_values_e2.append(f_e2)
+    #     return force_values_e1, force_values_e2
 
     def main_compat(self, e1, e2):
-        return self.angle_compat(e1, e2) * self.scale_compat(e1, e2) * self.distance_compat(e1, e2) * self.visibility_compat(e1, e2)
+       # print("angle:", self.angle_compat(e1, e2), "scale:", self.scale_compat(e1, e2), "distance:", self.distance_compat(e1, e2), "visibility:", self.visibility_compat(e1, e2))
+        return self.angle_compat(e1, e2) * self.scale_compat(e1, e2) * self.distance_compat(e1, e2) #* self.visibility_compat(e1, e2)
 
     def angle_compat(self, e1, e2):
         #print("e1", e1)
@@ -1079,18 +1092,17 @@ class MainWindow(QMainWindow):
             elif len(force_e1) == len(e1.waypoints) - 1:
                 force_e1.append(0)
             else: 
-                print("types in force calculation are",type(e1.waypoints[count-1]), type(waypoint))
-                #print(e1.waypoints[count-1][0], e1.waypoints[count-1].x())
-                dist_prev_curr_waypoint_e1 = math.sqrt((e1.waypoints[count-1].x() - waypoint.x()) * (e1.waypoints[count-1].x() - waypoint.x())
-                                                    + (e1.waypoints[count-1].y() - waypoint.y()) * (e1.waypoints[count-1].y() - waypoint.y()))
-                dist_curr_next_waypoint_e1 = math.sqrt((waypoint.x() - e1.waypoints[count+1].x()) * (waypoint.x() - e1.waypoints[count+1].x())
-                                                       + (waypoint.y() - e1.waypoints[count+1].y() * waypoint.y() - e1.waypoints[count+1].y()))
+                dist_prev_curr_waypoint_e1 = math.sqrt((e1.waypoints[count-1].x() - waypoint.x()) ** 2
+                                                    + (e1.waypoints[count-1].y() - waypoint.y()) **2) 
+                dist_curr_next_waypoint_e1 = math.sqrt((waypoint.x() - e1.waypoints[count+1].x()) **2   
+                                                       + (waypoint.y() - e1.waypoints[count+1].y()) **2) 
                 
                 force_electro = 0
                 for count, waypoint in enumerate(e1.waypoints):
                     dist_pq = math.sqrt((waypoint.x() - e2.waypoints[count].x()) * (waypoint.x() - e2.waypoints[count].x()) +
                                         (waypoint.y() - e2.waypoints[count].y()) * (waypoint.y() - e2.waypoints[count].y()))
-                    force_electro += compat_value / dist_pq
+                    if dist_pq != 0:
+                        force_electro += compat_value / dist_pq
 
                 force_waypoint = kp_e1 * (dist_prev_curr_waypoint_e1 + dist_curr_next_waypoint_e1) * force_electro
                 force_e1.append(force_waypoint)
@@ -1101,18 +1113,19 @@ class MainWindow(QMainWindow):
             elif len(force_e2) == len(e2.waypoints) - 1:
                 force_e2.append(0)
             else: 
-                dist_prev_curr_waypoint_e2 = math.sqrt((e2.waypoints[count].x() - waypoint.x()) * (e2.waypoints[count].x() - waypoint.x())
-                                                    + (e2.waypoints[count].y() - waypoint.y()) * (e2.waypoints[count].y() - waypoint.y()))
-                dist_prev_next_waypoint_e2 = math.sqrt((waypoint.x() - e2.waypoints[count+1].x()) * (waypoint.x() - e2.waypoints[count+1].x())
-                                                       + (waypoint.y() - e2.waypoints[count+1].y() * waypoint.y() - e2.waypoints[count+1].y()))
+                dist_prev_curr_waypoint_e2 = math.sqrt((e2.waypoints[count-1].x() - waypoint.x()) ** 2
+                                                    + (e2.waypoints[count-1].y() - waypoint.y()) **2) 
+                dist_curr_next_waypoint_e2 = math.sqrt((waypoint.x() - e2.waypoints[count+1].x()) **2   
+                                                       + (waypoint.y() - e2.waypoints[count+1].y()) **2) 
                 
                 force_electro = 0
                 for count, waypoint in enumerate(e1.waypoints):
                     dist_pq = math.sqrt((waypoint.x() - e2.waypoints[count].x()) * (waypoint.x() - e2.waypoints[count].x()) +
                                         (waypoint.y() - e2.waypoints[count].y()) * (waypoint.y() - e2.waypoints[count].y()))
-                    force_electro += compat_value / dist_pq
+                    if dist_pq != 0:
+                        force_electro += compat_value / dist_pq
 
-                force_waypoint = kp_e2 * (dist_prev_curr_waypoint_e2 + dist_prev_next_waypoint_e2)
+                force_waypoint = kp_e2 * (dist_prev_curr_waypoint_e2 + dist_curr_next_waypoint_e2)
                 force_e2.append(force_waypoint)
 
     
