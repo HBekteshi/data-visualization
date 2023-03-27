@@ -180,7 +180,7 @@ class Edge(QGraphicsItem):
         self.line = QLineF()
         self.color = "black"
         self.thickness = 1
-
+    
         self.waypoints = [self.start.pos() + self.start.boundingRect().center(), self.end.pos() + self.end.boundingRect().center()]
         
         self.calculate_location()
@@ -394,7 +394,7 @@ class VertexBoxes(QGraphicsItem):
         self.boxes = []
         self.outlines = []
         self.window = window
-
+        self.__name__ = "vertexbox object"
 
         # outline settings
         self.thickness = 2
@@ -489,10 +489,10 @@ class MainWindow(QMainWindow):
         non_tree_edge_display_action.setChecked(False)
         self.actions_menu.addAction(non_tree_edge_display_action)
 
-        segmentation_toggle_action = QAction("Toggle Edge Segmentation for Layered Layouts", self)
+        segmentation_toggle_action = QAction("Toggle Edge Segmentation", self)
         segmentation_toggle_action.triggered.connect(self.toggle_edge_segmentation)
         segmentation_toggle_action.setCheckable(True)
-        if main.G.is_directed():
+        if main.G.is_directed() or main.subgraphs_included:
             segmentation_toggle_action.setChecked(True)
         self.actions_menu.addAction(segmentation_toggle_action)
 
@@ -809,7 +809,7 @@ class MainWindow(QMainWindow):
             edge_object = self.all_edges[edge_triple]       # key: (start_node_id, end_node_id, weight); value: edge object
             edge_object.update_waypoints(waypoints_list)
 
-   #         print("edge from",edge_object.start.id,"to",edge_object.end.id,"gets waypoint coordinates of",waypoints_list)
+            print("edge from",edge_object.start.id,"to",edge_object.end.id,"gets waypoint coordinates of",waypoints_list)
     #    print("edge waypoint updating complete")
             
         self.scene.update()
@@ -889,6 +889,7 @@ class MainWindow(QMainWindow):
 
 
         if self.edge_bundling_bool and main.subgraphs_included:
+            print("starting edge bundling")
             self.edge_bundling()
         
         
@@ -904,13 +905,23 @@ class MainWindow(QMainWindow):
             print("view width:", self.view.width(), "view height:", self.view.height())
         
     # TODO: deleted , angle, distance, scale, visibility  as arguments so i can actually run it, are these parameters necessary though?
-    def edge_bundling(self, max_loops = 4, edge_objects = None, k=0.1):        # TODO: set other necessary constants, pass them along to the appropriate functions
+    def edge_bundling(self, max_loops = 5, edge_objects = None, k=0.1, s_0 = 0.04, compat_threshold = 0.05):        # TODO: set other necessary constants, pass them along to the appropriate functions
         if edge_objects == None:
             edge_objects = self.interlayer_edge_objects     #self.interlayer_edge_objects is the list af all edge objects that need to be bundled    
             
+        # for edge in edge_objects:
+        #         print("edge from",edge.start.id,"to",edge.end.id,"has waypoints", edge.waypoints)
+
         for cycle in range(max_loops):
+            print("starting cycle",cycle)
             self.subdivide_all_edges(edge_objects)
-            self.perform_edge_bundling(edge_objects)
+            self.perform_edge_bundling(edge_objects, cycle, s_0, compat_threshold)
+
+        for edge in edge_objects:
+            print("after cycle", max_loops - 1,", edge from",edge.start.id,"to",edge.end.id,"has waypoints", edge.waypoints)
+
+        # for edge in edge_objects:
+        #     edge.calculate_location(waypoint_update = True)
 
     def subdivide_edge(self, edge):
      #   n = 2 * (cycle - 1)
@@ -929,14 +940,23 @@ class MainWindow(QMainWindow):
 
                 edge.waypoints.insert(index + 1, QPointF(x_new, y_new))
 
-        # print("waypoints length is",len(edge.waypoints))
+        # print("waypoints of edge from",edge.start.id,"to",edge.end.id, "after subdivision are", edge.waypoints)
 
 
     def subdivide_all_edges(self, edge_objects):
         for edge in edge_objects:
             self.subdivide_edge(edge)
 
-    def perform_edge_bundling(self, edge_objects):
+    def perform_edge_bundling(self, edge_objects, cycle, s_0, compat_threshold):
+
+        s = s_0 / (2**(cycle))          # this is the delta value
+
+        x_modifications = {}
+        y_modifications = {}
+        for i in range(len(edge_objects)):
+            x_modifications[edge_objects[i]] = np.zeros(len(edge_objects[i].waypoints))
+            y_modifications[edge_objects[i]] = np.zeros(len(edge_objects[i].waypoints))            
+
         for i in range(len(edge_objects)):
             for j in range(i+1, len(edge_objects)):
                 #if edge_objects[i].interlayer() != edge_objects[j].interlayer:
@@ -945,9 +965,9 @@ class MainWindow(QMainWindow):
                 # calculate edge vectors from the edge object in (x,y) tuples
                 compat = self.main_compat(edge_objects[i], edge_objects[j])
                     
-                if compat > 0:
+                if compat > compat_threshold:
                     force1, force2 = self.force_calculation(edge_objects[i], edge_objects[j], compat, 1)
-                    print("force1, force2", force1, force2)
+                    # print("force1, force2", force1, force2)
 
                     for k in range(1, len(edge_objects[i].waypoints) - 1):
 
@@ -963,13 +983,23 @@ class MainWindow(QMainWindow):
                         dx_j = vector_j[0] * force2[k]
                         dy_j = vector_j[1] * force2[k]
 
-                        print("dx_i", dx_i)
-                        print("dy_i", dy_i)
-                        print("dx_j", dx_j)
-                        print("dy_j", dy_j)
+                        # print("dx_i", dx_i)
+                        # print("dy_i", dy_i)
+                        # print("dx_j", dx_j)
+                        # print("dy_j", dy_j)
+                        
 
-                        edge_objects[i].waypoints[k] = QPointF(edge_objects[i].waypoints[k].x() + dx_i, edge_objects[i].waypoints[k].y() + dy_i)
-                        edge_objects[j].waypoints[k] = QPointF(edge_objects[j].waypoints[k].x() + dx_j, edge_objects[j].waypoints[k].y() + dy_j)
+                        x_modifications[edge_objects[i]][k] += dx_i * s
+                        y_modifications[edge_objects[i]][k] += dy_i * s
+
+                        x_modifications[edge_objects[j]][k] += dx_j * s
+                        y_modifications[edge_objects[j]][k] += dy_j * s
+
+        for i in range(len(edge_objects)):
+            for k in range(1, len(edge_objects[i].waypoints) - 1):
+                e = edge_objects[i]
+                e.waypoints[k] = QPointF(e.waypoints[k].x() + x_modifications[e][k], e.waypoints[k].y() + y_modifications[e][k])
+                    
 
     # def bundle_edges(self, e1, e2, compat_value, scale):
     #     force_values_e1 = []
@@ -1091,16 +1121,20 @@ class MainWindow(QMainWindow):
         kp_e1 = k_stiff / segment_length_e1
         kp_e2 = k_stiff / segment_length_e2
 
+        # print("e1 goes from",e1.start.id,"to",e1.end.id,"and e2 goes from",e2.start.id,"to",e2.end.id)
+        # print("waypoints of edge from",e1.start.id,"to",e1.end.id, "after subdivision are", e1.waypoints)
+        # print("waypoints of edge from",e2.start.id,"to",e2.end.id, "after subdivision are", e2.waypoints)
+
         for count, waypoint in enumerate(e1.waypoints):
             if not force_e1:
                 force_e1.append(0)
             elif len(force_e1) == len(e1.waypoints) - 1:
                 force_e1.append(0)
             else: 
-
-                print("prev waypoint e1", (e1.waypoints[count-1].x(), e1.waypoints[count-1].y()))
-                print("curr waypoint e1", (waypoint.x(), waypoint.y()))
-                print("next waypoint e1", (e1.waypoints[count+1].x(), e1.waypoints[count+1].y()))
+                # print("count",count)
+                # print("prev waypoint e1", (e1.waypoints[count-1].x(), e1.waypoints[count-1].y()))
+                # print("curr waypoint e1", (waypoint.x(), waypoint.y()))
+                # print("next waypoint e1", (e1.waypoints[count+1].x(), e1.waypoints[count+1].y()))
 
                 dist_prev_curr_waypoint_e1 = math.sqrt((e1.waypoints[count-1].x() - waypoint.x()) ** 2
                                                     + (e1.waypoints[count-1].y() - waypoint.y()) **2) 
@@ -1113,11 +1147,11 @@ class MainWindow(QMainWindow):
                                         (waypoint.y() - e2.waypoints[count].y()) * (waypoint.y() - e2.waypoints[count].y()))
                     if dist_pq != 0:
                         force_electro += compat_value / dist_pq
-                print("force electro e1", force_electro)
+                # print("force electro e1", force_electro)
 
-                print("kp e1", kp_e1)
-                print("dist_prev_curr e1", dist_prev_curr_waypoint_e1)
-                print("dist_curr_next e1", dist_curr_next_waypoint_e1)
+                # print("kp e1", kp_e1)
+                # print("dist_prev_curr e1", dist_prev_curr_waypoint_e1)
+                # print("dist_curr_next e1", dist_curr_next_waypoint_e1)
                 force_waypoint = kp_e1 * (dist_prev_curr_waypoint_e1 + dist_curr_next_waypoint_e1) + force_electro
                 force_e1.append(force_waypoint)
 
@@ -1127,9 +1161,9 @@ class MainWindow(QMainWindow):
             elif len(force_e2) == len(e2.waypoints) - 1:
                 force_e2.append(0)
             else: 
-                print("prev waypoint e2", (e2.waypoints[count-1].x(), e2.waypoints[count-1].y()))
-                print("curr waypoint e2", (waypoint.x(), waypoint.y()))
-                print("next waypoint e2", (e2.waypoints[count+1].x(), e2.waypoints[count+1].y()))
+                # print("prev waypoint e2", (e2.waypoints[count-1].x(), e2.waypoints[count-1].y()))
+                # print("curr waypoint e2", (waypoint.x(), waypoint.y()))
+                # print("next waypoint e2", (e2.waypoints[count+1].x(), e2.waypoints[count+1].y()))
 
                 dist_prev_curr_waypoint_e2 = math.sqrt((e2.waypoints[count-1].x() - waypoint.x()) ** 2
                                                     + (e2.waypoints[count-1].y() - waypoint.y()) **2) 
@@ -1143,10 +1177,10 @@ class MainWindow(QMainWindow):
                     if dist_pq != 0:
                         force_electro += compat_value / dist_pq
                         
-                print("force electro e2", force_electro)
-                print("kp e2", kp_e2)
-                print("dist_prev_curr e2", dist_prev_curr_waypoint_e2)
-                print("dist_curr_next e2", dist_curr_next_waypoint_e2)
+                # print("force electro e2", force_electro)
+                # print("kp e2", kp_e2)
+                # print("dist_prev_curr e2", dist_prev_curr_waypoint_e2)
+                # print("dist_curr_next e2", dist_curr_next_waypoint_e2)
 
                 force_waypoint = kp_e2 * (dist_prev_curr_waypoint_e2 + dist_curr_next_waypoint_e2) + force_electro
                 force_e2.append(force_waypoint)
@@ -1454,7 +1488,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict_list, "solar deterministic", default_radius=10)
+    window = MainWindow(main.adjacency_dict_list, "force random", default_radius=10)
     window.show()
 
     
