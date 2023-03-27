@@ -855,7 +855,7 @@ class MainWindow(QMainWindow):
                 if main.printing_mode:
                     print("reset vertex",vertex_id,"at x_val",x,"and y_val",-y)
 
-                self.all_vertices[vertex_id].moveVertex(x,y)
+                self.all_vertices[vertex_id].moveVertex(x,-y)
                 
                 if self.check_for_tree_layout() and not self.display_non_tree_edges:
                     self.all_vertices[vertex_id].turnVisible(edge_update = False)
