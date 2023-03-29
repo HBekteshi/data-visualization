@@ -9,13 +9,14 @@ import queue
 import statistics
 
 from PySide6.QtCore import QPointF
+from collections import defaultdict
 
 # settings
 printing_mode = False
 subgraphs_included = True #set to False when loading a graph without subgraphs
 
 #undirected graphs
-#G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
+G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
@@ -1476,3 +1477,38 @@ def create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict, reve
     #print("node_waypoints_ids:", node_waypoints_ids)
 
     return dummy_nodes_per_layer, dummy_adjacency_dict, node_waypoints_ids, dummy_layer_dict
+
+
+def floyd_warshall(graph):
+    """
+    input: a networkx graph
+    output: a default dictionary with the shortest distance from node to node
+    description: the floyd warshall algorithm to compute the shortest distance for weighted graphs
+    """
+    #default is set as inf if nodes are not connected
+    distance = defaultdict(lambda: defaultdict(lambda: float('inf')))
+
+    # node connections with itself are 0
+    for node in graph.nodes():
+        distance[node][node] = 0
+
+    # retrieve the weight of the graph
+    try:
+        for e in graph.edges(data=True):
+            print("edge", e)
+            i, j, data = e
+            distance[i][j] = data.get('weight', 1.0)
+    except:
+        print("this graph is not weighted, use a weighted graph")
+
+    # commmpute the shortest distance
+    for k in graph.nodes():
+        for i in graph.nodes():
+            for j in graph.nodes():
+                if distance[i][j] > distance[i][k] + distance[k][j]:
+                    distance[i][j] = distance[i][k] + distance[k][j]
+
+    return distance
+
+distance_matrix = floyd_warshall(G)
+print("distance matrix", distance_matrix)
