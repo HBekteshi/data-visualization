@@ -189,8 +189,8 @@ class Edge(QGraphicsItem):
         self.arrow_size = 10
 
         
-        if self.start.id == "n332" and self.end.id == "n154":
-            self.track_drawing = True
+        # if self.start.id == "n154" and self.end.id == "n149":
+        #     self.track_drawing = True
     
     def update_waypoints(self, waypoints_list, radius_change = 0, from_outside = True):
         self.waypoints = copy.deepcopy(waypoints_list)
@@ -665,6 +665,11 @@ class MainWindow(QMainWindow):
         self.edge_bundling_bool = True                   # todo: add layout option for toggling this is subgraphs are included
         self.regenerate()
 
+        assert (self.visibility(p_start = (0,0) ,p_end = (0,10), q_start = (10,0), q_end = (10,10), printing = False) == 1.0)
+        # print("testvis is",test_vis)      # should be 1
+        assert (self.visibility(p_start = (0,0) ,p_end = (1,0), q_start = (0.5,1), q_end = (1.5,1.0), printing = False) == 0)
+        
+        assert(self.visibility(p_start = (0,0) ,p_end = (10,0), q_start = (5,10), q_end = (15,10), printing = False) == 0)
         
  
         self.view.show()
@@ -914,7 +919,7 @@ class MainWindow(QMainWindow):
             print("scene width:", self.scene.width(), "scene height:", self.scene.height())
             print("view width:", self.view.width(), "view height:", self.view.height())
         
-    def edge_bundling(self, max_loops = 5, edge_objects = None, k=0.1, s_0 = 0.04, compat_threshold = 0.05):
+    def edge_bundling(self, max_loops = 6, edge_objects = None, k=0.1, s_0 = 0.04, compat_threshold = 0.05):
         if edge_objects == None:
             edge_objects = self.interlayer_edge_objects     #self.interlayer_edge_objects is the list af all edge objects that need to be bundled    
             
@@ -925,19 +930,21 @@ class MainWindow(QMainWindow):
 
         # for edge in edge_objects:
         #         print("edge from",edge.start.id,"to",edge.end.id,"has waypoints", edge.waypoints)
-        for edge in edge_objects:
-            if edge.start.id == "n332" and edge.end.id == "n154":
-                print("before cycles, edge from",edge.start.id,"to",edge.end.id,"has waypoints", edge.waypoints, "and lines",edge.lines)    
-                print("this edge is segmented?",edge.segmented)
+        # for edge in edge_objects:
+        #     if edge.start.id == "n154" and edge.end.id == "n149":
+        #         print("before cycles, edge from",edge.start.id,"to",edge.end.id,"has waypoints", edge.waypoints, "and lines",edge.lines)    
             
         for cycle in range(max_loops):
             print("starting cycle",cycle)
             self.subdivide_all_edges(edge_objects)
+            # for edge in edge_objects:
+            #     if edge.start.id == "n154" and edge.end.id == "n149":
+            #         print("after subdivision, edge from",edge.start.id,"to",edge.end.id,"has waypoints", edge.waypoints, "and lines",edge.lines) 
             self.perform_edge_bundling(edge_objects, cycle, s_0, compat_threshold)
-
-        for edge in edge_objects:
-            if edge.start.id == "n332" and edge.end.id == "n154":
-                print("after cycle", max_loops - 1,", edge from",edge.start.id,"to",edge.end.id,"has waypoints", edge.waypoints, "and lines",edge.lines)    
+            # for edge in edge_objects:
+            #     if edge.start.id == "n154" and edge.end.id == "n149":
+            #         print("after edge bundling, edge from",edge.start.id,"to",edge.end.id,"has waypoints", edge.waypoints, "and lines",edge.lines) 
+  
         
         # for edge in edge_objects:
         #     print("after cycle", max_loops - 1,", edge from",edge.start.id,"to",edge.end.id,"has waypoints", edge.waypoints)
@@ -945,9 +952,9 @@ class MainWindow(QMainWindow):
         for edge in edge_objects:
             edge.calculate_location(waypoint_update = True)
 
-        for edge in edge_objects:
-            if edge.start.id == "n332" and edge.end.id == "n154":
-                print("after calculate location, edge from",edge.start.id,"to",edge.end.id,"has waypoints", edge.waypoints, "and lines",edge.lines)    
+        # for edge in edge_objects:
+        #     if edge.start.id == "n154" and edge.end.id == "n149":
+        #         print("after calculate location, edge from",edge.start.id,"to",edge.end.id,"has waypoints", edge.waypoints, "and lines",edge.lines)    
         
         self.scene.update()
 
@@ -994,13 +1001,13 @@ class MainWindow(QMainWindow):
 
                 # calculate edge vectors from the edge object in (x,y) tuples
                 compat = self.main_compat(edge_objects[i], edge_objects[j])
-                    
+#                print("compat value is",compat,"while the treshold is",compat_threshold)
+
                 if compat > compat_threshold:
                     force1, force2 = self.force_calculation(edge_objects[i], edge_objects[j], compat, 1)
                     # print("force1, force2", force1, force2)
 
                     for k in range(1, len(edge_objects[i].waypoints) - 1):
-
                         waypoint_i = edge_objects[i].waypoints[k]
                         waypoint_j = edge_objects[j].waypoints[k]
 
@@ -1045,8 +1052,9 @@ class MainWindow(QMainWindow):
     #     return force_values_e1, force_values_e2
 
     def main_compat(self, e1, e2):
-       # print("angle:", self.angle_compat(e1, e2), "scale:", self.scale_compat(e1, e2), "distance:", self.distance_compat(e1, e2), "visibility:", self.visibility_compat(e1, e2))
-        return self.angle_compat(e1, e2) * self.scale_compat(e1, e2) * self.distance_compat(e1, e2) #* self.visibility_compat(e1, e2)
+        # print("angle:", self.angle_compat(e1, e2), "scale:", self.scale_compat(e1, e2), "distance:", self.distance_compat(e1, e2), "visibility:", self.visibility_compat(e1, e2))
+        # print("total compat without scale:",  self.angle_compat(e1, e2) * self.distance_compat(e1, e2) * self.visibility_compat(e1, e2)  )
+        return self.angle_compat(e1, e2) * self.distance_compat(e1, e2)  * self.visibility_compat(e1, e2)  # * self.scale_compat(e1, e2)
 
     def angle_compat(self, e1, e2):
         #print("e1", e1)
@@ -1056,9 +1064,9 @@ class MainWindow(QMainWindow):
         p_length = math.sqrt(e1_vec[0] * e1_vec[0] + e1_vec[1] * e1_vec[1])
         q_length = math.sqrt(e2_vec[0] * e2_vec[0] + e2_vec[1] * e2_vec[1])
         dot_pq =  p_times_q_dot / (p_length * q_length)
-        angle_compatability = abs(dot_pq)
-        #print("angle compatability between edges", e1, "and", e2_vec, "is", angle_compatability)
-        return angle_compatability
+        angle_compatibility = abs(dot_pq)
+        #print("angle compatability between edges", e1, "and", e2_vec, "is", angle_compatibility)
+        return angle_compatibility
 
     def scale_compat(self, e1, e2):
         e1_vec = (e1.end.x_coord - e1.start.x_coord, e1.end.y_coord - e1.start.y_coord) 
@@ -1068,9 +1076,9 @@ class MainWindow(QMainWindow):
         l_avg = (p_length + q_length)/2
         min_length = min(p_length, q_length)
         max_length = max(p_length, q_length)
-        scale_compatability = 2 / ((l_avg * min_length) + (max_length / l_avg))
-        #print("scale compatability between edges", e1_vec, "and", e2_vec, "is", scale_compatability)
-        return scale_compatability
+        scale_compatibility = 2 / ((l_avg * min_length) + (max_length / l_avg))
+        #print("scale compatability between edges", e1_vec, "and", e2_vec, "is", scale_compatibility)
+        return scale_compatibility
 
     def distance_compat(self, e1, e2):
         e1_vec = (e1.end.x_coord - e1.start.x_coord, e1.end.y_coord - e1.start.y_coord) 
@@ -1082,9 +1090,9 @@ class MainWindow(QMainWindow):
         q_midpoint = ((e2.start.x_coord + e2.end.x_coord) / 2, (e2.start.y_coord + e2.end.y_coord) / 2) 
         dist_pm_qm = math.sqrt((p_midpoint[0] - q_midpoint[0]) * (p_midpoint[0] - q_midpoint[0]) + 
                                (p_midpoint[1] - q_midpoint[1]) * (p_midpoint[1] - q_midpoint[1]))
-        distance_compatability = l_avg / (l_avg + dist_pm_qm)
-        #print("distance compatability between edges", e1_vec, "and", e2_vec, "is", distance_compatability)
-        return distance_compatability
+        distance_compatibility = l_avg / (l_avg + dist_pm_qm)
+        #print("distance compatability between edges", e1_vec, "and", e2_vec, "is", distance_compatibility)
+        return distance_compatibility
 
     def visibility_compat(self, e1, e2):
 
@@ -1094,31 +1102,44 @@ class MainWindow(QMainWindow):
         e2_end = (e2.end.x_coord, e2.end.y_coord)
         vis_pq = self.visibility(e1_start,e1_end, e2_start,e2_end)
         vis_qp = self.visibility(e2_start,e2_end, e1_start,e1_end)
-        visibility_compatability = min(vis_pq, vis_qp)
+        visibility_compatibility = min(vis_pq, vis_qp)
         
-        #print("visibility compatability between edges", e1_start, e1_end "and", e2_start, e2_end, "is", visibility_compatability)
-        if visibility_compatability != 0:
-            print("visibility compatability between edges is", visibility_compatability)
-        return visibility_compatability
+        #print("visibility compatability between edges", e1_start, e1_end "and", e2_start, e2_end, "is", visibility_compatibility)
+        # if visibility_compatibility != 0:
+        #     print("visibility compatibility between edges is", visibility_compatibility)
+        return visibility_compatibility
     
-    def visibility(self, p_start,p_end, q_start, q_end):
+    def visibility(self, p_start,p_end, q_start, q_end, printing = False):
         # project q on p
         p_start = np.array(p_start)
         p_end = np.array(p_end)
         q_start = np.array(q_start)
         q_end = np.array(q_end)
+        if printing:
+            print("p goes from",p_start,"to",p_end)
+            print("q goes from",q_start,"to",q_end)
 
         start_vec = q_start - p_start
         end_vec = q_end - p_end
         p_vec = p_end - p_start
 
         i_0 = p_start + np.dot(start_vec, p_vec) / np.dot(p_vec, p_vec) * p_vec
-        i_1 = p_start + np.dot(end_vec, p_vec) / np.dot(p_vec, p_vec) * p_vec
+        i_1 = p_end + np.dot(end_vec, p_vec) / np.dot(p_vec, p_vec) * p_vec
+        if printing:
+            print("i_0:",i_0)
+            print("i_1:",i_1)
 
         I_m = self.find_midpoint(i_0, i_1)
         P_m = self.find_midpoint(p_start, p_end)
 
-        vis_pq = max(0, 1 - 2 * (main.calc_eucl_dist(P_m[0], P_m[1], I_m[0], I_m[1]))) 
+        if printing:
+            print("I_m:",I_m)
+            print("P_m:",P_m)
+            print("euclidean distance between Pm and Im is:", main.calc_eucl_dist(P_m[0], P_m[1], I_m[0], I_m[1]))
+
+        vis_pq = max(0, 1 - 2 * (main.calc_eucl_dist(P_m[0], P_m[1], I_m[0], I_m[1]))/ main.calc_eucl_dist(i_0[0], i_0[1], i_1[0], i_1[1]))  
+        if printing:
+             print("vis calc result is", 1 - 2 * (main.calc_eucl_dist(P_m[0], P_m[1], I_m[0], I_m[1])) / main.calc_eucl_dist(i_0[0], i_0[1], i_1[0], i_1[1])) 
         return vis_pq
         # p_vec = np.array(e1_end[0] - e1_start[0], e1_end[1] - e1_start[1]) 
         # q_vec = np.array(e2_end[0] - e2_start[0], e2_end[1] - e2_start[1]) 
