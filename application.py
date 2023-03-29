@@ -914,7 +914,7 @@ class MainWindow(QMainWindow):
             print("scene width:", self.scene.width(), "scene height:", self.scene.height())
             print("view width:", self.view.width(), "view height:", self.view.height())
         
-    def edge_bundling(self, max_loops = 2, edge_objects = None, k=0.1, s_0 = 0.04, compat_threshold = 0.05):
+    def edge_bundling(self, max_loops = 5, edge_objects = None, k=0.1, s_0 = 0.04, compat_threshold = 0.05):
         if edge_objects == None:
             edge_objects = self.interlayer_edge_objects     #self.interlayer_edge_objects is the list af all edge objects that need to be bundled    
             
@@ -955,6 +955,7 @@ class MainWindow(QMainWindow):
      #   n = 2 * (cycle - 1)
         old_waypoints = copy.deepcopy(edge.waypoints)
 
+        count = 0
         for index, waypoint in enumerate(old_waypoints):
             if index != len(old_waypoints) - 1:
                 
@@ -966,7 +967,8 @@ class MainWindow(QMainWindow):
                 x_new = (x1 + x2) / 2
                 y_new = (y1 + y2) / 2
 
-                edge.waypoints.insert(index + 1, QPointF(x_new, y_new))
+                edge.waypoints.insert(index + 1 + count, QPointF(x_new, y_new))
+                count += 1
 
         # print("waypoints of edge from",edge.start.id,"to",edge.end.id, "after subdivision are", edge.waypoints)
 
