@@ -10,6 +10,7 @@ import statistics
 
 from PySide6.QtCore import QPointF
 from collections import defaultdict
+from sklearn.manifold import TSNE, Isomap
 
 # settings
 printing_mode = False
@@ -18,10 +19,10 @@ subgraphs_included = False #set to False when loading a graph without subgraphs
 #undirected graphs
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
-#G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
+G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
 #directed graphs
-G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
+#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
 #G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
 
 A = pydot.graph_from_dot_file('data/devonshiredebate_withonlytwoclusters.dot')
@@ -1523,7 +1524,7 @@ def floyd_warshall_matrix(graph):
     """
     #default is set as inf if nodes are not connected
     nr_vertices = len(graph.nodes())
-    distance = np.full((nr_vertices, nr_vertices), np.inf)
+    distance = np.full((nr_vertices, nr_vertices), float('inf'))
     index_node_dict = {}
     node_index_dict = {}
 
@@ -1556,7 +1557,7 @@ def floyd_warshall_matrix(graph):
                 if distance[i][j] > distance[i][k] + distance[k][j]:
                     distance[i][j] = distance[i][k] + distance[k][j]
 
-    return distance
+    return distance, index_node_dict
 
 # random similarity measure, might look for a better one later one
 def similarity(node_i, node_j, distance_matrix):
@@ -1567,22 +1568,48 @@ def convert_to_similarity_matrix(distance_matrix):
     sim_matrix = np.zeros((distance_len, distance_len))
     for i in range(distance_len):
         for j in range(distance_len):
-            if distance_matrix[i][j] != np.inf:
+            if distance_matrix[i][j] != float('inf'):
                 sim = similarity(i, j, distance_matrix)
                 sim_matrix[i][j] = sim
     return sim_matrix
 
-def get_tsne_coordinates():
-    return
+def get_tsne_coordinates(dist_matrix, index_node_dict):
+    d_matrix = np.nan_to_num(dist_matrix, posinf=333333333333)
+    coordinates_proj = {}
+    #print(d_matrix)
+    projection = TSNE(n_components=2, learning_rate='auto', init='pca', perplexity=3).fit_transform(d_matrix)
+    print("tasne shape", projection.shape)
 
-def get_isomap_coordinates():
-    return
+    for index in range(projection.shape[0]):
+        node_id = index_node_dict[index]
+        x_cor = projection[index][0]
+        y_cor = projection[index][1]
+        coordinates_proj[node_id] = (x_cor, y_cor)
+
+    return coordinates_proj
+
+def get_isomap_coordinates(dist_matrix, index_node_dict):
+    d_matrix = np.nan_to_num(dist_matrix, posinf=333333333333)
+    projection = Isomap(n_components=2).fit_transform(d_matrix)
+    coordinates_proj = {}
+
+    for index in range(projection.shape[0]):
+        node_id = index_node_dict[index]
+        x_cor = projection[index][0]
+        y_cor = projection[index][1]
+        coordinates_proj[node_id] = (x_cor, y_cor)
+
+    return coordinates_proj
 
 
-distance_matrix = floyd_warshall_matrix(G)
+distance_matrix, index_node_dictionary = floyd_warshall_matrix(G)
 print("distance matrix", distance_matrix)
 similarity_matrix = convert_to_similarity_matrix(distance_matrix)
 print("similarity matrix", similarity_matrix)
+tsne_projection = get_tsne_coordinates(distance_matrix, index_node_dictionary)
+print("tsne", tsne_projection)
+isomap_projection = get_isomap_coordinates(distance_matrix, index_node_dictionary)
+print("isomap", isomap_projection)
 
 
 

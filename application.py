@@ -603,6 +603,14 @@ class MainWindow(QMainWindow):
         if main.subgraphs_included == False:
             self.layouts_menu.addAction(dag_dfs_median_regeneration_action)
 
+        tsne_regeneration_action = QAction("Generate TSNE projection", self)
+        tsne_regeneration_action.triggered.connect(self.regenerate_tsne)
+        self.layouts_menu.addAction(tsne_regeneration_action)
+
+        isomap_regeneration_action = QAction("Generate Isomap projection", self)
+        isomap_regeneration_action.triggered.connect(self.regenerate_isomap)
+        self.layouts_menu.addAction(isomap_regeneration_action)
+
          # Status Bar
         self.status = self.statusBar()
         self.status.showMessage("Graph loaded and displayed - layout: "+initial_layout)
@@ -830,7 +838,16 @@ class MainWindow(QMainWindow):
                 if self.dfs_trees == []:
                     self.depth_first_search_exhaustive()
                 self.coordinates[index], edge_waypoints = main.calc_DAG(width, height, self.dfs_trees, self.adjacency_dict[index], minimization_method="median")
-                self.update_edge_waypoints(edge_waypoints)                
+                self.update_edge_waypoints(edge_waypoints)
+
+        elif self.layout == "tsne":
+            dist_matrix, index_node = main.floyd_warshall_matrix(main.G)
+            self.coordinates[index] = main.get_tsne_coordinates(dist_matrix, index_node) 
+
+        elif self.layout == "isomap":
+            dist_matrix, index_node = main.floyd_warshall_matrix(main.G)
+            self.coordinates[index] = main.get_isomap_coordinates(dist_matrix, index_node)  
+
         else:
             print("asked for layout", layout)
             raise ValueError ("Unsupported layout "+layout+" requested")
@@ -1306,6 +1323,14 @@ class MainWindow(QMainWindow):
             
     def regenerate_dag_dfs_median(self):
         self.layout = "dag dfs median"
+        self.regenerate()
+    
+    def regenerate_tsne(self):
+        self.layout = "tsne"
+        self.regenerate()
+
+    def regenerate_isomap(self):
+        self.layout = "isomap"
         self.regenerate()
 
 # part of graph initialization:

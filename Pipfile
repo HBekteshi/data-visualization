@@ -9,6 +9,7 @@ pydot = "*"
 pyside6 = "*"
 numpy = "*"
 scipy = "*"
+scikit-learn = "*"
 
 [dev-packages]
 
