@@ -654,6 +654,7 @@ class MainWindow(QMainWindow):
         self.tree = None
         self.treetype = None
         self.coordinates = []
+        self.dfs_trees = []
         
         for count in range(len(self.vertices)):
             self.initialize_vertices(index = count)
@@ -732,7 +733,7 @@ class MainWindow(QMainWindow):
         
         
  # layout selector             
-    def generate(self, layout, subgraph_distance = None, use_screen_attributes = True, width = None, height = None, index = 0, random_subgraph_shuffle = False):
+    def generate(self, layout, subgraph_distance = None, use_screen_attributes = True, width = None, height = None, index = 0, random_subgraph_shuffle = False, use_first_dfs = False):
         if use_screen_attributes:
             width = self.screenwidth - 50 - self.node_radius * 2
             height = self.screenheight - 75 - self.node_radius * 2
@@ -806,18 +807,30 @@ class MainWindow(QMainWindow):
                 self.coordinates[index] = main.create_force_layout_coordinates(self.scene.width(), self.scene.height(), self.coordinates[index], self.adjacency_dict[index], max_iterations=50, index = index)
 
         elif self.layout == "dag dfs barycenter":
-            if self.dfs_list == []:
-                for count in range(len(self.vertices)):
-                    self.depth_first_search(root=main.most_connected_node_id[count], index = count)
-            self.coordinates[index], edge_waypoints = main.calc_DAG(width, height, self.dfs_list[index], self.adjacency_dict[index], minimization_method="barycenter")
-            self.update_edge_waypoints(edge_waypoints)
+            if use_first_dfs or main.subgraphs_included:
+                if self.dfs_list == []:
+                    for count in range(len(self.vertices)):
+                        self.depth_first_search(root=main.most_connected_node_id[count], index = count)
+                self.coordinates[index], edge_waypoints = main.calc_DAG(width, height, [self.dfs_list[index]], self.adjacency_dict[index], minimization_method="barycenter")
+                self.update_edge_waypoints(edge_waypoints)
+            else:
+                if self.dfs_trees == []:
+                    self.depth_first_search_exhaustive()
+                self.coordinates[index], edge_waypoints = main.calc_DAG(width, height, self.dfs_trees, self.adjacency_dict[index], minimization_method="barycenter")
+                self.update_edge_waypoints(edge_waypoints)
             
         elif self.layout == "dag dfs median":
-            if self.dfs_list == []:
-                for count in range(len(self.vertices)):
-                    self.depth_first_search(root=main.most_connected_node_id[count], index = count)
-            self.coordinates[index], edge_waypoints = main.calc_DAG(width, height, self.dfs_list[index], self.adjacency_dict[index], minimization_method="median")
-            self.update_edge_waypoints(edge_waypoints)
+            if use_first_dfs or main.subgraphs_included:
+                if self.dfs_list == []:
+                    for count in range(len(self.vertices)):
+                        self.depth_first_search(root=main.most_connected_node_id[count], index = count)
+                self.coordinates[index], edge_waypoints = main.calc_DAG(width, height, [self.dfs_list[index]], self.adjacency_dict[index], minimization_method="median")
+                self.update_edge_waypoints(edge_waypoints)
+            else:
+                if self.dfs_trees == []:
+                    self.depth_first_search_exhaustive()
+                self.coordinates[index], edge_waypoints = main.calc_DAG(width, height, self.dfs_trees, self.adjacency_dict[index], minimization_method="median")
+                self.update_edge_waypoints(edge_waypoints)                
         else:
             print("asked for layout", layout)
             raise ValueError ("Unsupported layout "+layout+" requested")
@@ -834,7 +847,7 @@ class MainWindow(QMainWindow):
             edge_object = self.all_edges[edge_triple]       # key: (start_node_id, end_node_id, weight); value: edge object
             edge_object.update_waypoints(waypoints_list)
 
-            print("edge from",edge_object.start.id,"to",edge_object.end.id,"gets waypoint coordinates of",waypoints_list)
+            # print("edge from",edge_object.start.id,"to",edge_object.end.id,"gets waypoint coordinates of",waypoints_list)
     #    print("edge waypoint updating complete")
             
         self.scene.update()
@@ -1435,10 +1448,10 @@ class MainWindow(QMainWindow):
         if given_root_id != None:
             root_id = given_root_id
         elif root == "most connected":
-            root_id = main.most_connected_node_id
+            root_id = main.most_connected_node_id[index]
         else:
             raise ValueError ("No root given for exhaustive dfs")
-        
+        print("root id becomes", root_id)
         if dfs_trees == None:
             dfs_trees = []
         self.dfs = [(root_id, root_id)]
@@ -1447,6 +1460,7 @@ class MainWindow(QMainWindow):
         else:
             visited.append(root_id)
             # print("appending",root_id,"to visited")
+        print("visited is",visited)
         self.depth_first_search_next(self.vertices[index][root_id], visited)
 
         dfs_trees.append(self.dfs)
@@ -1563,7 +1577,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict_list, "force random", default_radius=10)
+    window = MainWindow(main.adjacency_dict_list, "dag dfs barycenter", default_radius=10)
     window.show()
 
     
