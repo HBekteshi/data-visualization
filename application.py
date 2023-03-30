@@ -155,7 +155,7 @@ class Vertex(QGraphicsObject):
         return super().itemChange(change, value)
 
 class Edge(QGraphicsItem):
-    def __init__(self, start: Vertex, end: Vertex, weight, displayed = False, segmented = False, directed = False, curved = True) -> None:
+    def __init__(self, start: Vertex, end: Vertex, weight, displayed = False, segmented = False, directed = False, curved = True, opacity = 0.5) -> None:
         super().__init__()
 
         self.__name__ = 'Edge'
@@ -164,6 +164,7 @@ class Edge(QGraphicsItem):
         self.segmented = segmented
         self.curved = curved
         self.track_drawing = False
+        self.opacity = opacity
         
         self.directed = directed
         if main.G.is_directed() == True:
@@ -177,6 +178,7 @@ class Edge(QGraphicsItem):
         self.end.addEdge((self, start))
 
         self.setZValue(-0.5)
+        self.setOpacity(self.opacity)
 
         self.line = QLineF()
         self.color = "black"
@@ -511,6 +513,14 @@ class MainWindow(QMainWindow):
         curved_segmentation_toggle_action.setCheckable(True)
         curved_segmentation_toggle_action.setChecked(True)
         self.actions_menu.addAction(curved_segmentation_toggle_action)
+
+        opacity_decrease_action = QAction("Increase Edge Transparency", self)
+        opacity_decrease_action.triggered.connect(self.edges_decrease_opacity)
+        self.actions_menu.addAction(opacity_decrease_action)
+
+        opacity_increase_action = QAction("Decrease Edge Transparency", self)
+        opacity_increase_action.triggered.connect(self.edges_increase_opacity)
+        self.actions_menu.addAction(opacity_increase_action)
 
         radius_increase_action = QAction("Increase Node Size",self)
         radius_increase_action.triggered.connect(self.vertices_increase_radius)
@@ -1328,7 +1338,20 @@ class MainWindow(QMainWindow):
                     if main.printing_mode:
                         print ("added interlayer edge from", start_id, "to", end_id,"with weight",weight)                    
 
-                    
+    def edges_increase_opacity(self):
+        for e in self.scene.items():
+            if e.__name__ == 'Edge':
+                e.opacity = min(1, e.opacity + 0.1)
+                e.setOpacity(e.opacity)
+        self.scene.update()                        
+    
+    def edges_decrease_opacity(self):
+        for e in self.scene.items():
+            if e.__name__ == 'Edge':
+                e.opacity = max(0, e.opacity - 0.1)
+                e.setOpacity(e.opacity)
+        self.scene.update()
+                        
     def vertices_decrease_radius(self):
         for vertices_list in self.vertices:
             for v in vertices_list.values():

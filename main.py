@@ -13,16 +13,16 @@ from collections import defaultdict
 
 # settings
 printing_mode = False
-subgraphs_included = True #set to False when loading a graph without subgraphs
+subgraphs_included = False #set to False when loading a graph without subgraphs
 
 #undirected graphs
-G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
+#G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
 #directed graphs
 #G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
-#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
+G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
 
 A = pydot.graph_from_dot_file('data/devonshiredebate_withonlytwoclusters.dot')
 
