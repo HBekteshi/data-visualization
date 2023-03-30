@@ -16,13 +16,13 @@ printing_mode = False
 subgraphs_included = False #set to False when loading a graph without subgraphs
 
 #undirected graphs
-#G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
+G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
 #directed graphs
 #G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
-G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
+#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
 
 A = pydot.graph_from_dot_file('data/devonshiredebate_withonlytwoclusters.dot')
 
@@ -1479,7 +1479,7 @@ def create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict, reve
     return dummy_nodes_per_layer, dummy_adjacency_dict, node_waypoints_ids, dummy_layer_dict
 
 
-def floyd_warshall(graph):
+def floyd_warshall_dict(graph):
     """
     input: a networkx graph
     output: a default dictionary with the shortest distance from node to node
@@ -1510,5 +1510,76 @@ def floyd_warshall(graph):
 
     return distance
 
-distance_matrix = floyd_warshall(G)
+def floyd_warshall_matrix(graph):
+    """
+    input: a networkx graph
+    output: a default dictionary with the shortest distance from node to node
+    description: the floyd warshall algorithm to compute the shortest distance for weighted graphs
+    """
+    #default is set as inf if nodes are not connected
+    nr_vertices = len(graph.nodes())
+    distance = np.full((nr_vertices, nr_vertices), np.inf)
+    index_node_dict = {}
+    node_index_dict = {}
+
+    # node connections with itself are 0
+    for index, node in enumerate(graph.nodes()):
+        distance[index][index] = 0
+        index_node_dict[index] = node
+        node_index_dict[node] = index
+
+    # retrieve the weight of the graph, set weight to 1 if it is an unweighted graph
+    try:
+        for e in graph.edges(data=True):
+            i, j, data = e
+            index_i = node_index_dict[i]
+            index_j = node_index_dict[j]
+            distance[index_i][index_j] = data.get('weight', 1.0)
+            # print("weight", distance[index_i][index_j])
+    except:
+        for e in graph.edges(data=True):
+            i, j, data = e
+            index_i = node_index_dict[i]
+            index_j = node_index_dict[j]
+            distance[index_i][index_j] = 1
+            # print("weight", distance[index_i][index_j])
+
+    # commmpute the shortest distance
+    for k in range(nr_vertices):
+        for i in range(nr_vertices):
+            for j in range(nr_vertices):
+                if distance[i][j] > distance[i][k] + distance[k][j]:
+                    distance[i][j] = distance[i][k] + distance[k][j]
+
+    return distance
+
+# random similarity measure, might look for a better one later one
+def similarity(node_i, node_j, distance_matrix):
+    return 1 / (1 + distance_matrix[node_i][node_j])
+
+def convert_to_similarity_matrix(distance_matrix):
+    distance_len = len(distance_matrix)
+    sim_matrix = np.zeros((distance_len, distance_len))
+    for i in range(distance_len):
+        for j in range(distance_len):
+            if distance_matrix[i][j] != np.inf:
+                sim = similarity(i, j, distance_matrix)
+                sim_matrix[i][j] = sim
+    return sim_matrix
+
+def get_tsne_coordinates():
+    return
+
+def get_isomap_coordinates():
+    return
+
+
+distance_matrix = floyd_warshall_matrix(G)
 print("distance matrix", distance_matrix)
+similarity_matrix = convert_to_similarity_matrix(distance_matrix)
+print("similarity matrix", similarity_matrix)
+
+
+
+# distance_matrix = floyd_warshall_dict(G)
+# print("distance matrix", distance_matrix)
