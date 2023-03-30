@@ -1574,7 +1574,8 @@ def convert_to_similarity_matrix(distance_matrix):
     return sim_matrix
 
 def get_tsne_coordinates(dist_matrix, index_node_dict):
-    d_matrix = np.nan_to_num(dist_matrix, posinf=333333333333)
+    #TODO: crashed even when replacing inf with large numbers, so I chose a random large number. Might need to look into this more later
+    d_matrix = np.nan_to_num(dist_matrix, posinf=333333333333) 
     coordinates_proj = {}
     #print(d_matrix)
     projection = TSNE(n_components=2, learning_rate='auto', init='pca', perplexity=3).fit_transform(d_matrix)
@@ -1589,6 +1590,7 @@ def get_tsne_coordinates(dist_matrix, index_node_dict):
     return coordinates_proj
 
 def get_isomap_coordinates(dist_matrix, index_node_dict):
+    #TODO: crashed even when replacing inf with large numbers, so I chose a random large number. Might need to look into this more later
     d_matrix = np.nan_to_num(dist_matrix, posinf=333333333333)
     projection = Isomap(n_components=2).fit_transform(d_matrix)
     coordinates_proj = {}
