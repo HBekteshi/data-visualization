@@ -141,6 +141,8 @@ class Vertex(QGraphicsObject):
                 if len(edge.waypoints) > 2 and waypoints == True:
     #                print("update edges with waypoints =", waypoints, "; radius change =", radius_change)
                     edge.update_waypoints(edge.waypoints, radius_change, from_outside = False)
+                    if self.track_drawing:
+                        print("edge_update complete")
         
     # recalculate edges after change in location
     def itemChange(self, change: QGraphicsItem.GraphicsItemChange, value):
@@ -191,7 +193,7 @@ class Edge(QGraphicsItem):
         self.arrow_size = 10
 
         
-        # if self.start.id == "n154" and self.end.id == "n149":
+        # if self.start.id == "17" and self.end.id == "16":
         #     self.track_drawing = True
     
     def update_waypoints(self, waypoints_list, radius_change = 0, from_outside = True):
@@ -205,7 +207,6 @@ class Edge(QGraphicsItem):
                     else:
                         y_value = waypoint.y() #- radius_change
                     self.waypoints[count] = QPointF(x_value, y_value)
-
         self.calculate_location(waypoint_update = True)
         self.update()
         
@@ -246,14 +247,18 @@ class Edge(QGraphicsItem):
 
         self.buildPath()
 
+        self.update()
+        
         if len(self.waypoints)> 2 and self.track_drawing:
-            # print("for line between nodes",self.start.id,"and",self.end.id)
-            # print("self waypoints is:", self.waypoints)
-            # print ("self lines is:",self.lines)
+            print("for line between nodes",self.start.id,"and",self.end.id)
+            print("self waypoints is:", self.waypoints)
+            print ("self lines is:",self.lines)
             pass
         
     # function for building bezier curves, adapted from https://stackoverflow.com/questions/63016214/drawing-multi-point-curve-with-pyqt5   as there's no geometric library for bezier curves in QT
     def buildPath(self):
+        if self.track_drawing:
+            print("starting path building")        
         factor = 0.25
         waypoints_list = copy.deepcopy(self.waypoints)
         self.path = QPainterPath(waypoints_list[0])
@@ -289,6 +294,9 @@ class Edge(QGraphicsItem):
 
             # the final curve, that joins to the last point
             self.path.quadTo(cp1, waypoints_list[-1])
+
+            if self.track_drawing:
+                print("self.path is",self.path)
     
     def boundingRect(self) -> QRectF:
         if self.segmented == False:
@@ -313,6 +321,8 @@ class Edge(QGraphicsItem):
 
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget=None):
+        if self.track_drawing:
+            print("starting edge drawing")
         if self.start and self.end and self.displayed:
             painter.setRenderHints(QPainter.Antialiasing)
 
@@ -329,15 +339,15 @@ class Edge(QGraphicsItem):
 
             if self.directed and self.segmented and (self.start.window.check_for_layered_layout() or main.subgraphs_included):                    # directed and segmented and layered
                 if self.curved == True:
-                    # if self.track_drawing:
-                    #     print("directed, segmented, curved")
+                    if self.track_drawing:
+                        print("directed, segmented, curved")
                     painter.drawPath(self.path)
                     start = self.waypoints[len(self.waypoints)-2]
                     end = self.waypoints[len(self.waypoints)-1]
                     self.draw_arrow(painter, start, self.arrow_target(start,end), just_head = True)
                 else:
-                    # if self.track_drawing:
-                    #     print("directed, segmented, no curves")
+                    if self.track_drawing:
+                        print("directed, segmented, no curves")
                     for line in self.lines:
                         if line == self.lines[len(self.lines)-1]:
                             start = self.waypoints[len(self.waypoints)-2]
@@ -347,15 +357,48 @@ class Edge(QGraphicsItem):
                             painter.drawLine(line)                    
             elif self.segmented and (self.start.window.check_for_layered_layout() or main.subgraphs_included):                                    # not directed and segmented and layered
                 if self.curved == True:
+                    if self.track_drawing:
+                        print("non-directed, segmented, curved")
                     painter.drawPath(self.path)
                 else:
+                    if self.track_drawing:
+                        print("non-directed, segmented, not curved")
                     for line in self.lines:
                         painter.drawLine(line)
+
+
+# # custom version to avoid the barycenter edge disappearance
+#             elif self.directed:
+#                 if self.track_drawing:
+#                     print("workaround mode engaged")
+#                 if self.curved == True:
+#                     painter.drawPath(self.path)
+#                     start = self.waypoints[len(self.waypoints)-2]
+#                     end = self.waypoints[len(self.waypoints)-1]
+#                     self.draw_arrow(painter, start, self.arrow_target(start,end), just_head = True)
+#                 else:
+#                     for line in self.lines:
+#                         if line == self.lines[len(self.lines)-1]:
+#                             start = self.waypoints[len(self.waypoints)-2]
+#                             end = self.waypoints[len(self.waypoints)-1]
+#                             self.draw_arrow(painter, start, self.arrow_target(start,end))
+#                         else:
+#                             painter.drawLine(line)        
+                        
+
+#correct version
             elif self.directed:                                     # directed and not segmented
+                if self.track_drawing:
+                        print("directed, not segmented")
                 start = self.line.p1()
                 end = self.line.p2()
                 self.draw_arrow(painter, start, self.arrow_target(start,end))
+
+
+
             else:                                                   # neither directed nor segmented
+                if self.track_drawing:
+                        print("not directed, not segmented")
                 painter.drawLine(self.line) 
 
                 
