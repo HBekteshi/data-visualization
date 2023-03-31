@@ -17,9 +17,9 @@ printing_mode = False
 subgraphs_included = False #set to False when loading a graph without subgraphs
 
 #undirected graphs
-#G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
+G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
-G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
+#G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
 #directed graphs
 #G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
@@ -1575,10 +1575,10 @@ def convert_to_similarity_matrix(distance_matrix):
 
 def get_tsne_coordinates(dist_matrix, index_node_dict):
     #TODO: crashed even when replacing inf with large numbers, so I chose a random large number. Might need to look into this more later
-    d_matrix = np.nan_to_num(dist_matrix, posinf=333333333333) 
+    d_matrix = np.nan_to_num(dist_matrix, posinf=3333333333) 
     coordinates_proj = {}
     #print(d_matrix)
-    projection = TSNE(n_components=2, learning_rate='auto', init='pca', perplexity=3).fit_transform(d_matrix)
+    projection = TSNE(n_components=2, learning_rate='auto', init='pca', perplexity=2).fit_transform(d_matrix)
     print("tasne shape", projection.shape)
 
     for index in range(projection.shape[0]):

@@ -706,6 +706,7 @@ class MainWindow(QMainWindow):
         self.treetype = None
         self.coordinates = []
         self.dfs_trees = []
+        self.floyd_warshall_matrix = []
         
         for count in range(len(self.vertices)):
             self.initialize_vertices(index = count)
@@ -884,12 +885,12 @@ class MainWindow(QMainWindow):
                 self.update_edge_waypoints(edge_waypoints)
 
         elif self.layout == "tsne":
-            dist_matrix, index_node = main.floyd_warshall_matrix(main.G)
-            self.coordinates[index] = main.get_tsne_coordinates(dist_matrix, index_node) 
+            self.floyd_warshall_matrix, index_node_dict = main.floyd_warshall_matrix(main.G)
+            self.coordinates[index] = main.get_tsne_coordinates(self.floyd_warshall_matrix, index_node_dict) 
 
         elif self.layout == "isomap":
-            dist_matrix, index_node = main.floyd_warshall_matrix(main.G)
-            self.coordinates[index] = main.get_isomap_coordinates(dist_matrix, index_node)  
+            self.floyd_warshall_matrix, index_node_dict = main.floyd_warshall_matrix(main.G)
+            self.coordinates[index] = main.get_isomap_coordinates(self.floyd_warshall_matrix, index_node_dict)  
 
         else:
             print("asked for layout", layout)
