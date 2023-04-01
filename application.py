@@ -1646,7 +1646,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict_list, "dag dfs barycenter", default_radius=10)
+    window = MainWindow(main.adjacency_dict_list, "random", default_radius=10)
     window.show()
 
     

@@ -10,7 +10,7 @@ import statistics
 
 from PySide6.QtCore import QPointF
 from collections import defaultdict
-from sklearn.manifold import TSNE, Isomap
+from sklearn.manifold import TSNE, Isomap, MDS
 
 # settings
 printing_mode = False
@@ -25,44 +25,43 @@ G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 #G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
 #G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
 
-A = pydot.graph_from_dot_file('data/devonshiredebate_withonlytwoclusters.dot')
+if subgraphs_included == True:
+    A = pydot.graph_from_dot_file('data/devonshiredebate_withonlytwoclusters.dot') 
 
-    
+    subgraphs = A[0].get_subgraphs()
 
-subgraphs = A[0].get_subgraphs()
-
-subgraph_youngest = subgraphs[0]
-subgraph_gap = subgraphs[1]
-all_edges = A[0].get_edge_list()
-inter_layer_edges = []
+    subgraph_youngest = subgraphs[0]
+    subgraph_gap = subgraphs[1]
+    all_edges = A[0].get_edge_list()
+    inter_layer_edges = []
 
 
-for edge in all_edges:
-    source = edge.get_source()
-    destination = edge.get_destination()
-    subgraph_youngest_nodes = subgraph_youngest.obj_dict["nodes"]
-    subgraph_gap_nodes = subgraph_gap.obj_dict["nodes"]
-    #print("source", source)
-    #print("destination", destination)
-    if source in subgraph_youngest_nodes and destination in subgraph_youngest_nodes:
-        subgraph_youngest.add_edge(edge)
-        #print("both nodes are in youngest")
-    elif source in subgraph_gap_nodes and destination in subgraph_gap_nodes:
-        subgraph_gap.add_edge(edge)
-        #print("both nodes are in gap")
-    else:
-        inter_layer_edges.append((source, destination))
-        #print("nodes are in gap and youngest")
+    for edge in all_edges:
+        source = edge.get_source()
+        destination = edge.get_destination()
+        subgraph_youngest_nodes = subgraph_youngest.obj_dict["nodes"]
+        subgraph_gap_nodes = subgraph_gap.obj_dict["nodes"]
+        #print("source", source)
+        #print("destination", destination)
+        if source in subgraph_youngest_nodes and destination in subgraph_youngest_nodes:
+            subgraph_youngest.add_edge(edge)
+            #print("both nodes are in youngest")
+        elif source in subgraph_gap_nodes and destination in subgraph_gap_nodes:
+            subgraph_gap.add_edge(edge)
+            #print("both nodes are in gap")
+        else:
+            inter_layer_edges.append((source, destination))
+            #print("nodes are in gap and youngest")
 
-#print("edges subgraph", subgraph_youngest.get_edges())
-#print("edges subgraph", subgraph_gap.get_edges())
+    #print("edges subgraph", subgraph_youngest.get_edges())
+    #print("edges subgraph", subgraph_gap.get_edges())
 
-G_parent = networkx.DiGraph(networkx.nx_pydot.from_pydot(A[0]))
-G_youngest = networkx.DiGraph(networkx.nx_pydot.from_pydot(subgraphs[0]))
-G_gap = networkx.DiGraph(networkx.nx_pydot.from_pydot(subgraphs[1]))
-subgraphs_list = [G_youngest, G_gap]
+    G_parent = networkx.DiGraph(networkx.nx_pydot.from_pydot(A[0]))
+    G_youngest = networkx.DiGraph(networkx.nx_pydot.from_pydot(subgraphs[0]))
+    G_gap = networkx.DiGraph(networkx.nx_pydot.from_pydot(subgraphs[1]))
+    subgraphs_list = [G_youngest, G_gap]
 
-if subgraphs_included:              # TODO: fix this temporary measure, so main.G.isdirected() call gets something decent
+    #if subgraphs_included:              # TODO: fix this temporary measure, so main.G.isdirected() call gets something decent
     G = G_youngest
 
 
@@ -1523,7 +1522,7 @@ def floyd_warshall_matrix(graph):
     description: the floyd warshall algorithm to compute the shortest distance for weighted graphs
     """
     #default is set as inf if nodes are not connected
-    nr_vertices = len(graph.nodes())
+    nr_vertices = graph.number_of_nodes()
     distance = np.full((nr_vertices, nr_vertices), float('inf'))
     index_node_dict = {}
     node_index_dict = {}
@@ -1540,7 +1539,8 @@ def floyd_warshall_matrix(graph):
             i, j, data = e
             index_i = node_index_dict[i]
             index_j = node_index_dict[j]
-            distance[index_i][index_j] = data.get('weight', 1.0)
+            distance[index_i][index_j] = graph[i][j]['weight']
+            distance[index_j][index_i] = distance[index_i][index_j]
             # print("weight", distance[index_i][index_j])
     except:
         for e in graph.edges(data=True):
@@ -1548,14 +1548,17 @@ def floyd_warshall_matrix(graph):
             index_i = node_index_dict[i]
             index_j = node_index_dict[j]
             distance[index_i][index_j] = 1
+            distance[index_j][index_i] = distance[index_i][index_j]
             # print("weight", distance[index_i][index_j])
 
-    # commmpute the shortest distance
+    # compute the shortest distance
     for k in range(nr_vertices):
         for i in range(nr_vertices):
             for j in range(nr_vertices):
                 if distance[i][j] > distance[i][k] + distance[k][j]:
                     distance[i][j] = distance[i][k] + distance[k][j]
+
+    # distance = networkx.floyd_warshall_numpy(graph, weight='weight')
 
     return distance, index_node_dict
 
@@ -1578,7 +1581,7 @@ def get_tsne_coordinates(dist_matrix, index_node_dict):
     d_matrix = np.nan_to_num(dist_matrix, posinf=3333333333) 
     coordinates_proj = {}
     #print(d_matrix)
-    projection = TSNE(n_components=2, learning_rate='auto', init='pca', perplexity=2).fit_transform(d_matrix)
+    projection = TSNE(n_components=2, learning_rate='auto', init='pca', perplexity=30).fit_transform(d_matrix)
     print("tasne shape", projection.shape)
 
     for index in range(projection.shape[0]):
@@ -1592,7 +1595,8 @@ def get_tsne_coordinates(dist_matrix, index_node_dict):
 def get_isomap_coordinates(dist_matrix, index_node_dict):
     #TODO: crashed even when replacing inf with large numbers, so I chose a random large number. Might need to look into this more later
     d_matrix = np.nan_to_num(dist_matrix, posinf=333333333333)
-    projection = Isomap(n_components=2).fit_transform(d_matrix)
+    print((d_matrix==d_matrix.T).all())
+    projection = Isomap(n_components=2, n_neighbors=10).fit_transform(d_matrix)
     coordinates_proj = {}
 
     for index in range(projection.shape[0]):
