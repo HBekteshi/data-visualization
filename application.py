@@ -298,13 +298,22 @@ class Edge(QGraphicsItem):
             if self.track_drawing:
                 print("self.path is",self.path)
     
-    def boundingRect(self) -> QRectF:
+    def shape(self):
+        self.buildPath()
+        return self.path
+
+    def boundingRect(self, track = False) -> QRectF:
         if self.segmented == False:
+            if track:
+                print("edge not segmented, self.line is",self.line)
+
             return (
                 QRectF(self.line.p1(), self.line.p2())
                 .normalized()
             )
         else:
+            if track:
+                print("edge is segmented, self.lines is",self.lines)
             min_y = 9999
             max_y = -9999
             min_x = 9999
@@ -516,6 +525,7 @@ class MainWindow(QMainWindow):
         self.file_menu = self.menu.addMenu("File")
         self.layouts_menu = self.menu.addMenu("Layout")
         self.actions_menu = self.menu.addMenu("Actions")
+        self.quality_menu = self.menu.addMenu("Quality Metrics")
         
 
         # Exit QAction
@@ -654,6 +664,11 @@ class MainWindow(QMainWindow):
         isomap_regeneration_action.triggered.connect(self.regenerate_isomap)
         self.layouts_menu.addAction(isomap_regeneration_action)
 
+        
+        crossing_counting_action = QAction("Count crossings", self)
+        crossing_counting_action.triggered.connect(self.count_current_crossings)
+        self.quality_menu.addAction(crossing_counting_action)
+
          # Status Bar
         self.status = self.statusBar()
         self.status.showMessage("Graph loaded and displayed - layout: "+initial_layout)
@@ -747,9 +762,48 @@ class MainWindow(QMainWindow):
         # graphics displayed in the center
         self.setCentralWidget(self.view)
 
-    
+    def count_current_crossings(self):
+        edge_pairs = 0
+        edge_crossings = 0
+
+        segmentation_off = False
+
+        for i, first_edge in enumerate(list(self.all_edges.values())):
+            if first_edge.segmented == True:
+                segmentation_off = True
+                break
+            if first_edge.displayed:
+                for j in range(i, len(list(self.all_edges.values()))):
+                    second_edge = list(self.all_edges.values())[j]
+
+                    tracking = False
+                    if first_edge.start.id == "2" and first_edge.end.id == "17" and second_edge.start.id == "22" and second_edge.end.id == "3":
+                        tracking = True
+
+                    if second_edge.displayed and first_edge.start.id not in [second_edge.start.id, second_edge.end.id] and first_edge.end.id not in [second_edge.start.id, second_edge.end.id] :
+                        edge_pairs += 1
+                        if tracking:
+                            print("checking collision of edge from",first_edge.start.id,"to",first_edge.end.id,"and edge from",second_edge.start.id,"to",second_edge.end.id)
+                            #print("bounding rects are",first_edge.boundingRect(track = True),"and",second_edge.boundingRect(track = True))
+                            print("shapes are",first_edge.shape(),"and",second_edge.shape())
+                        if first_edge.collidesWithItem(second_edge, mode = Qt.IntersectsItemShape):
+                     #   if first_edge.collidesWithPath(second_edge.path):
+                            edge_crossings += 1
+                            if tracking:
+                               print("edge from",first_edge.start.id,"to",first_edge.end.id,"collides with edge from",second_edge.start.id,"to",second_edge.end.id)
+                          #  print("their shapes are",first_edge.shape(),"and",second_edge.shape())
+                               
+        if segmentation_off:
+            self.status.showMessage("ERROR: Turn off segmentation before counting crossings")
+            print("ERROR: Turn off segmentation before counting crossings")
+        else:
+            self.status.showMessage("Out of "+str(edge_pairs)+" edge pairs, "+str(edge_crossings)+" are edge crossings.")
+            print("Out of "+str(edge_pairs)+" edge pairs, "+str(edge_crossings)+" are edge crossings.")
+
+        
+
     def update_status(self):
-        self.status.showMessage("Graph loaded and displayed - layout: "+self.layout)
+        self.status.showMessage("Graph with "+str(len(self.all_vertices.values()))+" nodes and "+str(len(self.all_edges.values()))+" edges loaded and displayed - layout: "+self.layout)
 
     def update_node_position(self, node_id, x, y, index = 0):
         self.coordinates[index][node_id] = (x,y)
