@@ -141,8 +141,6 @@ class Vertex(QGraphicsObject):
                 if len(edge.waypoints) > 2 and waypoints == True:
     #                print("update edges with waypoints =", waypoints, "; radius change =", radius_change)
                     edge.update_waypoints(edge.waypoints, radius_change, from_outside = False)
-                    if self.track_drawing:
-                        print("edge_update complete")
         
     # recalculate edges after change in location
     def itemChange(self, change: QGraphicsItem.GraphicsItemChange, value):
@@ -665,9 +663,9 @@ class MainWindow(QMainWindow):
         self.layouts_menu.addAction(isomap_regeneration_action)
 
         
-        crossing_counting_action = QAction("Count crossings", self)
-        crossing_counting_action.triggered.connect(self.count_current_crossings)
-        self.quality_menu.addAction(crossing_counting_action)
+        self.crossing_counting_action = QAction("Count crossings", self)
+        self.crossing_counting_action.triggered.connect(self.count_current_crossings)
+        self.quality_menu.addAction(self.crossing_counting_action)
 
          # Status Bar
         self.status = self.statusBar()
@@ -767,6 +765,7 @@ class MainWindow(QMainWindow):
         edge_crossings = 0
 
         segmentation_off = False
+        print("there are",len(list(self.all_edges.values())),"edges in the network")
 
         for i, first_edge in enumerate(list(self.all_edges.values())):
             if first_edge.segmented == True:
@@ -778,8 +777,9 @@ class MainWindow(QMainWindow):
 
                     tracking = False
                     if first_edge.start.id == "2" and first_edge.end.id == "17" and second_edge.start.id == "22" and second_edge.end.id == "3":
-                        tracking = True
+                        tracking = False
 
+                        # if the two edges share a vertex, they can't be crossing
                     if second_edge.displayed and first_edge.start.id not in [second_edge.start.id, second_edge.end.id] and first_edge.end.id not in [second_edge.start.id, second_edge.end.id] :
                         edge_pairs += 1
                         if tracking:
@@ -787,20 +787,52 @@ class MainWindow(QMainWindow):
                             #print("bounding rects are",first_edge.boundingRect(track = True),"and",second_edge.boundingRect(track = True))
                             print("shapes are",first_edge.shape(),"and",second_edge.shape())
                         if first_edge.collidesWithItem(second_edge, mode = Qt.IntersectsItemShape):
-                     #   if first_edge.collidesWithPath(second_edge.path):
+                            # if not self.check_on_line(first_edge,second_edge)[0]:
+                            #     print("min distance is", self.check_on_line(first_edge,second_edge)[1])    
+
                             edge_crossings += 1
                             if tracking:
-                               print("edge from",first_edge.start.id,"to",first_edge.end.id,"collides with edge from",second_edge.start.id,"to",second_edge.end.id)
-                          #  print("their shapes are",first_edge.shape(),"and",second_edge.shape())
+                                print("edge from",first_edge.start.id,"to",first_edge.end.id,"collides with edge from",second_edge.start.id,"to",second_edge.end.id)
+                         #   print("edge from",first_edge.start.id,"to",first_edge.end.id,"collides with edge from",second_edge.start.id,"to",second_edge.end.id)
+                        #  print("their shapes are",first_edge.shape(),"and",second_edge.shape())
                                
         if segmentation_off:
             self.status.showMessage("ERROR: Turn off segmentation before counting crossings")
             print("ERROR: Turn off segmentation before counting crossings")
         else:
-            self.status.showMessage("Out of "+str(edge_pairs)+" edge pairs, "+str(edge_crossings)+" are edge crossings.")
+            self.status.showMessage("Out of "+str(edge_pairs)+" edge pairs with no shared vertices, "+str(edge_crossings)+" are edge crossings.")
             print("Out of "+str(edge_pairs)+" edge pairs, "+str(edge_crossings)+" are edge crossings.")
 
+    # def check_on_line(self, first_edge, second_edge, buffer = None):
+    #     if buffer == None:
+    #         buffer = self.node_radius
+    #     xa = first_edge.start.x_coord
+    #     ya = first_edge.start.y_coord
+    #     xb = first_edge.end.x_coord
+    #     yb = first_edge.end.x_coord
+
+    #     xc = second_edge.start.x_coord
+    #     yc = second_edge.start.y_coord
+    #     xd = second_edge.end.x_coord
+    #     yd = second_edge.end.y_coord
+
+    #     min_distance = min(self.distance_from_line(xa,ya,xb,yb, xc,yc),self.distance_from_line(xa,ya,xb,yb, xd,yd), self.distance_from_line(xc,yc,xd,yd, xa,ya), self.distance_from_line(xc,yc,xd,yd, xb,yb))
+    #     if min_distance < buffer:
+    #         return (True, min_distance)
+    #     else:
+    #         return (False, min_distance)
         
+
+    
+    # def distance_from_line(self,x1,y1,x2,y2,x0,y0):
+    #     below = np.sqrt((x2 - x1)**2 + (y2-y1)**2)
+    #     if below == 0:
+    #         return 0
+    #     else:
+    #         above = np.abs((x2-x1)*(y1-y0) - (x1-x0)*(y2-y1))
+    #         return above/below
+
+
 
     def update_status(self):
         self.status.showMessage("Graph with "+str(len(self.all_vertices.values()))+" nodes and "+str(len(self.all_edges.values()))+" edges loaded and displayed - layout: "+self.layout)
@@ -1040,6 +1072,10 @@ class MainWindow(QMainWindow):
 
         self.update_status()               
 
+        if self.check_for_layered_layout():
+            self.crossing_counting_action.setEnabled(False)
+        else:
+            self.crossing_counting_action.setEnabled(True)
 
         if self.edge_bundling_bool and main.subgraphs_included:
             print("starting edge bundling")
@@ -1574,7 +1610,7 @@ class MainWindow(QMainWindow):
             root_id = main.most_connected_node_id[index]
         else:
             raise ValueError ("No root given for exhaustive dfs")
-        print("root id becomes", root_id)
+    #    print("root id becomes", root_id)
         if dfs_trees == None:
             dfs_trees = []
         self.dfs = [(root_id, root_id)]
@@ -1583,7 +1619,7 @@ class MainWindow(QMainWindow):
         else:
             visited.append(root_id)
             # print("appending",root_id,"to visited")
-        print("visited is",visited)
+      #  print("visited is",visited)
         self.depth_first_search_next(self.vertices[index][root_id], visited)
 
         dfs_trees.append(self.dfs)
@@ -1603,7 +1639,7 @@ class MainWindow(QMainWindow):
             #     print("exhaustive dfs order:",self.dfs_trees)
             self.dfs_trees = dfs_trees
             self.dfs = dfs_trees[0]
-            print("exhaustive dfs order:",self.dfs_trees)
+      #      print("exhaustive dfs order:",self.dfs_trees)
         return self.dfs_trees
     
     #global max_depth

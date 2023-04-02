@@ -14,7 +14,7 @@ from sklearn.manifold import TSNE, Isomap, MDS
 
 # settings
 printing_mode = False
-subgraphs_included = False #set to False when loading a graph without subgraphs
+subgraphs_included = False #set to False when loading a graph without subgraphs, True otherwise
 
 #undirected graphs
 G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
@@ -1111,7 +1111,7 @@ def layer_assignment_dag(dfs_trees, adjacency_dict):
     to_assign = {key: False for key in list(adjacency_dict.keys())}
 
     for dfs in dfs_trees:
-        print("starting new tree")
+   #     print("starting new tree")
         for tuple in dfs:
             start_vertex = tuple[1]
             #layer_dict[start_vertex] = 0
@@ -1123,11 +1123,11 @@ def layer_assignment_dag(dfs_trees, adjacency_dict):
                     if edge[1] == True:
                         layer_nr = layer_dict[start_vertex] + 1
                         layer_dict[edge[0]] = layer_nr
-                        print("vertex", edge[0], "with parent node", start_vertex, "is assigned layer", layer_nr)
+               #         print("vertex", edge[0], "with parent node", start_vertex, "is assigned layer", layer_nr)
                     else:
                         layer_nr = layer_dict[start_vertex] - 1
                         layer_dict[edge[0]] = layer_nr
-                        print("vertex", edge[0], "with previous adjacent node", start_vertex, "is assigned layer", layer_nr)
+              #          print("vertex", edge[0], "with previous adjacent node", start_vertex, "is assigned layer", layer_nr)
                     to_assign[start_vertex] = True
                     #layer_assignment_dag(dfs, adjacency_dict, to_assign, layer_dict, edge[0], layer_nr)
                 else:
@@ -1160,15 +1160,19 @@ def layer_assignment_dag(dfs_trees, adjacency_dict):
 # step 4: count crossings, see if there is improvement --> if not then stop, if yes then back to step 3
 
 
-def minimize_crossings(dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict, perform_crossing_minimization, minimization_method):
+def minimize_crossings(dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict, perform_crossing_minimization, minimization_method, buffer_limit = 2):
     
     number_of_layers = len(dummy_nodes_per_layer.keys())
+    current_x_coords = copy.deepcopy(x_coords_dict)
+    buffer_count = 0
 
     # calculate direct layer neighbours of each sequential layer pair
     downwards_neighbours_set = []
     upwards_neighbours_set = []
     downwards_degrees = {}
     upwards_degrees = {}
+
+    best_crossings = None
         
     for layer in range(number_of_layers):
         if layer != 0:
@@ -1187,67 +1191,76 @@ def minimize_crossings(dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dic
     # print("downwards degrees are:",downwards_degrees)
 
     # initial crossings:
-    previous_crossings = 0
+    initial_crossings = 0
     for neighbours_set in upwards_neighbours_set:
-        previous_crossings += count_crossings(neighbours_set, x_coords_dict, self_printing_mode=False)
+        initial_crossings += count_crossings(neighbours_set, current_x_coords, self_printing_mode=False)
 
-    print("initial crossings count:",previous_crossings)
+    best_crossings = initial_crossings
+    best_x_coords = current_x_coords
+
+    print("initial crossings count:",initial_crossings)
+
+    if initial_crossings == 0:
+        perform_crossing_minimization = False
 
     while (perform_crossing_minimization == True):
-        previous_x_coords = x_coords_dict
 
-        if previous_crossings == 0:
-            break
-
+        improvement = False
+        
     # one downward pass:
         downwards_crossings = 0
         for neighbours_set in downwards_neighbours_set:
     #        relative_positions_in_layer = permute_layer(neighbours_set, downwards_degrees, relative_positions_in_layer)
-            x_coords_dict = permute_layer(neighbours_set, downwards_degrees, x_coords_dict, method = minimization_method)
-            downwards_crossings += count_crossings(neighbours_set, x_coords_dict, self_printing_mode = False)
+            current_x_coords = permute_layer(neighbours_set, downwards_degrees, current_x_coords, method = minimization_method)
+            downwards_crossings += count_crossings(neighbours_set, current_x_coords, self_printing_mode = False)
 
 
-        #print("after downwards pass, the x pos dict is:", x_coords_dict)
-        print("after downwards pass, there are",downwards_crossings,"crossings, down from", previous_crossings)
-        downwards_x_coords = x_coords_dict
+        print("after downwards pass, there are",downwards_crossings,"crossings, the previous best was", best_crossings)
+        downwards_x_coords = current_x_coords
         if downwards_crossings == 0:
-            new_crossings = downwards_crossings
+            best_crossings = 0
+            best_x_coords = copy.deepcopy(downwards_x_coords)
             break
+
+        if best_crossings > downwards_crossings:
+            best_crossings = downwards_crossings
+            best_x_coords = copy.deepcopy(downwards_x_coords)
+            improvement = True
 
         # one upward pass:
-        new_crossings = 0
+        upwards_crossings = 0
         for neighbours_set in upwards_neighbours_set:
     #     relative_positions_in_layer = permute_layer(neighbours_set, upwards_degrees, relative_positions_in_layer)
-            x_coords_dict = permute_layer(neighbours_set, upwards_degrees, x_coords_dict, method = minimization_method)
-            new_crossings += count_crossings(neighbours_set, x_coords_dict, self_printing_mode = False)
+            current_x_coords = permute_layer(neighbours_set, upwards_degrees, current_x_coords, method = minimization_method)
+            upwards_crossings += count_crossings(neighbours_set, current_x_coords, self_printing_mode = False)
 
-     #   print("after upwards pass, the x pos dict is:", x_coords_dict)
-        print("after upwards pass, there are",new_crossings,"crossings, down from",previous_crossings)
+        print("after upwards pass, there are",upwards_crossings,"crossings, the previous best was",best_crossings)
 
-        
-        # if the downwards half of the iteration is better, we keep that one
-        if downwards_crossings < new_crossings:
-            print("moment 1")
-            new_crossings = downwards_crossings
-            x_coords_dict = downwards_x_coords
-        
-        # if the iteration is perfect or results in no benefit stop iterating
-        if new_crossings == 0:
+        upwards_x_coords = current_x_coords
+        if upwards_crossings == 0:
+            best_crossings = 0
+            best_x_coords = copy.deepcopy(upwards_x_coords)
             break
-        elif new_crossings >= previous_crossings:
-            print("moment 2")
-            x_coords_dict = previous_x_coords
-            break
+
+        if best_crossings > upwards_crossings:
+            best_crossings = upwards_crossings
+            best_x_coords = copy.deepcopy(upwards_x_coords)
+            improvement = True
+
+        if improvement:
+            buffer_count = 0
         else:
-            print("moment 3")
-            previous_crossings = new_crossings
-            previous_x_coords = x_coords_dict
-    
+            buffer_count += 1
+
+        if buffer_count > buffer_limit:
+            break
+
     if perform_crossing_minimization:
-        print("the final crossings count is",new_crossings)
+       # print("the final crossings count is",new_crossings)
+        print("the final crossings count is",best_crossings)
     
 
-    return dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict
+    return dummy_nodes_per_layer, dummy_adjacency_dict, best_x_coords
 
 
 def count_crossings(node_neighbours, x_coords_dict, self_printing_mode = printing_mode):      # counts current crossings between current layer and previous layer
@@ -1284,6 +1297,7 @@ def count_crossings(node_neighbours, x_coords_dict, self_printing_mode = printin
                         crossings += 1
                         if self_printing_mode:
                             print("there is a crossing between edges",current_node_id,"to",neighbour_node,"and",other_node_id,"to",other_neighbour_id)
+              #          print("there is a crossing between edges",current_node_id,"to",neighbour_node,"and",other_node_id,"to",other_neighbour_id)
 
     return crossings
 
@@ -1610,14 +1624,14 @@ def get_isomap_coordinates(dist_matrix, index_node_dict):
     return coordinates_proj
 
 
-distance_matrix, index_node_dictionary = floyd_warshall_matrix(G)
-print("distance matrix", distance_matrix)
-similarity_matrix = convert_to_similarity_matrix(distance_matrix)
-print("similarity matrix", similarity_matrix)
-tsne_projection = get_tsne_coordinates(distance_matrix, index_node_dictionary)
-print("tsne", tsne_projection)
-isomap_projection = get_isomap_coordinates(distance_matrix, index_node_dictionary)
-print("isomap", isomap_projection)
+# distance_matrix, index_node_dictionary = floyd_warshall_matrix(G)
+# print("distance matrix", distance_matrix)
+# similarity_matrix = convert_to_similarity_matrix(distance_matrix)
+# print("similarity matrix", similarity_matrix)
+# tsne_projection = get_tsne_coordinates(distance_matrix, index_node_dictionary)
+# print("tsne", tsne_projection)
+# isomap_projection = get_isomap_coordinates(distance_matrix, index_node_dictionary)
+# print("isomap", isomap_projection)
 
 
 
