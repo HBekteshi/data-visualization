@@ -1581,7 +1581,8 @@ def get_tsne_coordinates(dist_matrix, index_node_dict):
     d_matrix = np.nan_to_num(dist_matrix, posinf=3333333333) 
     coordinates_proj = {}
     #print(d_matrix)
-    projection = TSNE(n_components=2, learning_rate='auto', init='pca', perplexity=30).fit_transform(d_matrix)
+    #delete last row and column of distance matrix such that the disconnected node is not taken into account
+    projection = TSNE(n_components=2, learning_rate='auto', init='pca', perplexity=15).fit_transform(d_matrix[:-1, :-1])
     print("tasne shape", projection.shape)
 
     for index in range(projection.shape[0]):
@@ -1596,7 +1597,8 @@ def get_isomap_coordinates(dist_matrix, index_node_dict):
     #TODO: crashed even when replacing inf with large numbers, so I chose a random large number. Might need to look into this more later
     d_matrix = np.nan_to_num(dist_matrix, posinf=333333333333)
     print((d_matrix==d_matrix.T).all())
-    projection = Isomap(n_components=2, n_neighbors=10).fit_transform(d_matrix)
+    #delete last row and column of distance matrix such that the disconnected node is not taken into account
+    projection = Isomap(n_components=2, n_neighbors=6).fit_transform(d_matrix[:-1,:-1])
     coordinates_proj = {}
 
     for index in range(projection.shape[0]):
