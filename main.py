@@ -15,15 +15,16 @@ from sklearn.manifold import TSNE, Isomap, MDS
 # settings
 printing_mode = False
 subgraphs_included = False #set to False when loading a graph without subgraphs, True otherwise
+include_n = True
 
 #undirected graphs
-G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
+#G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
 #directed graphs
 #G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
-#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
+G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))      # need include_n = True for this one
 
 if subgraphs_included == True:
     A = pydot.graph_from_dot_file('data/devonshiredebate_withonlytwoclusters.dot') 
@@ -84,8 +85,10 @@ def add_nodes_adjacency_dict(adjacency_dict, G):
     for n in G.nodes():
         if printing_mode:
             print(f"Added node with id {n}")
-        adjacency_dict[n] = []
-
+        if n != "\\n":
+            adjacency_dict[n] = []
+        elif include_n:
+            adjacency_dict[n] = []
 
 # the les miserables import has a node with id '\\n' and no connections
 
