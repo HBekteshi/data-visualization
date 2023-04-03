@@ -9,6 +9,7 @@ from PySide6.QtWidgets import QMainWindow, QApplication, QGraphicsScene, QGraphi
 import numpy as np
 import copy
 import math
+import matplotlib.pyplot as plt
 
 import main
 
@@ -671,6 +672,10 @@ class MainWindow(QMainWindow):
         self.normalized_stress_action.triggered.connect(self.normalized_stress)
         self.quality_menu.addAction(self.normalized_stress_action)
 
+        self.shepard_diagram_action = QAction("Shepard diagram", self)
+        self.shepard_diagram_action.triggered.connect(self.shepard_diagram)
+        self.quality_menu.addAction(self.shepard_diagram_action)
+
          # Status Bar
         self.status = self.statusBar()
         self.status.showMessage("Graph loaded and displayed - layout: "+initial_layout)
@@ -833,8 +838,32 @@ class MainWindow(QMainWindow):
         norm_stress = numerator / denominator
 
         print("normalized stress is", norm_stress)
-
         return norm_stress
+    
+    def calc_spearman_rank(self, index = 0):
+        return
+    
+    def shepard_diagram(self, index = 0):
+        x = [] # floyd warshall is original distance matrix and belongs on the x-axis
+        y = [] # projected distance belongs on the y-axis
+
+        for i, nodeid_i in enumerate(self.coordinates[index]):
+            for j, nodeid_j in enumerate(self.coordinates[index]):
+                #compute distance in self.coordinates projection
+                node_i = self.coordinates[index][nodeid_i]
+                node_j = self.coordinates[index][nodeid_j]
+                projection_dist = main.calc_eucl_dist(node_i[0], node_i[1], node_j[0], node_j[1])
+                y.append(projection_dist)
+
+                #compute the distance in floyd warshall matrix
+                floyd_warshall_dist = self.floyd_warshall_matrix[i][j]
+                x.append(floyd_warshall_dist)
+
+        plt.scatter(x,y)
+        plt.title("Shepard diagram of " + str(self.layout))
+        plt.xlabel("Distance in the Floyd-Warshall distance matrix")
+        plt.ylabel("Projected distance after " + str(self.layout))
+        plt.show()
 
     # def check_on_line(self, first_edge, second_edge, buffer = None):
     #     if buffer == None:
@@ -890,7 +919,7 @@ class MainWindow(QMainWindow):
             return False
     
     def check_for_projection_layout(self):
-        if self.layout in ["tsne", "isomap"]:
+        if self.layout in ["t-SNE", "ISOMAP"]:
             return True
         else:
             return False
@@ -1009,11 +1038,11 @@ class MainWindow(QMainWindow):
                 self.coordinates[index], edge_waypoints = main.calc_DAG(width, height, self.dfs_trees, self.adjacency_dict[index], minimization_method="median")
                 self.update_edge_waypoints(edge_waypoints)
 
-        elif self.layout == "tsne":
+        elif self.layout == "t-SNE":
             self.floyd_warshall_matrix, index_node_dict = main.floyd_warshall_matrix(main.G)
             self.coordinates[index] = main.get_tsne_coordinates(self.floyd_warshall_matrix, index_node_dict) 
 
-        elif self.layout == "isomap":
+        elif self.layout == "ISOMAP":
             self.floyd_warshall_matrix, index_node_dict = main.floyd_warshall_matrix(main.G)
             self.coordinates[index] = main.get_isomap_coordinates(self.floyd_warshall_matrix, index_node_dict)  
 
@@ -1118,8 +1147,10 @@ class MainWindow(QMainWindow):
         
         if self.check_for_projection_layout():
             self.normalized_stress_action.setEnabled(True)
+            self.shepard_diagram_action.setEnabled(True)
         else:
             self.normalized_stress_action.setEnabled(False)
+            self.shepard_diagram_action.setEnabled(False)
 
         if self.edge_bundling_bool and main.subgraphs_included:
             print("starting edge bundling")
@@ -1504,11 +1535,11 @@ class MainWindow(QMainWindow):
         self.regenerate()
     
     def regenerate_tsne(self):
-        self.layout = "tsne"
+        self.layout = "t-SNE"
         self.regenerate()
 
     def regenerate_isomap(self):
-        self.layout = "isomap"
+        self.layout = "ISOMAP"
         self.regenerate()
 
 # part of graph initialization:
@@ -1780,7 +1811,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict_list, "tsne", default_radius=10)
+    window = MainWindow(main.adjacency_dict_list, "t-SNE", default_radius=10)
     window.show()
 
     
