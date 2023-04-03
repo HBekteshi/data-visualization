@@ -18,13 +18,13 @@ subgraphs_included = False #set to False when loading a graph without subgraphs,
 include_n = True
 
 #undirected graphs
-#G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
+G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
 #directed graphs
-#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
-G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))      # need include_n = True for this one
+#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) # this is the small directed network
+#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot')) # need include_n = True for this one
 
 if subgraphs_included == True:
     A = pydot.graph_from_dot_file('data/devonshiredebate_withonlytwoclusters.dot') 
@@ -1599,8 +1599,10 @@ def get_tsne_coordinates(dist_matrix, index_node_dict):
     coordinates_proj = {}
     #print(d_matrix)
     #delete last row and column of distance matrix such that the disconnected node is not taken into account
-    projection = TSNE(n_components=2, learning_rate='auto', init='pca', perplexity=15).fit_transform(d_matrix[:-1, :-1])
-    print("tasne shape", projection.shape)
+    projection = TSNE(n_components=2, learning_rate='auto', init='pca', 
+                      perplexity=15, early_exaggeration=30, n_iter=1500).fit_transform(d_matrix[:-1, :-1])
+    # perplexity = 15 in slides, 30 looks nice
+    # other parameters..
 
     for index in range(projection.shape[0]):
         node_id = index_node_dict[index]

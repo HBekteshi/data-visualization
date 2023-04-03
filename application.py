@@ -667,14 +667,18 @@ class MainWindow(QMainWindow):
         self.crossing_counting_action.triggered.connect(self.count_current_crossings)
         self.quality_menu.addAction(self.crossing_counting_action)
 
+        self.normalized_stress_action = QAction("Normalized stress", self)
+        self.normalized_stress_action.triggered.connect(self.normalized_stress)
+        self.quality_menu.addAction(self.normalized_stress_action)
+
          # Status Bar
         self.status = self.statusBar()
         self.status.showMessage("Graph loaded and displayed - layout: "+initial_layout)
 
         # Window dimensions
         geometry = self.screen().availableSize()
-        self.screenwidth = geometry.width() * 0.7
-        self.screenheight = geometry.height() * 0.7
+        self.screenwidth = geometry.width() * 0.9
+        self.screenheight = geometry.height() * 0.9
         self.setFixedSize(self.screenwidth, self.screenheight)
         
         # random coordinates for now
@@ -803,6 +807,35 @@ class MainWindow(QMainWindow):
             self.status.showMessage("Out of "+str(edge_pairs)+" edge pairs with no shared vertices, "+str(edge_crossings)+" are edge crossings.")
             print("Out of "+str(edge_pairs)+" edge pairs, "+str(edge_crossings)+" are edge crossings.")
 
+    def normalized_stress(self, index = 0):
+        numerator = 0
+        denominator = 1
+
+        print(self.coordinates[index])
+        for i, nodeid_i in enumerate(self.coordinates[index]):
+            for j, nodeid_j in enumerate(self.coordinates[index]):
+                #compute the distance in floyd warshall matrix
+                floyd_warshall_dist = self.floyd_warshall_matrix[i][j]
+                #compute distance in self.coordinates projection
+                node_i = self.coordinates[index][nodeid_i]
+                node_j = self.coordinates[index][nodeid_j]
+                projection_dist = main.calc_eucl_dist(node_i[0], node_i[1], node_j[0], node_j[1])
+                #square the floyd - projection and sum it to the numerator
+                numerator += (floyd_warshall_dist - projection_dist) ** 2
+        
+        for i, nodeid_i in enumerate(self.coordinates[index]):
+            for j, nodeid_j in enumerate(self.coordinates[index]):
+                #distance in floyd warshall
+                floyd_warshall_dist = self.floyd_warshall_matrix[i][j]
+                #sum it to the denominator
+                denominator += floyd_warshall_dist ** 2
+
+        norm_stress = numerator / denominator
+
+        print("normalized stress is", norm_stress)
+
+        return norm_stress
+
     # def check_on_line(self, first_edge, second_edge, buffer = None):
     #     if buffer == None:
     #         buffer = self.node_radius
@@ -852,6 +885,12 @@ class MainWindow(QMainWindow):
 
     def check_for_layered_layout(self):
         if self.layout in ["dag dfs barycenter", "dag dfs median"]:
+            return True
+        else:
+            return False
+    
+    def check_for_projection_layout(self):
+        if self.layout in ["tsne", "isomap"]:
             return True
         else:
             return False
@@ -1076,6 +1115,11 @@ class MainWindow(QMainWindow):
             self.crossing_counting_action.setEnabled(False)
         else:
             self.crossing_counting_action.setEnabled(True)
+        
+        if self.check_for_projection_layout():
+            self.normalized_stress_action.setEnabled(True)
+        else:
+            self.normalized_stress_action.setEnabled(False)
 
         if self.edge_bundling_bool and main.subgraphs_included:
             print("starting edge bundling")
@@ -1736,7 +1780,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict_list, "random", default_radius=10)
+    window = MainWindow(main.adjacency_dict_list, "tsne", default_radius=10)
     window.show()
 
     
