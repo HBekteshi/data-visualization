@@ -192,8 +192,8 @@ class Edge(QGraphicsItem):
         self.arrow_size = 10
 
         
-        # if self.start.id == "17" and self.end.id == "16":
-        #     self.track_drawing = True
+        if self.start.id == "16" and self.end.id == "6":
+            self.track_drawing = True
     
     def update_waypoints(self, waypoints_list, radius_change = 0, from_outside = True):
         self.waypoints = copy.deepcopy(waypoints_list)
@@ -349,6 +349,7 @@ class Edge(QGraphicsItem):
                 if self.curved == True:
                     if self.track_drawing:
                         print("directed, segmented, curved")
+                        print(self.path)
                     painter.drawPath(self.path)
                     start = self.waypoints[len(self.waypoints)-2]
                     end = self.waypoints[len(self.waypoints)-1]
@@ -356,6 +357,7 @@ class Edge(QGraphicsItem):
                 else:
                     if self.track_drawing:
                         print("directed, segmented, no curves")
+                        print(self.lines)
                     for line in self.lines:
                         if line == self.lines[len(self.lines)-1]:
                             start = self.waypoints[len(self.waypoints)-2]
@@ -367,10 +369,12 @@ class Edge(QGraphicsItem):
                 if self.curved == True:
                     if self.track_drawing:
                         print("non-directed, segmented, curved")
+                        print(self.path)
                     painter.drawPath(self.path)
                 else:
                     if self.track_drawing:
                         print("non-directed, segmented, not curved")
+                        print(self.lines)
                     for line in self.lines:
                         painter.drawLine(line)
 
@@ -657,11 +661,13 @@ class MainWindow(QMainWindow):
 
         tsne_regeneration_action = QAction("Generate TSNE projection", self)
         tsne_regeneration_action.triggered.connect(self.regenerate_tsne)
-        self.layouts_menu.addAction(tsne_regeneration_action)
+        if main.subgraphs_included == False:
+            self.layouts_menu.addAction(tsne_regeneration_action)
 
         isomap_regeneration_action = QAction("Generate Isomap projection", self)
         isomap_regeneration_action.triggered.connect(self.regenerate_isomap)
-        self.layouts_menu.addAction(isomap_regeneration_action)
+        if main.subgraphs_included == False:
+            self.layouts_menu.addAction(isomap_regeneration_action)
 
         
         self.crossing_counting_action = QAction("Count crossings", self)
@@ -1055,9 +1061,11 @@ class MainWindow(QMainWindow):
     def update_edge_waypoints(self, edge_waypoints):    # key: list of edges where edge is (start_node_id, end_node_id, weight); value: [coords of start, dummy, ..., end]
   #      print("self.all_edges.keys():", self.all_edges.keys())
 
-  #     print("waypoint items are:",edge_waypoints)
+        # print("waypoint items are:",edge_waypoints)
 
         for edge_triple, waypoints_list in edge_waypoints.items():
+            if edge_triple[0] == edge_triple[1]:
+                raise ValueError("Start and end of an edge is the same node, "+edge_triple[0])
    #         print("edge triple is",edge_triple,"; waypoints list is",waypoints_list)
             edge_object = self.all_edges[edge_triple]       # key: (start_node_id, end_node_id, weight); value: edge object
             edge_object.update_waypoints(waypoints_list)
@@ -1168,7 +1176,7 @@ class MainWindow(QMainWindow):
             print("scene width:", self.scene.width(), "scene height:", self.scene.height())
             print("view width:", self.view.width(), "view height:", self.view.height())
         
-    def edge_bundling(self, max_loops = 6, edge_objects = None, k=0.1, s_0 = 0.04, compat_threshold = 0.05):
+    def edge_bundling(self, max_loops = 5, edge_objects = None, k=0.1, s_0 = 0.04, compat_threshold = 0.05):
         if edge_objects == None:
             edge_objects = self.interlayer_edge_objects     #self.interlayer_edge_objects is the list af all edge objects that need to be bundled    
             
@@ -1303,7 +1311,7 @@ class MainWindow(QMainWindow):
     def main_compat(self, e1, e2):
         # print("angle:", self.angle_compat(e1, e2), "scale:", self.scale_compat(e1, e2), "distance:", self.distance_compat(e1, e2), "visibility:", self.visibility_compat(e1, e2))
         # print("total compat without scale:",  self.angle_compat(e1, e2) * self.distance_compat(e1, e2) * self.visibility_compat(e1, e2)  )
-        return self.angle_compat(e1, e2) * self.distance_compat(e1, e2)  * self.visibility_compat(e1, e2)  # * self.scale_compat(e1, e2)
+        return self.angle_compat(e1, e2) * self.distance_compat(e1, e2)  * self.visibility_compat(e1, e2)  * self.scale_compat(e1, e2)
 
     def angle_compat(self, e1, e2):
         #print("e1", e1)
@@ -1322,11 +1330,21 @@ class MainWindow(QMainWindow):
         e2_vec = (e2.end.x_coord - e2.start.x_coord, e2.end.y_coord - e2.start.y_coord) 
         p_length = math.sqrt(e1_vec[0] * e1_vec[0] + e1_vec[1] * e1_vec[1])
         q_length = math.sqrt(e2_vec[0] * e2_vec[0] + e2_vec[1] * e2_vec[1])
-        l_avg = (p_length + q_length)/2
+        
+        #l_avg = (p_length + q_length)/2
+
         min_length = min(p_length, q_length)
-        max_length = max(p_length, q_length)
-        scale_compatibility = 2 / ((l_avg * min_length) + (max_length / l_avg))
-        #print("scale compatability between edges", e1_vec, "and", e2_vec, "is", scale_compatibility)
+        #max_length = max(p_length, q_length)
+
+        p_length_normal = p_length / min_length
+        q_length_normal = q_length / min_length
+
+        min_length_normal = min(p_length_normal, q_length_normal)
+        max_length_normal = max(p_length_normal, q_length_normal)
+        l_avg_normal = (p_length_normal + q_length_normal) / 2
+
+        scale_compatibility = 2 / ((l_avg_normal * min_length_normal) + (max_length_normal / l_avg_normal))
+     #   print("scale compatibility between edges", e1_vec, "and", e2_vec, "is", scale_compatibility)
         return scale_compatibility
 
     def distance_compat(self, e1, e2):
@@ -1811,7 +1829,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict_list, "t-SNE", default_radius=10)
+    window = MainWindow(main.adjacency_dict_list, "random", default_radius=10)
     window.show()
 
     

@@ -14,11 +14,11 @@ from sklearn.manifold import TSNE, Isomap, MDS
 
 # settings
 printing_mode = False
-subgraphs_included = False #set to False when loading a graph without subgraphs, True otherwise
-include_n = True
+subgraphs_included = True #set to False when loading a graph without subgraphs, True otherwise
+include_n = True           # set to True when loading pro league network, False otherwise
 
 #undirected graphs
-G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
+#G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
@@ -811,8 +811,8 @@ def calc_DAG(width, height, dfs_trees, adjacency_dict, perform_crossing_minimiza
     #print("dummy_nodes_per_layer:", dummy_nodes_per_layer)
     #print("dummy_adjacency_dict:", dummy_adjacency_dict)
 
+    print(node_waypoints_ids.keys())
     
-
 
        # get y-coordinates and initial x-coordinates of vertices
     n_layers = len(dummy_nodes_per_layer)
@@ -1069,6 +1069,7 @@ def create_vertex_seqeuence_eades(adjacency_dict):
 def reverse_edges(vertex_sequence, adjacency_dict):
     reversed_list = [] #a list of (x,y) which indicate that the edge between xy has been reversed
     acyclic_adjacency_dict = copy.deepcopy(adjacency_dict)
+    #print("adjacency dict has edges of 16 be",adjacency_dict["16"])
     for index, vertex in enumerate(vertex_sequence):
         edges = acyclic_adjacency_dict[vertex]
         for edge in edges:
@@ -1096,7 +1097,7 @@ def reverse_edges(vertex_sequence, adjacency_dict):
                     acyclic_adjacency_dict[vertex] = new_edge_list
             #        print("add edge", new_edge_vu, "to adjacency dict from", edge[0])
                     acyclic_adjacency_dict[edge[0]].append(new_edge_vu)
-            
+#    print("acyclic adjacency dict has edges of 16 be",acyclic_adjacency_dict["16"])
         
 
     #loop through the vertex sequence
@@ -1434,50 +1435,101 @@ def create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict, reve
 
     node_waypoints_ids = {}             # key: list of edges where edge is (start_node_id, end_node_id, weight); value: [start_node_id, dummy_node1_id, dummy_node2_id, end_node_id]
 
-    #print("reversed list is", reversed_list)
+    print("reversed list is", reversed_list)
 
     for start_node_id, edges in acyclic_adjacency_dict.items():
-        start_layer = layer_dict[start_node_id]
+        
+        original_start_node = copy.deepcopy(start_node_id)
+
         for edge in edges:                      # edge is (end_node_id, truth value, weight)
+            start_node_id = original_start_node
             end_node_id = edge[0]
+
+            #if (start_node_id == "6" and end_node_id == "16") or (start_node_id == "16" and end_node_id == "6"):
+            if start_node_id == "8":# or end_node_id == "8":
+                track_creation = True
+                print("tracking edge from",start_node_id, "to",end_node_id)
+                print("edges:",edges,"starting from",start_node_id)
+            else:
+                track_creation = False
     
             if (end_node_id, start_node_id) in reversed_list:           # swap truth values back for reversed edges
                 truth_value = not edge[1]
                 reversed_list.remove((end_node_id, start_node_id))
+                if track_creation:
+                    print("reversing back, becomes",truth_value)
+                    print("before switching:",start_node_id,end_node_id)
+                temp = copy.deepcopy(start_node_id)
+                start_node_id = copy.deepcopy(end_node_id)
+                end_node_id = copy.deepcopy(temp)
+                if track_creation:
+                    print("after switching:",start_node_id,end_node_id)
+                
             else:
                 truth_value = edge[1]
+                if track_creation:
+                    print("truth value is",truth_value)
 
             if truth_value == True:                 # we only look at edges that go from a lower layer to a higher layer
                 weight = edge[2]
-
+                if track_creation:
+                    print("just before node waypoints ids:",start_node_id,end_node_id)
                 node_waypoints_ids[(start_node_id, end_node_id, weight)] = [start_node_id]         
 
-                end_node_id = edge[0]
+                if start_node_id == end_node_id:
+                    raise ValueError("nodes are the same, "+start_node_id)
+
+                #end_node_id = edge[0]
+                start_layer = layer_dict[start_node_id]
                 end_layer = layer_dict[end_node_id]
                 layer_difference = end_layer - start_layer
-                if layer_difference > 1:
-                    for count in range(layer_difference - 1):
 
-                        dummy_layer = start_layer  + count + 1
+                if track_creation:
+                    print("edge from",start_node_id,"to",end_node_id,"goes from layer",start_layer,"to",end_layer, "and the layer difference is",layer_difference)
+
+                if layer_difference > 1 or layer_difference < 1:
+                    if layer_difference > 1:
+                        upwards = True
+                    else:
+                        upwards = False
+
+                    layer_difference = np.abs(layer_difference)
+
+                    if track_creation:
+                        print("starting dummy node creation")
+
+                    for count in range(layer_difference - 1):
+                        
+                        if upwards:
+                            dummy_layer = start_layer  + count + 1
+                        else:
+                            dummy_layer = start_layer - count - 1
 
                         dummy_id = "dummy " + start_node_id + " to " + end_node_id + " in layer " + str(dummy_layer)
 
                         if count == (layer_difference - 2):
                             target_id = end_node_id
-                        else:
+                        elif upwards:
                             target_id = "dummy " + start_node_id + " to " + end_node_id + " in layer " + str(dummy_layer + 1)
+                        else:
+                            target_id = "dummy " + start_node_id + " to " + end_node_id + " in layer " + str(dummy_layer - 1)
 
-                        if printing_mode:
+                        if printing_mode or track_creation:
                             print("trying to create", dummy_id)
                             
                     
                         if dummy_id not in dummy_nodes_per_layer[dummy_layer]:
+                            if start_node_id == end_node_id:
+                                raise ValueError(start_node_id+" and "+end_node_id+" are equal")
+                            if track_creation:
+                                print("just before append:",start_node_id,end_node_id)
                             node_waypoints_ids[(start_node_id, end_node_id, weight)].append(dummy_id)
                             dummy_nodes_per_layer[dummy_layer].append(dummy_id)
                             dummy_layer_dict[dummy_id] = dummy_layer
 
                             if printing_mode:
                                 print("successfully created", dummy_id)
+                          #  print("successfully created", dummy_id)
                             
                             if dummy_adjacency_dict.get(dummy_id) == None:
                                 dummy_adjacency_dict[dummy_id] = [(target_id, True, False)]        # all dummy nodes have weight False
@@ -1496,7 +1548,7 @@ def create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict, reve
 
                 node_waypoints_ids[(start_node_id, end_node_id, weight)].append(end_node_id)
 
-    #print("node_waypoints_ids:", node_waypoints_ids)
+    print("node_waypoints_ids keys:", node_waypoints_ids.keys())
 
     return dummy_nodes_per_layer, dummy_adjacency_dict, node_waypoints_ids, dummy_layer_dict
 
