@@ -15,16 +15,17 @@ from sklearn.manifold import TSNE, Isomap, MDS
 # settings
 printing_mode = False
 subgraphs_included = False #set to False when loading a graph without subgraphs, True otherwise
-include_n = True           # set to True when loading pro league network, False otherwise
+include_n = True          # set to True when loading pro league network and test network, False for small directed network
 
 #undirected graphs
-G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
+#G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
 #directed graphs
 #G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) # this is the small directed network
-#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot')) # need include_n = True for this one
+G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot')) # need include_n = True for this one
+#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/testnetwork.dot'))
 
 if subgraphs_included == True:
     A = pydot.graph_from_dot_file('data/devonshiredebate_withonlytwoclusters.dot') 
@@ -791,17 +792,23 @@ def calc_attr_imp(length, chosen_node, node2, node_mass):
 
     return (attr_forcex, attr_forcey)
 
-def calc_DAG(width, height, dfs_trees, adjacency_dict, perform_crossing_minimization = True, minimization_method = "median", straighten_edges = True):
+def calc_DAG(width, height, dfs_trees, adjacency_dict, perform_crossing_minimization = True, minimization_method = "median", straighten_edges = True, printing = False):
     #main function of DAG
 
     #first remove the cycles in the DAG
     vertex_sequence = create_vertex_seqeuence_eades(adjacency_dict)
-    #print("newly created vertex sequence is:", vertex_sequence)
+    if printing:
+        print("newly created vertex sequence is:", vertex_sequence)
+
     acyclic_adjacency_dict, reversed_list = reverse_edges(vertex_sequence, adjacency_dict)
-    #print("newly created reversed list is",reversed_list)
+
+    if printing:
+        print("newly created reversed list is",reversed_list)
 
     #assign vertices to layers --> still have to test this!! but doesn't break anything 
-    #print(acyclic_adjacency_dict)
+    if printing:
+        print("newly created acyclic adjacency dict:", acyclic_adjacency_dict)
+
     layer_dict, nodes_per_layer = layer_assignment_dag(dfs_trees, acyclic_adjacency_dict)         
     # layer_dict[node_id] = # of layer of that node;  
     # nodes_per_layer[# of layer] = list of all nodes in that layer
@@ -811,7 +818,8 @@ def calc_DAG(width, height, dfs_trees, adjacency_dict, perform_crossing_minimiza
     #print("dummy_nodes_per_layer:", dummy_nodes_per_layer)
     #print("dummy_adjacency_dict:", dummy_adjacency_dict)
 
-    print(node_waypoints_ids.keys())
+    if printing:
+        print("node_waypoints_ids.keys():", node_waypoints_ids.keys())
     
 
        # get y-coordinates and initial x-coordinates of vertices
@@ -1108,39 +1116,57 @@ def reverse_edges(vertex_sequence, adjacency_dict):
 
     return acyclic_adjacency_dict, reversed_list
 
-def layer_assignment_dag(dfs_trees, adjacency_dict):
+def vertex_assignment(start_vertex, acyclic_adjacency_dict, to_assign, layer_dict, printing = False):
+    for edge in acyclic_adjacency_dict[start_vertex]:
+        if printing:
+            print("testing vertex", edge[0], "with parent",start_vertex)
+        
+        if to_assign[edge[0]] == False:
+            if printing:
+                print("going to assign a layer to vertex",edge[0])
+            if edge[1] == True:
+                layer_nr = layer_dict[start_vertex] + 1
+                layer_dict[edge[0]] = layer_nr
+                if printing:
+                    print("vertex", edge[0], "with parent node", start_vertex, "is assigned a higher layer", layer_nr)
+            else:
+                layer_nr = layer_dict[start_vertex] - 1
+                layer_dict[edge[0]] = layer_nr
+                if printing:
+                    print("vertex", edge[0], "with parent node", start_vertex, "is assigned a lower layer", layer_nr)
+            to_assign[edge[0]] = True
+
+            if printing:                    
+                print("to assign of",edge[0],"has been set to",to_assign[edge[0]])
+                
+            acyclic_adjacency_dict, to_assign, layer_dict = vertex_assignment(edge[0], acyclic_adjacency_dict, to_assign, layer_dict, printing = printing)
+        else:
+            if printing:
+                print(edge[0], "is already assigned to layer", layer_dict[edge[0]])
+    
+    return acyclic_adjacency_dict, to_assign, layer_dict
+
+
+def layer_assignment_dag(dfs_trees, acyclic_adjacency_dict, printing = True):
     """input: the adjacency dict and a dfs list with tuples of (parent_id, node_id)"""
     #print("inside function with start vertex", vertex)
-    layer_dict = {key: 0 for key in list(adjacency_dict.keys())}
-    to_assign = {key: False for key in list(adjacency_dict.keys())}
+    layer_dict = {key: 0 for key in list(acyclic_adjacency_dict.keys())}
+    to_assign = {key: False for key in list(acyclic_adjacency_dict.keys())}
 
     for dfs in dfs_trees:
    #     print("starting new tree")
-        for tuple in dfs:
-            start_vertex = tuple[1]
-            #layer_dict[start_vertex] = 0
-    #      print("inside for with start vertex", start_vertex)
-            for edge in adjacency_dict[start_vertex]:
-    #         print("inside for with vertex", edge[0], "with start vertex", start_vertex)
-                if to_assign[edge[0]] == False:
-        #           print("inside if with start vertex", start_vertex)
-                    if edge[1] == True:
-                        layer_nr = layer_dict[start_vertex] + 1
-                        layer_dict[edge[0]] = layer_nr
-               #         print("vertex", edge[0], "with parent node", start_vertex, "is assigned layer", layer_nr)
-                    else:
-                        layer_nr = layer_dict[start_vertex] - 1
-                        layer_dict[edge[0]] = layer_nr
-              #          print("vertex", edge[0], "with previous adjacent node", start_vertex, "is assigned layer", layer_nr)
-                    to_assign[start_vertex] = True
-                    #layer_assignment_dag(dfs, adjacency_dict, to_assign, layer_dict, edge[0], layer_nr)
-                else:
-                    if printing_mode:
-                        print(start_vertex, "is already assigned to layer", layer_dict[start_vertex])
+        start_vertex = dfs[0][1]
+        to_assign[start_vertex] = True
+        if printing:
+            print("root node",start_vertex,"has been assigned layer 0")
+        acyclic_adjacency_dict, to_assign, layer_dict = vertex_assignment(start_vertex, acyclic_adjacency_dict,to_assign, layer_dict, printing = printing)
 
     #ensure minimum value is 0, and increase all values with the difference
     # puts nodes in a dictionary that has all in the nodes in a list with a layer value as key           
 
+    if printing:
+        print("layer dict before abs change",layer_dict)
+                        
     minimum_val = min(layer_dict.values())
     for layer in layer_dict:
         layer_dict[layer] += abs(minimum_val)
@@ -1152,9 +1178,11 @@ def layer_assignment_dag(dfs_trees, adjacency_dict):
         layer_value = layer_dict[node]
         nodes_per_layer[layer_value].append(node)
 
-    #print("to assign dict", to_assign)    
-    #print("layer dict", layer_dict)
-    #print("nodes per layer dict", nodes_per_layer)
+    
+    if printing:
+        #print("to assign dict", to_assign)    
+        print("layer dict", layer_dict)
+        print("nodes per layer dict", nodes_per_layer)
     return layer_dict, nodes_per_layer
 
 

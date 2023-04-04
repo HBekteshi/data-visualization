@@ -157,7 +157,7 @@ class Vertex(QGraphicsObject):
         return super().itemChange(change, value)
 
 class Edge(QGraphicsItem):
-    def __init__(self, start: Vertex, end: Vertex, weight, displayed = False, segmented = False, directed = False, curved = True, opacity = 0.5) -> None:
+    def __init__(self, start: Vertex, end: Vertex, weight, displayed = False, segmented = False, directed = False, curved = True, opacity = 0.5, show_dummies = True) -> None:
         super().__init__()
 
         self.__name__ = 'Edge'
@@ -167,6 +167,7 @@ class Edge(QGraphicsItem):
         self.curved = curved
         self.track_drawing = False
         self.opacity = opacity
+        self.show_dummies = show_dummies
         
         self.directed = directed
         if main.G.is_directed() == True:
@@ -212,6 +213,10 @@ class Edge(QGraphicsItem):
         
     def toggle_segmentation(self):
         self.segmented = not self.segmented
+        self.calculate_location()
+
+    def toggle_dummy_display(self):
+        self.show_dummies = not self.show_dummies
         self.calculate_location()
 
     def toggle_curving(self):
@@ -355,6 +360,18 @@ class Edge(QGraphicsItem):
                     start = self.waypoints[len(self.waypoints)-2]
                     end = self.waypoints[len(self.waypoints)-1]
                     self.draw_arrow(painter, start, self.arrow_target(start,end), just_head = True)
+
+                    if self.show_dummies:
+                        for count in range(len(self.waypoints)):
+                            if count not in [0, len(self.waypoints)-1]:
+                                center_x = self.waypoints[count].x()
+                                center_y = self.waypoints[count].y()
+                                dummy_bounding_rectangle = QRectF(center_x - self.start.radius, center_y - self.start.radius, self.start.radius * 2, self.start.radius*2)       # left, top, width, height
+                                painter.drawEllipse(dummy_bounding_rectangle)
+                                painter.setPen(QPen(QColor("black")))
+                                if self.start.id_visible:
+                                    painter.drawText(dummy_bounding_rectangle, Qt.AlignCenter, self.start.id+"-"+self.end.id)
+
                 else:
                     if self.track_drawing:
                         print("directed, segmented, no curves")
@@ -558,6 +575,13 @@ class MainWindow(QMainWindow):
         non_tree_edge_display_action.setChecked(False)
         self.actions_menu.addAction(non_tree_edge_display_action)
 
+        dummy_toggle_action = QAction("Show Dummy Nodes", self)
+        dummy_toggle_action.triggered.connect(self.toggle_dummy_nodes)
+        dummy_toggle_action.setCheckable(True)
+        dummy_toggle_action.setChecked(True)
+        if main.subgraphs_included == False:
+            self.actions_menu.addAction(dummy_toggle_action)
+
         segmentation_toggle_action = QAction("Toggle Edge Segmentation", self)
         segmentation_toggle_action.triggered.connect(self.toggle_edge_segmentation)
         segmentation_toggle_action.setCheckable(True)
@@ -698,7 +722,7 @@ class MainWindow(QMainWindow):
         # Window dimensions
         geometry = self.screen().availableSize()
         self.screenwidth = geometry.width() * 0.9
-        self.screenheight = geometry.height() * 0.9
+        self.screenheight = geometry.height() * 0.7
         self.setFixedSize(self.screenwidth, self.screenheight)
         
         # random coordinates for now
@@ -1108,6 +1132,7 @@ class MainWindow(QMainWindow):
             else:
                 if self.dfs_trees == []:
                     self.depth_first_search_exhaustive()
+                print("self.dfs_trees:",self.dfs_trees)
                 self.coordinates[index], edge_waypoints = main.calc_DAG(width, height, self.dfs_trees, self.adjacency_dict[index], minimization_method="barycenter")
                 self.update_edge_waypoints(edge_waypoints)
             
@@ -1752,6 +1777,12 @@ class MainWindow(QMainWindow):
         if self.check_for_tree_layout() == True:
             self.regenerate(same_positions = True)
 
+    def toggle_dummy_nodes(self):
+        for e in self.scene.items():
+            if e.__name__ == 'Edge':
+                e.toggle_dummy_display()
+        self.scene.update()
+
     def toggle_edge_segmentation(self):
         for e in self.scene.items():
             if e.__name__ == 'Edge':
@@ -1913,7 +1944,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict_list, "random", default_radius=10)
+    window = MainWindow(main.adjacency_dict_list, "dag dfs barycenter", default_radius=10)
     window.show()
 
     
