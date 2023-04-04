@@ -194,7 +194,7 @@ class Edge(QGraphicsItem):
         self.arrow_size = 10
 
         
-        if self.start.id == "16" and self.end.id == "6":
+        if self.start.id == "5" and self.end.id == "1":
             self.track_drawing = True
     
     def update_waypoints(self, waypoints_list, radius_change = 0, from_outside = True):
@@ -421,7 +421,7 @@ class Edge(QGraphicsItem):
                         print("not directed, not segmented")
                 painter.drawLine(self.line) 
 
-            if self.show_dummies:
+            if self.show_dummies and self.segmented:
                 for count in range(len(self.waypoints)):
                     if count not in [0, len(self.waypoints)-1]:
                         center_x = self.waypoints[count].x()
@@ -823,7 +823,7 @@ class MainWindow(QMainWindow):
                     second_edge = list(self.all_edges.values())[j]
 
                     tracking = False
-                    if first_edge.start.id == "2" and first_edge.end.id == "17" and second_edge.start.id == "22" and second_edge.end.id == "3":
+                    if first_edge.start.id == "5" and first_edge.end.id == "1" and second_edge.start.id == "22" and second_edge.end.id == "3":
                         tracking = False
 
                         # if the two edges share a vertex, they can't be crossing
