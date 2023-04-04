@@ -1289,7 +1289,7 @@ def minimize_crossings(dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dic
 
     if perform_crossing_minimization:
        # print("the final crossings count is",new_crossings)
-        print("the final crossings count is",best_crossings)
+        print("the final crossings count after",minimization_method,"minimization is",best_crossings)
     
 
     return dummy_nodes_per_layer, dummy_adjacency_dict, best_x_coords
@@ -1336,14 +1336,26 @@ def count_crossings(node_neighbours, x_coords_dict, self_printing_mode = printin
 
 
 
-def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter", self_printing_mode = False):
+def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter", self_printing_mode = False, offset_switch_threshold = 30):
     
     #print("relative position in layer", relative_positions_in_layer)
     proposed_positions = queue.PriorityQueue()          # contains items in the form (relative location, node_id), .get() extracts node id with smallest location
     positions_set = set()
 
-    offset_value = 30
-    median_offset_value = 35
+    # original values
+    #barycenter_offset_value = 30
+    #median_offset_value = 35
+
+    if len(list(x_coords_dict.keys())) > offset_switch_threshold:       # if there are more nodes + dummy nodes than the given threshold, have a small median offset, otherwise large
+    # for pro league network
+        barycenter_offset_value = 35
+        median_offset_value = 10
+    else:
+        # for small directed network
+        barycenter_offset_value = 35
+        median_offset_value = 100
+
+    #print("offsets set to",barycenter_offset_value,"and",median_offset_value)
     
     if method == "barycenter":
         for node_id, neighbours in node_neighbours.items():
@@ -1364,7 +1376,7 @@ def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter"
                     print("proposing node", node_id, "to be in position", proposed_position)
 
             
-                offset = offset_value                                      # introduce tiny gap in the event of equality
+                offset = barycenter_offset_value                                      # introduce tiny gap in the event of equality
                 while proposed_position in positions_set:
                     if (proposed_position + offset) not in positions_set:
                         proposed_position += offset
@@ -1375,7 +1387,7 @@ def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter"
                     else:
                         if self_printing_mode:
                             print("offsetting position of node", node_id)
-                        offset += offset_value
+                        offset += barycenter_offset_value
 
                 positions_set.add(proposed_position)
 
@@ -1463,7 +1475,8 @@ def create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict, reve
 
     node_waypoints_ids = {}             # key: list of edges where edge is (start_node_id, end_node_id, weight); value: [start_node_id, dummy_node1_id, dummy_node2_id, end_node_id]
 
-    print("reversed list is", reversed_list)
+    if printing:
+        print("reversed list is", reversed_list)
 
     for start_node_id, edges in acyclic_adjacency_dict.items():
         
