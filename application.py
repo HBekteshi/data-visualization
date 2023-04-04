@@ -349,7 +349,6 @@ class Edge(QGraphicsItem):
                     Qt.RoundJoin,
                 )
             )
-            
 
             if self.directed and self.segmented and (self.start.window.check_for_layered_layout() or main.subgraphs_included):                    # directed and segmented and layered
                 if self.curved == True:
@@ -361,16 +360,6 @@ class Edge(QGraphicsItem):
                     end = self.waypoints[len(self.waypoints)-1]
                     self.draw_arrow(painter, start, self.arrow_target(start,end), just_head = True)
 
-                    if self.show_dummies:
-                        for count in range(len(self.waypoints)):
-                            if count not in [0, len(self.waypoints)-1]:
-                                center_x = self.waypoints[count].x()
-                                center_y = self.waypoints[count].y()
-                                dummy_bounding_rectangle = QRectF(center_x - self.start.radius, center_y - self.start.radius, self.start.radius * 2, self.start.radius*2)       # left, top, width, height
-                                painter.drawEllipse(dummy_bounding_rectangle)
-                                painter.setPen(QPen(QColor("black")))
-                                if self.start.id_visible:
-                                    painter.drawText(dummy_bounding_rectangle, Qt.AlignCenter, self.start.id+"-"+self.end.id)
 
                 else:
                     if self.track_drawing:
@@ -383,6 +372,7 @@ class Edge(QGraphicsItem):
                             self.draw_arrow(painter, start, self.arrow_target(start,end))
                         else:
                             painter.drawLine(line)                    
+
             elif self.segmented and (self.start.window.check_for_layered_layout() or main.subgraphs_included):                                    # not directed and segmented and layered
                 if self.curved == True:
                     if self.track_drawing:
@@ -431,7 +421,16 @@ class Edge(QGraphicsItem):
                         print("not directed, not segmented")
                 painter.drawLine(self.line) 
 
-                
+            if self.show_dummies:
+                for count in range(len(self.waypoints)):
+                    if count not in [0, len(self.waypoints)-1]:
+                        center_x = self.waypoints[count].x()
+                        center_y = self.waypoints[count].y()
+                        dummy_bounding_rectangle = QRectF(center_x - self.start.radius, center_y - self.start.radius, self.start.radius * 2, self.start.radius*2)       # left, top, width, height
+                        painter.drawEllipse(dummy_bounding_rectangle)
+                        painter.setPen(QPen(QColor("black")))
+                        if self.start.id_visible:
+                            painter.drawText(dummy_bounding_rectangle, Qt.AlignCenter, self.start.id+"-"+self.end.id)
 
 # function adapted from the QT for Python documentation examples
     def draw_arrow(self, painter: QPainter, start: QPointF, end: QPointF, just_head = False):
@@ -579,8 +578,7 @@ class MainWindow(QMainWindow):
         dummy_toggle_action.triggered.connect(self.toggle_dummy_nodes)
         dummy_toggle_action.setCheckable(True)
         dummy_toggle_action.setChecked(True)
-        if main.subgraphs_included == False:
-            self.actions_menu.addAction(dummy_toggle_action)
+        self.actions_menu.addAction(dummy_toggle_action)
 
         segmentation_toggle_action = QAction("Toggle Edge Segmentation", self)
         segmentation_toggle_action.triggered.connect(self.toggle_edge_segmentation)
