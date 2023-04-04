@@ -731,6 +731,7 @@ class MainWindow(QMainWindow):
         # Scene and view
         self.scene = QGraphicsScene()
         self.view = QGraphicsView(self.scene)
+        self.view.setViewportUpdateMode(QGraphicsView.FullViewportUpdate)
 
         #self.scene.setSceneRect(-self.screenwidth/2 + 25, -self.screenheight/2 + 50, self.screenwidth - 50, self.screenheight - 75)
 
@@ -934,8 +935,8 @@ class MainWindow(QMainWindow):
         knn_before = neigh_before.kneighbors(return_distance=False)
         knn_after = neigh_after.kneighbors(return_distance=False)
 
-        # print("knn before", knn_before)
-        # print("knn after", knn_after)
+        print("knn before", knn_before)
+        print("knn after", knn_after)
 
         for i in range(nr_nodes - 1):
             false_neighbors = [x for x in knn_after[i] if x not in set(knn_before[i])]
@@ -1937,7 +1938,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict_list, "t-SNE", default_radius=10)
+    window = MainWindow(main.adjacency_dict_list, "dag dfs median", default_radius=10)
     window.show()
 
     
