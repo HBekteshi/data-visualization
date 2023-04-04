@@ -5,6 +5,7 @@ from collections import deque
 from PySide6.QtCore import QRectF, Qt, QLineF, QPointF
 from PySide6.QtGui import QAction, QKeySequence, QPainter, QPen, QColor, QBrush, QPolygonF, QPainterPath, QPainterPathStroker
 from PySide6.QtWidgets import QMainWindow, QApplication, QGraphicsScene, QGraphicsView, QGraphicsObject, QGraphicsItem, QStyleOptionGraphicsItem, QWidget
+from sklearn.neighbors import NearestNeighbors
 
 import numpy as np
 import copy
@@ -682,6 +683,14 @@ class MainWindow(QMainWindow):
         self.shepard_diagram_action.triggered.connect(self.shepard_diagram)
         self.quality_menu.addAction(self.shepard_diagram_action)
 
+        self.trustworthiness_action = QAction("Trustworthiness", self)
+        self.trustworthiness_action.triggered.connect(self.calc_trustworthiness)
+        self.quality_menu.addAction(self.trustworthiness_action)
+
+        self.continuity_action = QAction("Continuity", self)
+        self.continuity_action.triggered.connect(self.calc_continuity)
+        self.quality_menu.addAction(self.continuity_action)
+
          # Status Bar
         self.status = self.statusBar()
         self.status.showMessage("Graph loaded and displayed - layout: "+initial_layout)
@@ -735,6 +744,7 @@ class MainWindow(QMainWindow):
         self.coordinates = []
         self.dfs_trees = []
         self.floyd_warshall_matrix = []
+        self.projection_matrix = []
         
         for count in range(len(self.vertices)):
             self.initialize_vertices(index = count)
@@ -820,7 +830,7 @@ class MainWindow(QMainWindow):
 
     def normalized_stress(self, index = 0):
         numerator = 0
-        denominator = 1
+        denominator = 0
 
         print(self.coordinates[index])
         for i, nodeid_i in enumerate(self.coordinates[index]):
@@ -867,9 +877,79 @@ class MainWindow(QMainWindow):
 
         plt.scatter(x,y)
         plt.title("Shepard diagram of " + str(self.layout))
-        plt.xlabel("Distance in the Floyd-Warshall distance matrix")
-        plt.ylabel("Projected distance after " + str(self.layout))
+        plt.xlabel("Distance in the Floyd-Warshall distance matrix (input)")
+        plt.ylabel("Projected distance of " + str(self.layout) + " (output)")
         plt.show()
+        #TODO add spearman rank here? isn't clear what the spearman rank is? is it just y/x = 1 is the ideal spearman rank?
+    
+    def calc_rank(self, ind_node1, ind_node2, projection_matrix):
+        eucl_dist_arr = []
+        eucl_dist_j = 0
+
+        #calculate euclidean distance from i to each other point in the projection matrix, but not to i self
+        for index, coordinate in enumerate(projection_matrix):
+            if index != ind_node1:
+                node1_coordinate = projection_matrix[ind_node1]
+                eucl_dist = main.calc_eucl_dist(coordinate[0], coordinate[1], node1_coordinate[0], node1_coordinate[1])
+                eucl_dist_arr.append(eucl_dist)
+
+            if index == ind_node2:
+                eucl_dist_j = eucl_dist
+
+        #sort based on euclidean distance, return rank of j
+        sorted_eucl_dist_arr = sorted(eucl_dist_arr)
+        rank = sorted_eucl_dist_arr.index(eucl_dist_j) + 1
+
+        return rank
+
+    def calc_trustworthiness(self):
+        trust = 0
+        floyd_no_inf = np.nan_to_num(self.floyd_warshall_matrix, posinf=333333333333)
+        nr_nodes = len(self.floyd_warshall_matrix[0])
+        k = math.floor(math.sqrt(nr_nodes))
+        constant = 2 / ((nr_nodes * k) * (2*nr_nodes - 3*k - 1))
+        neigh_before = NearestNeighbors(n_neighbors=k, metric="precomputed").fit(floyd_no_inf) #check if this one adds up becaues it has a lot of the same nearest neighbors for each node
+        neigh_after = NearestNeighbors(n_neighbors=k).fit(self.projection_matrix)
+        knn_before = neigh_before.kneighbors(return_distance=False)
+        knn_after = neigh_after.kneighbors(return_distance=False)
+
+        # print("knn before", knn_before)
+        # print("knn after", knn_after)
+
+        for i in range(nr_nodes - 1):
+            knn_before_i = knn_before[i]
+            knn_after_i = knn_after[i]
+            false_neighbors = list(set(knn_before_i) - set(knn_after_i))
+            for index, index_false_neighbor in enumerate(false_neighbors):
+                rank_ij = self.calc_rank(i, index_false_neighbor, self.projection_matrix)
+                trust += rank_ij - k
+
+        trustworthiness = 1 - (constant * trust)
+        print("trustworthiness", trustworthiness)
+
+        return trustworthiness
+    
+    def calc_continuity(self):
+        cont = 0
+        floyd_no_inf = np.nan_to_num(self.floyd_warshall_matrix, posinf=333333333333)
+        nr_nodes = len(self.floyd_warshall_matrix[0])
+        k = math.floor(math.sqrt(nr_nodes))
+        neigh_before = NearestNeighbors(n_neighbors=k, metric="precomputed").fit(floyd_no_inf)
+        neigh_after = NearestNeighbors(n_neighbors=k).fit(self.projection_matrix)
+        constant = 2 / ((nr_nodes * k) * (2*nr_nodes - 3*k - 1))
+        knn_before = neigh_before.kneighbors(return_distance=False)
+        knn_after = neigh_after.kneighbors(return_distance=False)
+
+        for i in range(nr_nodes - 1):
+            knn_before_i = knn_before[i]
+            knn_after_i = knn_after[i]
+            missing_neighbors = list(set(knn_after_i) - set(knn_before_i))
+            for index, index_missing_neighbor in enumerate(missing_neighbors):
+                rank_ij = self.calc_rank(i, index_missing_neighbor, self.projection_matrix)
+                cont += rank_ij - k
+
+        continuity = 1 - (constant * cont)
+        print("continuity", continuity)
 
     # def check_on_line(self, first_edge, second_edge, buffer = None):
     #     if buffer == None:
@@ -1046,11 +1126,11 @@ class MainWindow(QMainWindow):
 
         elif self.layout == "t-SNE":
             self.floyd_warshall_matrix, index_node_dict = main.floyd_warshall_matrix(main.G)
-            self.coordinates[index] = main.get_tsne_coordinates(self.floyd_warshall_matrix, index_node_dict) 
+            self.coordinates[index], self.projection_matrix = main.get_tsne_coordinates(self.floyd_warshall_matrix, index_node_dict) 
 
         elif self.layout == "ISOMAP":
             self.floyd_warshall_matrix, index_node_dict = main.floyd_warshall_matrix(main.G)
-            self.coordinates[index] = main.get_isomap_coordinates(self.floyd_warshall_matrix, index_node_dict)  
+            self.coordinates[index], self.projection_matrix = main.get_isomap_coordinates(self.floyd_warshall_matrix, index_node_dict)  
 
         else:
             print("asked for layout", layout)
@@ -1156,9 +1236,13 @@ class MainWindow(QMainWindow):
         if self.check_for_projection_layout():
             self.normalized_stress_action.setEnabled(True)
             self.shepard_diagram_action.setEnabled(True)
+            self.trustworthiness_action.setEnabled(True)
+            self.continuity_action.setEnabled(True)
         else:
             self.normalized_stress_action.setEnabled(False)
             self.shepard_diagram_action.setEnabled(False)
+            self.trustworthiness_action.setEnabled(False)
+            self.continuity_action.setEnabled(False)
 
         if self.edge_bundling_bool and main.subgraphs_included:
             print("starting edge bundling")

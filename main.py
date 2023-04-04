@@ -14,11 +14,11 @@ from sklearn.manifold import TSNE, Isomap, MDS
 
 # settings
 printing_mode = False
-subgraphs_included = True #set to False when loading a graph without subgraphs, True otherwise
+subgraphs_included = False #set to False when loading a graph without subgraphs, True otherwise
 include_n = True           # set to True when loading pro league network, False otherwise
 
 #undirected graphs
-#G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
+G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
@@ -1662,7 +1662,7 @@ def get_tsne_coordinates(dist_matrix, index_node_dict):
         y_cor = projection[index][1]
         coordinates_proj[node_id] = (x_cor, y_cor)
 
-    return coordinates_proj
+    return coordinates_proj, projection
 
 def get_isomap_coordinates(dist_matrix, index_node_dict):
     #TODO: crashed even when replacing inf with large numbers, so I chose a random large number. Might need to look into this more later
@@ -1678,7 +1678,7 @@ def get_isomap_coordinates(dist_matrix, index_node_dict):
         y_cor = projection[index][1]
         coordinates_proj[node_id] = (x_cor, y_cor)
 
-    return coordinates_proj
+    return coordinates_proj, projection
 
 
 # distance_matrix, index_node_dictionary = floyd_warshall_matrix(G)
