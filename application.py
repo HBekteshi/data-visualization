@@ -921,7 +921,6 @@ class MainWindow(QMainWindow):
         #sort based on euclidean distance, return rank of j
         sorted_eucl_dist_arr = sorted(eucl_dist_arr)
         rank = sorted_eucl_dist_arr.index(eucl_dist_j) + 1
-
         return rank
 
     def calc_trustworthiness(self):
@@ -939,9 +938,7 @@ class MainWindow(QMainWindow):
         # print("knn after", knn_after)
 
         for i in range(nr_nodes - 1):
-            knn_before_i = knn_before[i]
-            knn_after_i = knn_after[i]
-            false_neighbors = list(set(knn_before_i) - set(knn_after_i))
+            false_neighbors = [x for x in knn_after[i] if x not in set(knn_before[i])]
             for index, index_false_neighbor in enumerate(false_neighbors):
                 rank_ij = self.calc_rank(i, index_false_neighbor, self.projection_matrix)
                 trust += rank_ij - k
@@ -963,9 +960,7 @@ class MainWindow(QMainWindow):
         knn_after = neigh_after.kneighbors(return_distance=False)
 
         for i in range(nr_nodes - 1):
-            knn_before_i = knn_before[i]
-            knn_after_i = knn_after[i]
-            missing_neighbors = list(set(knn_after_i) - set(knn_before_i))
+            missing_neighbors = [x for x in knn_before[i] if x not in set(knn_after[i])]
             for index, index_missing_neighbor in enumerate(missing_neighbors):
                 rank_ij = self.calc_rank(i, index_missing_neighbor, self.projection_matrix)
                 cont += rank_ij - k
@@ -1942,7 +1937,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict_list, "dag dfs barycenter", default_radius=10)
+    window = MainWindow(main.adjacency_dict_list, "t-SNE", default_radius=10)
     window.show()
 
     
