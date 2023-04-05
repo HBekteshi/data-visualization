@@ -11,6 +11,8 @@ import numpy as np
 import copy
 import math
 import matplotlib.pyplot as plt
+import scipy.stats 
+
 
 import main
 
@@ -897,14 +899,17 @@ class MainWindow(QMainWindow):
                 #compute the distance in floyd warshall matrix
                 floyd_warshall_dist = self.floyd_warshall_matrix[i][j]
                 x.append(floyd_warshall_dist)
+            
+        spearmanrank = scipy.stats.spearmanr(x, y)[0]
+        print("spearman rank correlation: ", spearmanrank)
 
         plt.scatter(x,y)
         plt.title("Shepard diagram of " + str(self.layout))
         plt.xlabel("Distance in the Floyd-Warshall distance matrix (input)")
         plt.ylabel("Projected distance of " + str(self.layout) + " (output)")
         plt.show()
-        #TODO add spearman rank here? isn't clear what the spearman rank is? is it just y/x = 1 is the ideal spearman rank?
         
+
 
     def calc_trustworthiness(self):
         floyd_no_inf = np.nan_to_num(self.floyd_warshall_matrix, posinf=333333333333)
