@@ -894,9 +894,9 @@ class MainWindow(QMainWindow):
                     large_avg_angle = np.mean(large_crossing_angles)
                     l_edge1, l_edge2 = crossing_angles_dict[large_crossing_res]
 
-                    print("Out of "+str(edge_crossings)+" edge crossings, "+str(len(large_crossing_angles))+" are edge crossings with angle above", large_angle_threshold,"and there are",str(edge_crossings - len(large_crossing_angles)),"below the threshold")
-                    print("The large angle crossing resolution is",large_crossing_res,"degrees, the angle between edges from",l_edge1.start.id,"to",l_edge1.end.id,"and",l_edge2.start.id,"to",l_edge2.end.id)
-                    print("The large angle average crossing angle is",large_avg_angle,"degrees")
+                    print("Out of "+str(edge_crossings)+" edge crossings, "+str(len(large_crossing_angles))+" are edge crossings with angle the threshold of", large_angle_threshold," egrees and there are",str(edge_crossings - len(large_crossing_angles)),"below the threshold")
+                    print("The crossing resolution for large angles only is",large_crossing_res,"degrees, the angle between edges from",l_edge1.start.id,"to",l_edge1.end.id,"and",l_edge2.start.id,"to",l_edge2.end.id)
+                    print("The average crossing angle for large angles only is",large_avg_angle,"degrees")
 
             
             
@@ -1007,7 +1007,7 @@ class MainWindow(QMainWindow):
 
         trustworthiness = 1 - (constant * trust)
         print("trustworthiness", trustworthiness)
-        self.status.showMessage("The trustworthiness is "+trustworthiness)
+        self.status.showMessage("The trustworthiness is "+str(trustworthiness))
 
         return trustworthiness
     
@@ -1030,7 +1030,7 @@ class MainWindow(QMainWindow):
 
         continuity = 1 - (constant * cont)
         print("continuity", continuity)
-        self.status.showMessage("The continuity is "+continuity)
+        self.status.showMessage("The continuity is "+str(continuity))
 
         return continuity
 
