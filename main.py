@@ -1592,38 +1592,6 @@ def create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict, reve
 
     return dummy_nodes_per_layer, dummy_adjacency_dict, node_waypoints_ids, dummy_layer_dict
 
-
-def floyd_warshall_dict(graph):
-    """
-    input: a networkx graph
-    output: a default dictionary with the shortest distance from node to node
-    description: the floyd warshall algorithm to compute the shortest distance for weighted graphs
-    """
-    #default is set as inf if nodes are not connected
-    distance = defaultdict(lambda: defaultdict(lambda: float('inf')))
-
-    # node connections with itself are 0
-    for node in graph.nodes():
-        distance[node][node] = 0
-
-    # retrieve the weight of the graph
-    try:
-        for e in graph.edges(data=True):
-            print("edge", e)
-            i, j, data = e
-            distance[i][j] = data.get('weight', 1.0)
-    except:
-        print("this graph is not weighted, use a weighted graph")
-
-    # commmpute the shortest distance
-    for k in graph.nodes():
-        for i in graph.nodes():
-            for j in graph.nodes():
-                if distance[i][j] > distance[i][k] + distance[k][j]:
-                    distance[i][j] = distance[i][k] + distance[k][j]
-
-    return distance
-
 def floyd_warshall_matrix(graph):
     """
     input: a networkx graph
@@ -1719,18 +1687,3 @@ def get_isomap_coordinates(dist_matrix, index_node_dict):
         coordinates_proj[node_id] = (x_cor, y_cor)
 
     return coordinates_proj, projection
-
-
-# distance_matrix, index_node_dictionary = floyd_warshall_matrix(G)
-# print("distance matrix", distance_matrix)
-# similarity_matrix = convert_to_similarity_matrix(distance_matrix)
-# print("similarity matrix", similarity_matrix)
-# tsne_projection = get_tsne_coordinates(distance_matrix, index_node_dictionary)
-# print("tsne", tsne_projection)
-# isomap_projection = get_isomap_coordinates(distance_matrix, index_node_dictionary)
-# print("isomap", isomap_projection)
-
-
-
-# distance_matrix = floyd_warshall_dict(G)
-# print("distance matrix", distance_matrix)
