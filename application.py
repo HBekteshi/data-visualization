@@ -934,7 +934,6 @@ class MainWindow(QMainWindow):
         numerator = 0
         denominator = 0
 
-        print(self.coordinates[index])
         for i, nodeid_i in enumerate(self.coordinates[index]):
             for j, nodeid_j in enumerate(self.coordinates[index]):
                 #compute the distance in floyd warshall matrix
