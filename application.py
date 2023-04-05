@@ -149,8 +149,6 @@ class Vertex(QGraphicsObject):
     # recalculate edges after change in location
     def itemChange(self, change: QGraphicsItem.GraphicsItemChange, value):
         if change == QGraphicsItem.ItemPositionHasChanged:
-            # x = value.x()
-            # y = value.y()
         #    print("scenepos",self.scenePos(),"itemChange value", value, "x and y", x, y)
         #    print("scenerect",self.scene().sceneRect.x(),self.scene().sceneRect.y())
             self.update_edges()
@@ -695,7 +693,7 @@ class MainWindow(QMainWindow):
             self.layouts_menu.addAction(isomap_regeneration_action)
 
         
-        self.crossing_counting_action = QAction("Count crossings", self)
+        self.crossing_counting_action = QAction("Count crossings and angles", self)
         self.crossing_counting_action.triggered.connect(self.count_current_crossings)
         self.quality_menu.addAction(self.crossing_counting_action)
 
@@ -788,7 +786,7 @@ class MainWindow(QMainWindow):
         self.display_non_tree_edges = False
         self.dynamic_forces = False
         self.strict_force_binding = True
-        self.edge_bundling_bool = True                   # todo: add layout option for toggling this is subgraphs are included
+        self.edge_bundling_bool = True                   # set this to false to speed up subgraphs, as edge bundling won't be calculated
         self.regenerate()
 
         assert (self.visibility(p_start = (0,0) ,p_end = (0,10), q_start = (10,0), q_end = (10,10), printing = False) == 1.0)
@@ -813,9 +811,14 @@ class MainWindow(QMainWindow):
     def count_current_crossings(self):
         edge_pairs = 0
         edge_crossings = 0
+        crossing_angles = []
+        large_crossing_angles = []
+        crossing_angles_dict = {}
+        large_angle_threshold = 3       # crossings with angle higher than this (in degrees) are defined to be large angled crossings
 
         segmentation_off = False
-        print("there are",len(list(self.all_edges.values())),"edges in the network")
+        print("")
+        print("There are",len(list(self.all_edges.values())),"edges in the network")
 
         for i, first_edge in enumerate(list(self.all_edges.values())):
             if first_edge.segmented == True:
@@ -829,30 +832,104 @@ class MainWindow(QMainWindow):
                     # if first_edge.start.id == "5" and first_edge.end.id == "1" and second_edge.start.id == "22" and second_edge.end.id == "3":
                     #     tracking = True
 
-                        # if the two edges share a vertex, they can't be crossing
-                    if second_edge.displayed and first_edge.start.id not in [second_edge.start.id, second_edge.end.id] and first_edge.end.id not in [second_edge.start.id, second_edge.end.id] :
+                    if second_edge.displayed:
                         edge_pairs += 1
-                        if tracking:
-                            print("checking collision of edge from",first_edge.start.id,"to",first_edge.end.id,"and edge from",second_edge.start.id,"to",second_edge.end.id)
-                            #print("bounding rects are",first_edge.boundingRect(track = True),"and",second_edge.boundingRect(track = True))
-                            print("shapes are",first_edge.shape(),"and",second_edge.shape())
-                        if first_edge.collidesWithItem(second_edge, mode = Qt.IntersectsItemShape):
-                            # if not self.check_on_line(first_edge,second_edge)[0]:
-                            #     print("min distance is", self.check_on_line(first_edge,second_edge)[1])    
 
-                            edge_crossings += 1
+                        # if the two edges share a vertex, they can't be crossing
+                        if first_edge.start.id not in [second_edge.start.id, second_edge.end.id] and first_edge.end.id not in [second_edge.start.id, second_edge.end.id] :
+                            
                             if tracking:
-                                print("edge from",first_edge.start.id,"to",first_edge.end.id,"collides with edge from",second_edge.start.id,"to",second_edge.end.id)
-                         #   print("edge from",first_edge.start.id,"to",first_edge.end.id,"collides with edge from",second_edge.start.id,"to",second_edge.end.id)
-                        #  print("their shapes are",first_edge.shape(),"and",second_edge.shape())
-                               
+                                print("checking collision of edge from",first_edge.start.id,"to",first_edge.end.id,"and edge from",second_edge.start.id,"to",second_edge.end.id)
+                                #print("bounding rects are",first_edge.boundingRect(track = True),"and",second_edge.boundingRect(track = True))
+                                print("shapes are",first_edge.shape(),"and",second_edge.shape())
+                            if first_edge.collidesWithItem(second_edge, mode = Qt.IntersectsItemShape):
+                                # if not self.check_on_line(first_edge,second_edge)[0]:
+                                #     print("min distance is", self.check_on_line(first_edge,second_edge)[1])    
+
+                                edge_crossings += 1
+                                if tracking:
+                                    print("edge from",first_edge.start.id,"to",first_edge.end.id,"collides with edge from",second_edge.start.id,"to",second_edge.end.id)
+                            #   print("edge from",first_edge.start.id,"to",first_edge.end.id,"collides with edge from",second_edge.start.id,"to",second_edge.end.id)
+                            #  print("their shapes are",first_edge.shape(),"and",second_edge.shape())
+                                
+                                angle = self.calculate_crossing_angle(first_edge, second_edge)                            
+                                # print("crossing angle is",angle)
+
+                                if angle != None:
+                                    angle = np.rad2deg(angle)
+                                    crossing_angles.append(angle)
+
+                                    if angle > large_angle_threshold:
+                                        large_crossing_angles.append(angle)
+                                    try:
+                                        crossing_angles_dict[angle] = (first_edge, second_edge)
+                                    except:
+                                        pass
+
+                            
         if segmentation_off:
             self.status.showMessage("ERROR: Turn off segmentation before counting crossings")
             print("ERROR: Turn off segmentation before counting crossings")
         else:
-            self.status.showMessage("Out of "+str(edge_pairs)+" edge pairs with no shared vertices, "+str(edge_crossings)+" are edge crossings.")
-            print("Out of "+str(edge_pairs)+" edge pairs, "+str(edge_crossings)+" are edge crossings.")
+            if crossing_angles == []:
+                print("There are no edge crossings.")
+                self.status.showMessage("There are no edge crossings.")
+            else:
 
+                crossing_angles.sort(reverse = True)
+             #   print(crossing_angles)
+                
+                crossing_resolution = min(crossing_angles)
+                average_angle = np.mean(crossing_angles)
+                edge1, edge2 = crossing_angles_dict[crossing_resolution]
+                self.status.showMessage("Out of "+str(edge_pairs)+" edge pairs with no shared vertices, "+str(edge_crossings)+" are edge crossings. The crossing resolution is "+str(crossing_resolution)+" degrees, between edges from "+edge1.start.id+" to "+edge1.end.id+" and "+edge2.start.id+" to "+edge2.end.id+". The average crossing angle is "+str(average_angle)+" degrees.")
+                print("Out of "+str(edge_pairs)+" edge pairs, "+str(edge_crossings)+" are edge crossings.")
+                print("The crossing resolution is",crossing_resolution,"degrees, the angle between edges from",edge1.start.id,"to",edge1.end.id,"and",edge2.start.id,"to",edge2.end.id)
+                print("The average crossing angle is",average_angle,"degrees")
+
+                if large_crossing_angles == []:
+                    print("There are no edge crossings with angle above",large_angle_threshold)
+                else:
+                    large_crossing_res = min(large_crossing_angles)
+                    large_avg_angle = np.mean(large_crossing_angles)
+                    l_edge1, l_edge2 = crossing_angles_dict[large_crossing_res]
+
+                    print("Out of "+str(edge_crossings)+" edge crossings, "+str(len(large_crossing_angles))+" are edge crossings with angle above", large_angle_threshold,"and there are",str(edge_crossings - len(large_crossing_angles)),"below the threshold")
+                    print("The large angle crossing resolution is",large_crossing_res,"degrees, the angle between edges from",l_edge1.start.id,"to",l_edge1.end.id,"and",l_edge2.start.id,"to",l_edge2.end.id)
+                    print("The large angle average crossing angle is",large_avg_angle,"degrees")
+
+            
+            
+
+    def calculate_crossing_angle(self, first_edge, second_edge, buffer = 0.0001):
+        first_x = first_edge.end.x_coord - first_edge.start.x_coord
+        first_y = first_edge.end.y_coord - first_edge.start.y_coord
+
+        second_x = second_edge.end.x_coord - second_edge.start.x_coord
+        second_y = second_edge.end.y_coord - second_edge.start.y_coord
+
+        vec_1 = np.array([first_x, first_y])
+        vec_2 = np.array([second_x, second_y])
+
+        len_1 = np.sqrt(first_x **2 + first_y **2)
+        len_2 = np.sqrt(second_x **2 + second_y **2)
+
+        cosine_value = np.dot(vec_1, vec_2) / (len_1 * len_2)
+
+        if cosine_value > 1 and cosine_value < (1 + buffer):            # buffer to combat floating point errors
+            cosine_value = 1
+        elif cosine_value < -1 and cosine_value > (-1 - buffer):
+            cosine_value = -1
+
+        if cosine_value > 1 or cosine_value < -1:
+            print("weird cosine value:", cosine_value)
+            print(first_edge.start.id, "to", first_edge.end.id,"and",second_edge.start.id,"to",second_edge.end.id)
+            return None
+
+        angle = np.arccos(cosine_value)
+
+        return min(angle, np.pi - angle)
+            
     def normalized_stress(self, index = 0):
         numerator = 0
         denominator = 0
@@ -930,6 +1007,7 @@ class MainWindow(QMainWindow):
 
         trustworthiness = 1 - (constant * trust)
         print("trustworthiness", trustworthiness)
+        self.status.showMessage("The trustworthiness is "+trustworthiness)
 
         return trustworthiness
     
@@ -952,36 +1030,9 @@ class MainWindow(QMainWindow):
 
         continuity = 1 - (constant * cont)
         print("continuity", continuity)
+        self.status.showMessage("The continuity is "+continuity)
 
-    # def check_on_line(self, first_edge, second_edge, buffer = None):
-    #     if buffer == None:
-    #         buffer = self.node_radius
-    #     xa = first_edge.start.x_coord
-    #     ya = first_edge.start.y_coord
-    #     xb = first_edge.end.x_coord
-    #     yb = first_edge.end.x_coord
-
-    #     xc = second_edge.start.x_coord
-    #     yc = second_edge.start.y_coord
-    #     xd = second_edge.end.x_coord
-    #     yd = second_edge.end.y_coord
-
-    #     min_distance = min(self.distance_from_line(xa,ya,xb,yb, xc,yc),self.distance_from_line(xa,ya,xb,yb, xd,yd), self.distance_from_line(xc,yc,xd,yd, xa,ya), self.distance_from_line(xc,yc,xd,yd, xb,yb))
-    #     if min_distance < buffer:
-    #         return (True, min_distance)
-    #     else:
-    #         return (False, min_distance)
-        
-
-    
-    # def distance_from_line(self,x1,y1,x2,y2,x0,y0):
-    #     below = np.sqrt((x2 - x1)**2 + (y2-y1)**2)
-    #     if below == 0:
-    #         return 0
-    #     else:
-    #         above = np.abs((x2-x1)*(y1-y0) - (x1-x0)*(y2-y1))
-    #         return above/below
-
+        return continuity
 
 
     def update_status(self):
@@ -1382,19 +1433,6 @@ class MainWindow(QMainWindow):
                 e.waypoints[k] = QPointF(e.waypoints[k].x() + x_modifications[e][k], e.waypoints[k].y() + y_modifications[e][k])
                     
 
-    # def bundle_edges(self, e1, e2, compat_value, scale):
-    #     force_values_e1 = []
-    #     force_values_e2 = []
-    #     for i in range(len(e1[0].waypoints)):
-    #         if i == 0 or i == len(e1[0].waypoints) - 1:
-    #             force_values_e1.append((0, 0))
-    #             force_values_e2.append((0, 0))
-    #             continue
-    #         f_e1, f_e2 = self.force_calculation(e1[0].waypoints[i], e2[0].waypoints[i], compat_value, scale)
-    #         force_values_e1.append(f_e1)
-    #         force_values_e2.append(f_e2)
-    #     return force_values_e1, force_values_e2
-
     def main_compat(self, e1, e2):
         # print("angle:", self.angle_compat(e1, e2), "scale:", self.scale_compat(e1, e2), "distance:", self.distance_compat(e1, e2), "visibility:", self.visibility_compat(e1, e2))
         # print("total compat without scale:",  self.angle_compat(e1, e2) * self.distance_compat(e1, e2) * self.visibility_compat(e1, e2)  )
@@ -1510,7 +1548,6 @@ class MainWindow(QMainWindow):
 
 
     def force_calculation(self, e1, e2, compat_value, scale):
-        # TODO: calculate force on each waypoint of the two edges and return position modification of those waypoints
         k_stiff = 0.5 # global stiffness constant, the larger the less likely the edges will bundle
         #initialize force lists
         force_e1 = []
@@ -1589,11 +1626,8 @@ class MainWindow(QMainWindow):
 
                 force_waypoint = kp_e2 * (dist_prev_curr_waypoint_e2 + dist_curr_next_waypoint_e2) + force_electro
                 force_e2.append(force_waypoint)
-
     
         return force_e1, force_e2
-
-        return
 
     def regenerate_random(self):
         self.layout = "random"
@@ -1885,7 +1919,6 @@ class MainWindow(QMainWindow):
                 print("WARNING: There are",len(self.vertices[index].keys()) - len(self.prims),"nodes in the",self.layout, "graph that are not connected with the rest, these are currently not displayed")
                 break
                 #raise ValueError ("There are nodes in the graph that are not connected with the rest")
-                # TODO: handle this situation, maybe make a new tree with an unused node as new root
 
             min_dist = None
             min_node_id = None

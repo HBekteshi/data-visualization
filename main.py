@@ -15,7 +15,7 @@ from sklearn.manifold import TSNE, Isomap, MDS
 # settings
 printing_mode = False
 subgraphs_included = False #set to False when loading a graph without subgraphs, True otherwise
-include_n = True          # set to True when loading pro league network and test network, False for small directed network
+include_n = True          # set to True when loading layered layouts for pro league network and test network, False for small directed network
 
 #undirected graphs
 G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
@@ -63,7 +63,6 @@ if subgraphs_included == True:
     G_gap = networkx.DiGraph(networkx.nx_pydot.from_pydot(subgraphs[1]))
     subgraphs_list = [G_youngest, G_gap]
 
-    #if subgraphs_included:              # TODO: fix this temporary measure, so main.G.isdirected() call gets something decent
     G = G_youngest
 
 
@@ -548,7 +547,6 @@ def force_iteration(width, height, old_coordinates_dict, prev_force_dict, temp_d
                 # print("old coords dict keys is", old_coordinates_dict.keys())
                 # print("breaking node id is",id)
                 # raise ValueError("breaking node_id is",id)
-            #TODO: change global to local adjacencies
             force = calc_sum_force(id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter, local_adjacency_dict, local_adjacencies)
             prev_force = prev_force_dict[id]
 
@@ -1654,7 +1652,6 @@ def convert_to_similarity_matrix(distance_matrix):
     return sim_matrix
 
 def get_tsne_coordinates(dist_matrix, index_node_dict):
-    #TODO: crashed even when replacing inf with large numbers, so I chose a random large number. Might need to look into this more later
     d_matrix = np.nan_to_num(dist_matrix, posinf=3333333333) 
     coordinates_proj = {}
     #print(d_matrix)
@@ -1673,7 +1670,6 @@ def get_tsne_coordinates(dist_matrix, index_node_dict):
     return coordinates_proj, projection
 
 def get_isomap_coordinates(dist_matrix, index_node_dict):
-    #TODO: crashed even when replacing inf with large numbers, so I chose a random large number. Might need to look into this more later
     d_matrix = np.nan_to_num(dist_matrix, posinf=333333333333)
     print((d_matrix==d_matrix.T).all())
     #delete last row and column of distance matrix such that the disconnected node is not taken into account
