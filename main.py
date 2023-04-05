@@ -18,13 +18,13 @@ subgraphs_included = False #set to False when loading a graph without subgraphs,
 include_n = True          # set to True when loading layered layouts for pro league network and test network, False for small directed network
 
 #undirected graphs
-G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
+#G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
 #directed graphs
 #G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) # this is the small directed network
-#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot')) # need include_n = True for this one
+G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot')) # need include_n = True for this one
 #G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/testnetwork.dot'))
 
 if subgraphs_included == True:

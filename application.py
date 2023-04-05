@@ -210,6 +210,11 @@ class Edge(QGraphicsItem):
                     self.waypoints[count] = QPointF(x_value, y_value)
         self.calculate_location(waypoint_update = True)
         self.update()
+
+    def reset_waypoints(self):
+        self.waypoints = [self.start.pos() + self.start.boundingRect().center(), self.end.pos() + self.end.boundingRect().center()]
+        self.calculate_location(waypoint_update = True)
+        self.update()
         
     def toggle_segmentation(self):
         self.segmented = not self.segmented
@@ -1095,16 +1100,20 @@ class MainWindow(QMainWindow):
                 self.coordinates[index] = main.create_random_coordinates(width/2, height, self.adjacency_dict[index])
             else:
                 self.coordinates[index] = main.create_random_coordinates(width, height, self.adjacency_dict[index])
+            self.reset_edge_waypoints()
         elif self.layout == ("solar" or "solar random"):
             self.coordinates[index] = main.create_solar_coordinates(width, height, self.adjacency_dict[index], index = index)
+            self.reset_edge_waypoints()
         elif self.layout == "solar deterministic":
             self.coordinates[index] = main.create_solar_coordinates(width, height, self.adjacency_dict[index], index = index, deterministic = True)
+            self.reset_edge_waypoints()
         elif self.layout == "radial dfs":
             if self.dfs_list == []:
                 for count in range(len(self.vertices)):
                     self.depth_first_search(root=main.most_connected_node_id[count], index = count)
             self.treetype = "dfs"                
             self.coordinates[index] = main.create_radial_coordinates(width, height, self.dfs_list[index], self.node_radius)
+            self.reset_edge_waypoints()
         elif self.layout == "radial bfs":
             if self.bfs_list == []:
                 for count in range(len(self.vertices)):
@@ -1112,12 +1121,14 @@ class MainWindow(QMainWindow):
                     
             self.treetype = "bfs"
             self.coordinates[index] = main.create_radial_coordinates(width, height, self.bfs_list[index], self.node_radius)
+            self.reset_edge_waypoints()
         elif self.layout == "radial prims":
             if self.prims_list == []:
                 for count in range(len(self.vertices)):
                     self.prims_algorithm(root=main.most_connected_node_id[count], index = count)
             self.treetype = "prims"
             self.coordinates[index] = main.create_radial_coordinates(width, height, self.prims_list[index], self.node_radius)
+            self.reset_edge_waypoints()
             
         elif self.layout == "force bfs":            # do not use this until bfs has been made exhaustive
             if self.bfs_list == []:
@@ -1126,6 +1137,7 @@ class MainWindow(QMainWindow):
             bfs_coords = main.create_radial_coordinates(width, height, self.bfs_list[index], self.node_radius)
             print("calculating force bfs coordinates for index",index)
             self.coordinates[index] = main.create_force_layout_coordinates(width, height, bfs_coords, self.adjacency_dict[index], index = index)
+            self.reset_edge_waypoints()
 
         elif self.layout == "force random":
             
@@ -1138,10 +1150,12 @@ class MainWindow(QMainWindow):
                     self.coordinates[index] = self.translate_coordinates(self.coordinates[index], subgraph_distance/2, 0)
 
                 self.coordinates[index] = main.create_force_layout_coordinates(width, height, self.coordinates[index], self.adjacency_dict[index], max_iterations = 50, index = index)       # extra iterations
+                self.reset_edge_waypoints()
 
             else:
                 random_coords = main.create_random_coordinates(width, height, self.adjacency_dict[index])
                 self.coordinates[index] = main.create_force_layout_coordinates(width, height, random_coords, self.adjacency_dict[index], index = index)
+                self.reset_edge_waypoints()
 
             
         elif self.layout == "force custom":
@@ -1149,6 +1163,7 @@ class MainWindow(QMainWindow):
                 self.coordinates[index] = main.create_force_layout_coordinates(width, height, self.coordinates[index], self.adjacency_dict[index], max_iterations=50, index = index)
             else:
                 self.coordinates[index] = main.create_force_layout_coordinates(self.scene.width(), self.scene.height(), self.coordinates[index], self.adjacency_dict[index], max_iterations=50, index = index)
+            self.reset_edge_waypoints()
 
         elif self.layout == "dag dfs barycenter":
             if use_first_dfs or main.subgraphs_included:
@@ -1180,16 +1195,23 @@ class MainWindow(QMainWindow):
         elif self.layout == "t-SNE":
             self.floyd_warshall_matrix, index_node_dict = main.floyd_warshall_matrix(main.G)
             self.coordinates[index], self.projection_matrix = main.get_tsne_coordinates(self.floyd_warshall_matrix, index_node_dict) 
+            self.reset_edge_waypoints()
 
         elif self.layout == "ISOMAP":
             self.floyd_warshall_matrix, index_node_dict = main.floyd_warshall_matrix(main.G)
             self.coordinates[index], self.projection_matrix = main.get_isomap_coordinates(self.floyd_warshall_matrix, index_node_dict)  
+            self.reset_edge_waypoints()
 
         else:
             print("asked for layout", layout)
             raise ValueError ("Unsupported layout "+layout+" requested")
         
 #        print("the resulting coordinates on index",index, "are for node",self.coordinates[index].keys())
+
+    def reset_edge_waypoints(self):
+        for edge_object in self.all_edges.values():
+            edge_object.reset_waypoints()
+        self.scene.update()
 
     def update_edge_waypoints(self, edge_waypoints):    # key: list of edges where edge is (start_node_id, end_node_id, weight); value: [coords of start, dummy, ..., end]
   #      print("self.all_edges.keys():", self.all_edges.keys())
