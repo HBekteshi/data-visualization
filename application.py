@@ -904,30 +904,12 @@ class MainWindow(QMainWindow):
         plt.ylabel("Projected distance of " + str(self.layout) + " (output)")
         plt.show()
         #TODO add spearman rank here? isn't clear what the spearman rank is? is it just y/x = 1 is the ideal spearman rank?
-    
-    def calc_rank(self, ind_node1, ind_node2, projection_matrix):
-        eucl_dist_arr = []
-        eucl_dist_j = 0
-
-        #calculate euclidean distance from i to each other point in the projection matrix, but not to i self
-        for index, coordinate in enumerate(projection_matrix):
-            if index != ind_node1:
-                node1_coordinate = projection_matrix[ind_node1]
-                eucl_dist = main.calc_eucl_dist(coordinate[0], coordinate[1], node1_coordinate[0], node1_coordinate[1])
-                eucl_dist_arr.append(eucl_dist)
-
-            if index == ind_node2:
-                eucl_dist_j = eucl_dist
-
-        #sort based on euclidean distance, return rank of j
-        sorted_eucl_dist_arr = sorted(eucl_dist_arr)
-        rank = sorted_eucl_dist_arr.index(eucl_dist_j) + 1
-        return rank
+        
 
     def calc_trustworthiness(self):
-        trust = 0
         floyd_no_inf = np.nan_to_num(self.floyd_warshall_matrix, posinf=333333333333)
         nr_nodes = len(self.floyd_warshall_matrix[0])
+        trust = 0
         k = math.floor(math.sqrt(nr_nodes))
         constant = 2 / ((nr_nodes * k) * (2*nr_nodes - 3*k - 1))
         neigh_before = NearestNeighbors(n_neighbors=k, metric="precomputed").fit(floyd_no_inf) #check if this one adds up becaues it has a lot of the same nearest neighbors for each node
@@ -935,14 +917,11 @@ class MainWindow(QMainWindow):
         knn_before = neigh_before.kneighbors(return_distance=False)
         knn_after = neigh_after.kneighbors(return_distance=False)
 
-        print("knn before", knn_before)
-        print("knn after", knn_after)
-
         for i in range(nr_nodes - 1):
             false_neighbors = [x for x in knn_after[i] if x not in set(knn_before[i])]
-            for index, index_false_neighbor in enumerate(false_neighbors):
-                rank_ij = self.calc_rank(i, index_false_neighbor, self.projection_matrix)
-                trust += rank_ij - k
+            for j in range(nr_nodes - 1):
+                if j in false_neighbors:
+                    trust += j - k
 
         trustworthiness = 1 - (constant * trust)
         print("trustworthiness", trustworthiness)
@@ -962,9 +941,9 @@ class MainWindow(QMainWindow):
 
         for i in range(nr_nodes - 1):
             missing_neighbors = [x for x in knn_before[i] if x not in set(knn_after[i])]
-            for index, index_missing_neighbor in enumerate(missing_neighbors):
-                rank_ij = self.calc_rank(i, index_missing_neighbor, self.projection_matrix)
-                cont += rank_ij - k
+            for j in range(nr_nodes - 1):
+                if j in missing_neighbors:
+                    cont += j - k
 
         continuity = 1 - (constant * cont)
         print("continuity", continuity)
@@ -1938,7 +1917,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict_list, "dag dfs median", default_radius=10)
+    window = MainWindow(main.adjacency_dict_list, "t-SNE", default_radius=10)
     window.show()
 
     
