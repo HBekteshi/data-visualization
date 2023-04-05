@@ -477,45 +477,63 @@ class Edge(QGraphicsItem):
         return target
 
 class VertexBoxes(QGraphicsItem):
-    def __init__(self, window):
+    def __init__(self, window, display = False):
         super().__init__()
         self.path_list = []
         self.boxes = []
+        self.boxes_paths = []
         self.outlines = []
         self.window = window
+        self.display = display
         self.__name__ = "vertexbox object"
 
         # outline settings
         self.thickness = 2
         self.color = "brown"
-        
+    
+    def toggle_display(self):
+        self.display = not self.display
+
+    def area_over_length(self):
+        aol_list = []
+        for box in self.boxes:
+            area = box.height() * box.width()
+            length = min(box.height(),box.width())
+            aol_tuple = (area/length, area, length)
+            aol_list.append(aol_tuple)
+        return aol_list
+
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget=None):
-        painter.setRenderHints(QPainter.Antialiasing)
 
-        pen_fifteen = QPen(
-                QColor(self.color),
-                self.thickness,
-                Qt.SolidLine,
-                Qt.RoundCap,
-                Qt.RoundJoin,
-            )
+        if self.display:
 
-        painter.setPen(pen_fifteen)
+            painter.setRenderHints(QPainter.Antialiasing)
+
+            pen = QPen(
+                    QColor(self.color),
+                    self.thickness,
+                    Qt.SolidLine,
+                    Qt.RoundCap,
+                    Qt.RoundJoin,
+                )
+
+            painter.setPen(pen)
 
 
-        painter.setBrush(QBrush(QColor(self.color)))
-        self.update_path()
+            painter.setBrush(QBrush(QColor(self.color)))
+            self.update_path()
 
-        old_man = QPainterPathStroker(pen_fifteen)
+            pathstroker = QPainterPathStroker(pen)
 
-        for box in self.boxes:
-            outline = old_man.createStroke(box)
-            painter.drawPath(outline)
+            for box_path in self.boxes_paths:
+                outline = pathstroker.createStroke(box_path)
+                painter.drawPath(outline)
 
         
     def update_path(self):
         self.boxes = []
+        self.boxes_paths = []
         self.outlines = []
         self.path_list = []
         self.big_path = QPainterPath()
@@ -529,9 +547,11 @@ class VertexBoxes(QGraphicsItem):
             
         for path in self.path_list:
             box = path.controlPointRect()
+            self.boxes.append(box)
+
             box_path = QPainterPath() 
             box_path.addRect(box)
-            self.boxes.append(box_path)
+            self.boxes_paths.append(box_path)
 
         
     def boundingRect(self):
@@ -572,6 +592,18 @@ class MainWindow(QMainWindow):
         id_visibility_action.setCheckable(True)
         id_visibility_action.setChecked(True)
         self.actions_menu.addAction(id_visibility_action)
+
+        if main.subgraphs_included:
+            bounding_box_toggle_action = QAction("Show Subgraph Boundary Box", self)
+            bounding_box_toggle_action.setCheckable(True)
+            bounding_box_toggle_action.setChecked(True)
+        else:
+            bounding_box_toggle_action = QAction("Show Boundary Box", self)
+            bounding_box_toggle_action.setCheckable(True)
+            bounding_box_toggle_action.setChecked(False)
+        bounding_box_toggle_action.triggered.connect(self.toggle_bounding_box_display)
+        self.actions_menu.addAction(bounding_box_toggle_action)
+        
 
         non_tree_edge_display_action = QAction("Show Non-Tree Edges", self)
         non_tree_edge_display_action.triggered.connect(self.toggle_nontree_edge_display)
@@ -702,6 +734,10 @@ class MainWindow(QMainWindow):
         self.crossing_counting_action.triggered.connect(self.count_current_crossings)
         self.quality_menu.addAction(self.crossing_counting_action)
 
+        self.area_length_action = QAction("Area over length", self)
+        self.area_length_action.triggered.connect(self.calculate_area_over_length)
+        self.quality_menu.addAction(self.area_length_action)
+
         self.normalized_stress_action = QAction("Normalized stress", self)
         self.normalized_stress_action.triggered.connect(self.normalized_stress)
         self.quality_menu.addAction(self.normalized_stress_action)
@@ -744,7 +780,11 @@ class MainWindow(QMainWindow):
         self.vertices = []
         self.inter_layer_adjacency_dict = None
         self.interlayer_edge_objects = []
-        self.vertex_boxes = VertexBoxes(window = self)
+
+        if main.subgraphs_included:
+            self.vertex_boxes = VertexBoxes(window = self, display = True)
+        else:
+            self.vertex_boxes = VertexBoxes(window = self, display = False)
         
         if len(given_adjacency_dict_list) > 1:
             self.adjacency_dict = []
@@ -754,12 +794,13 @@ class MainWindow(QMainWindow):
                 else:
                     self.adjacency_dict.append(given_adjacency_dict_list[count])
                     self.vertices.append({})
-            self.vertex_boxes.update_path()
-            self.scene.addItem(self.vertex_boxes)
 
         else:
             self.adjacency_dict = given_adjacency_dict_list
             self.vertices.append({})
+        
+        self.vertex_boxes.update_path()
+        self.scene.addItem(self.vertex_boxes)
 
         # Coordinates
         self.dfs_list = []
@@ -813,6 +854,24 @@ class MainWindow(QMainWindow):
         # graphics displayed in the center
         self.setCentralWidget(self.view)
 
+    def calculate_area_over_length(self):
+        aol_list = self.vertex_boxes.area_over_length()
+        if len(aol_list) == 1:
+            aol_tuple = aol_list[0]
+            aol = aol_tuple[0]
+            area = aol_tuple[1]
+            length = aol_tuple[2]
+            print("The area is",area,"and the length is",length)
+            print("The area over length value of the graph is",aol)
+        else:
+            for index, aol_tuple in enumerate(aol_list):
+                aol = aol_tuple[0]
+                area = aol_tuple[1]
+                length = aol_tuple[2]
+                print("The area is",area,"and the length is",length)
+                print("The area over length of subgraph",index,"is",aol)
+
+        
     def count_current_crossings(self):
         edge_pairs = 0
         edge_crossings = 0
@@ -1802,6 +1861,10 @@ class MainWindow(QMainWindow):
                 v.toggle_id_visibility()
         self.scene.update()
 
+    def toggle_bounding_box_display(self):
+        self.vertex_boxes.toggle_display()
+        self.scene.update()
+        
     def toggle_dynamic_forces(self):
         self.dynamic_forces = not self.dynamic_forces
 
@@ -1976,7 +2039,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict_list, "t-SNE", default_radius=10)
+    window = MainWindow(main.adjacency_dict_list, "random", default_radius=10)
     window.show()
 
     
