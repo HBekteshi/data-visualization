@@ -474,7 +474,7 @@ def create_force_layout_coordinates(width, height, initial_coords, adjacency_dic
     nr_vertices = len(initial_coords.keys())
 
     while t_global > t_min and iteration_count < max_iterations: #change max iterations maybe
-        coords_dict = force_iteration(width, height, coords_dict, prev_force_dict, temp_dict, skew_gauge_dict, delta, area, nr_vertices, C, adjacency_dict, local_adjacencies = adjacencies[index])
+        coords_dict, temp_dict = force_iteration(width, height, coords_dict, prev_force_dict, temp_dict, skew_gauge_dict, delta, area, nr_vertices, C, adjacency_dict, local_adjacencies = adjacencies[index])
         t_global = sum(temp_dict.values()) / len(temp_dict) #update global temperature
         iteration_count += 1
 
@@ -501,6 +501,8 @@ def force_iteration(width, height, old_coordinates_dict, prev_force_dict, temp_d
         
         barycenter[0] = barycenter[0] / nr_vertices
         barycenter[1] = barycenter[1] / nr_vertices
+
+#        print("barycenter at first is",barycenter)
 
     
     if single_node_iteration == True:
@@ -574,8 +576,10 @@ def force_iteration(width, height, old_coordinates_dict, prev_force_dict, temp_d
                 force = (temp_dict[id] * (force[0] / force_magnitude), temp_dict[id] * (force[1] / force_magnitude))
                 new_x = old_coords_tuple[0] + delta_value * force[0]
                 new_y = old_coords_tuple[1] + delta_value * force[1]
-                barycenter[0] += force[0]
-                barycenter[1] += force[1]
+                # barycenter[0] += force[0] * delta_value
+                # barycenter[1] += force[1] * delta_value
+
+                # print("barycenter after change is",barycenter)
             
             if apply_boundaries == True:
                 if abs(new_x) > width/2:
@@ -594,7 +598,7 @@ def force_iteration(width, height, old_coordinates_dict, prev_force_dict, temp_d
             prev_force_dict[id] = force #store current force as previous force for next round
         # print("node",id,"gets a force push of",force)
 
-    return new_coordinates_dict
+    return new_coordinates_dict, temp_dict
 
 def calc_sum_force(current_id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter, local_adjacency_dict, local_adjacencies, use_mass = True):
     #adj_nodes = calc_direct_children() #to check again          # need node list and parent id  # this only works for a tree structure
