@@ -477,7 +477,7 @@ class Edge(QGraphicsItem):
         return target
 
 class VertexBoxes(QGraphicsItem):
-    def __init__(self, window, display = False):
+    def __init__(self, window, display = False, include_dummies = True):
         super().__init__()
         self.path_list = []
         self.boxes = []
@@ -486,6 +486,7 @@ class VertexBoxes(QGraphicsItem):
         self.window = window
         self.display = display
         self.__name__ = "vertexbox object"
+        self.include_dummies = include_dummies
 
         # outline settings
         self.thickness = 2
@@ -542,6 +543,15 @@ class VertexBoxes(QGraphicsItem):
             path = QPainterPath()
             for vertex_object in self.window.vertices[index].values():
                 path.addRect(vertex_object.physical_location())
+                #print("adding edges to box")
+                if self.include_dummies:
+                    for edge_tuple in vertex_object.edges:
+                        edge_object = edge_tuple[0]
+                                                
+                        if edge_object.displayed:
+                            path.addPath(edge_object.path)
+                            #print("added edge path to box")
+
             self.path_list.append(path)
             self.big_path.addPath(path)
             

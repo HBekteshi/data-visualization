@@ -23,7 +23,7 @@ include_n = True          # set to True when loading layered layouts for pro lea
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
 #directed graphs
-#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) # this is the small directed network
+#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) # this is the small directed network, set include_n = False for this one
 G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot')) # need include_n = True for this one
 #G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/testnetwork.dot'))
 
