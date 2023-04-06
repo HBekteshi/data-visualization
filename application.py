@@ -547,7 +547,7 @@ class VertexBoxes(QGraphicsItem):
                 if self.include_dummies:
                     for edge_tuple in vertex_object.edges:
                         edge_object = edge_tuple[0]
-                                                
+
                         if edge_object.displayed:
                             path.addPath(edge_object.path)
                             #print("added edge path to box")
@@ -748,6 +748,10 @@ class MainWindow(QMainWindow):
         self.area_length_action.triggered.connect(self.calculate_area_over_length)
         self.quality_menu.addAction(self.area_length_action)
 
+        self.general_stress_action = QAction("General stress",self)
+        self.general_stress_action.triggered.connect(self.general_stress)
+        self.quality_menu.addAction(self.general_stress_action)
+
         self.normalized_stress_action = QAction("Normalized stress", self)
         self.normalized_stress_action.triggered.connect(self.normalized_stress)
         self.quality_menu.addAction(self.normalized_stress_action)
@@ -792,9 +796,9 @@ class MainWindow(QMainWindow):
         self.interlayer_edge_objects = []
 
         if main.subgraphs_included:
-            self.vertex_boxes = VertexBoxes(window = self, display = True)
+            self.vertex_boxes = VertexBoxes(window = self, display = True, include_dummies = False)
         else:
-            self.vertex_boxes = VertexBoxes(window = self, display = False)
+            self.vertex_boxes = VertexBoxes(window = self, display = False, include_dummies = True)
         
         if len(given_adjacency_dict_list) > 1:
             self.adjacency_dict = []
@@ -873,6 +877,7 @@ class MainWindow(QMainWindow):
             length = aol_tuple[2]
             print("The area is",area,"and the length is",length)
             print("The area over length value of the graph is",aol)
+            self.status.showMessage("The area over length value of the graph is "+str(aol))
         else:
             for index, aol_tuple in enumerate(aol_list):
                 aol = aol_tuple[0]
@@ -968,7 +973,7 @@ class MainWindow(QMainWindow):
                     large_avg_angle = np.mean(large_crossing_angles)
                     l_edge1, l_edge2 = crossing_angles_dict[large_crossing_res]
 
-                    print("Out of "+str(edge_crossings)+" edge crossings, "+str(len(large_crossing_angles))+" are edge crossings with angle the threshold of", large_angle_threshold," egrees and there are",str(edge_crossings - len(large_crossing_angles)),"below the threshold")
+                    print("Out of "+str(edge_crossings)+" edge crossings, "+str(len(large_crossing_angles))+" are edge crossings with angle above the threshold of", large_angle_threshold,"degrees and there are",str(edge_crossings - len(large_crossing_angles)),"below the threshold")
                     print("The crossing resolution for large angles only is",large_crossing_res,"degrees, the angle between edges from",l_edge1.start.id,"to",l_edge1.end.id,"and",l_edge2.start.id,"to",l_edge2.end.id)
                     print("The average crossing angle for large angles only is",large_avg_angle,"degrees")
 
@@ -1004,9 +1009,69 @@ class MainWindow(QMainWindow):
 
         return min(angle, np.pi - angle)
             
-    def normalized_stress(self, index = 0):
+    def general_stress(self):
+        
+        printing = False
+        alpha = 2
+
+        if main.subgraphs_included:
+            fw_matrix_list = []
+            in_dict_list = []
+            for index in range(len(self.coordinates)):
+                fw_matrix, in_dict = main.floyd_warshall_matrix(main.subgraphs_list[index])
+                fw_matrix_list.append(fw_matrix)
+                in_dict_list.append(in_dict)
+        else:
+            self.floyd_warshall_matrix, index_node_dict = main.floyd_warshall_matrix(main.G)
+
         numerator = 0
         denominator = 0
+
+        for index, subgraph_coordinates in enumerate(self.coordinates):
+
+            if main.subgraphs_included:
+                self.floyd_warshall_matrix = fw_matrix_list[index]
+                index_node_dict = in_dict_list[index]
+
+            generalized_stress = 0
+            for i, nodeid_i in enumerate(subgraph_coordinates):
+                for j in range(i, len(subgraph_coordinates)):               # here if we check i,j then we don't check j,i
+                    if i == j:
+                        continue
+                    nodeid_j = index_node_dict[j]
+                    
+                    #compute the distance in floyd warshall matrix
+                    floyd_warshall_dist = self.floyd_warshall_matrix[i][j]
+                    #compute distance in self.coordinates projection
+                    node_i = self.coordinates[index][nodeid_i]
+                    node_j = self.coordinates[index][nodeid_j]
+                    projection_dist = main.calc_eucl_dist(node_i[0], node_i[1], node_j[0], node_j[1])
+                    #square the floyd - projection and sum it to the numerator
+                    numerator = (floyd_warshall_dist - projection_dist) ** 2
+                    #sum the distance to the denominator
+                    denominator = floyd_warshall_dist ** 2
+                    if denominator == 0:
+                        print(i, j, nodeid_i, nodeid_j)
+                        raise ValueError("denominator is 0")
+                    if printing:     
+                        print(numerator, denominator, alpha, denominator ** alpha, numerator / (denominator ** alpha), generalized_stress)
+                        #raise ValueError("division went wrong")
+                    generalized_stress += numerator / (denominator ** alpha)
+                #    print(denominator, alpha, (denominator ** alpha))
+                  #  print(numerator, denominator, numerator / (denominator ** alpha), generalized_stress)
+
+            if len(self.coordinates) == 1:
+                print("The general stress of the layout is",generalized_stress)
+                self.status.showMessage("The general stress of the layout is "+str(generalized_stress))
+            else:
+                print("The subgraph",index,"has general stress",generalized_stress)
+                self.status.showMessage("The subgraph "+str(index)+" has general stress "+str(generalized_stress))
+
+    
+    def normalized_stress(self):
+        numerator = 0
+        denominator = 0
+        index = 0
 
         for i, nodeid_i in enumerate(self.coordinates[index]):
             for j, nodeid_j in enumerate(self.coordinates[index]):
@@ -1018,21 +1083,15 @@ class MainWindow(QMainWindow):
                 projection_dist = main.calc_eucl_dist(node_i[0], node_i[1], node_j[0], node_j[1])
                 #square the floyd - projection and sum it to the numerator
                 numerator += (floyd_warshall_dist - projection_dist) ** 2
-        
-        for i, nodeid_i in enumerate(self.coordinates[index]):
-            for j, nodeid_j in enumerate(self.coordinates[index]):
-                #distance in floyd warshall
-                floyd_warshall_dist = self.floyd_warshall_matrix[i][j]
-                #sum it to the denominator
+                #sum the distance to the denominator
                 denominator += floyd_warshall_dist ** 2
 
         norm_stress = numerator / denominator
 
         print("normalized stress is", norm_stress)
-        return norm_stress
+        self.status.showMessage("The normalized stress is "+str(norm_stress))
+
     
-    def calc_spearman_rank(self, index = 0):
-        return
     
     def shepard_diagram(self, index = 0):
         x = [] # floyd warshall is original distance matrix and belongs on the x-axis
@@ -1052,6 +1111,7 @@ class MainWindow(QMainWindow):
             
         spearmanrank = scipy.stats.spearmanr(x, y)[0]
         print("spearman rank correlation: ", spearmanrank)
+        self.status.showMessage("The Spearman rank correlation is "+str(spearmanrank))
 
         plt.scatter(x,y)
         plt.title("Shepard diagram of " + str(self.layout))
