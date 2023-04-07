@@ -18,8 +18,8 @@ subgraphs_included = False    #set to False when loading a graph without subgrap
 include_n = False          # set to True when loading layered layouts for pro league network and test network, False for small directed network
 
 #undirected graphs
-G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
-#G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
+#G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
+G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
 #directed graphs
@@ -29,6 +29,7 @@ G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 
 if subgraphs_included == True:
     A = pydot.graph_from_dot_file('data/devonshiredebate_withonlytwoclusters.dot') 
+    #A = pydot.graph_from_dot_file('data/polblogs_subgraphed.dot')
 
     subgraphs = A[0].get_subgraphs()
 
@@ -94,11 +95,16 @@ def add_nodes_adjacency_dict(adjacency_dict, G):
 
 # the first time an edge appears it is marked True, and it will be rendered
 # the second time the same edge appears it is marked False, so it will not be rendered
-def add_edges_to_adjacency_dict(adjacency_dict, edges):   
+def add_edges_to_adjacency_dict(adjacency_dict, edges):  
+    # print("adding edges:",edges) 
+    # print()
+    # print("to adj dict:",adjacency_dict)
     weightcheck = True
     weighted = True
     for e in edges:
         u, v = e
+        u = u.strip('"')
+        v = v.strip('"')
         if weightcheck:
             try:
                 weight = G[u][v]["weight"]
@@ -130,28 +136,38 @@ def create_adjacencies(adjacencies, adjacency_dict):
         adjacencies[id] = len(adj_nodes)
     return adjacencies
 
-if(subgraphs_included == False):
+if (subgraphs_included == False):
     add_nodes_adjacency_dict(adjacency_dict, G)
     add_edges_to_adjacency_dict(adjacency_dict, G.edges())
     adjacencies.append(create_adjacencies(adjacencies_sub1, adjacency_dict))
     most_connected_node_id.append(max(zip(adjacencies[0].values(), adjacencies[0].keys()))[1]) #retrieve id with max adjacency, add to list
     adjacency_dict_list.append(adjacency_dict)
 else:
+    print("starting adding nodes to sub1")
     add_nodes_adjacency_dict(adjacency_dict_sub1, subgraphs_list[0])
+    print("starting adding edges to sub1")
     add_edges_to_adjacency_dict(adjacency_dict_sub1, subgraphs_list[0].edges())
+    print("starting creating adjacencies to sub1")
     adjacencies.append(create_adjacencies(adjacencies_sub1, adjacency_dict_sub1))
     most_connected_node_id.append(max(zip(adjacencies_sub1.values(), adjacencies_sub1.keys()))[1]) #retrieve id with max adjacency, add to list
     adjacency_dict_list.append(adjacency_dict_sub1)
 
+    print("starting adding nodes to sub2")
     add_nodes_adjacency_dict(adjacency_dict_sub2, subgraphs_list[1])
+    print("starting adding edges to sub1")
     add_edges_to_adjacency_dict(adjacency_dict_sub2, subgraphs_list[1].edges())
+
+    print("starting creating adjacencies to sub2")
     adjacencies.append(create_adjacencies(adjacencies_sub2, adjacency_dict_sub2))
     most_connected_node_id.append(max(zip(adjacencies_sub2.values(), adjacencies_sub2.keys()))[1]) #retrieve id with max adjacency, add to list
     adjacency_dict_list.append(adjacency_dict_sub2)
 
     # add all nodes to dict to be able to add interlayer edges, and add the edges
+    print("starting adding interlayer nodes from sub1")
     add_nodes_adjacency_dict(adjacency_dict_interlayer, subgraphs_list[0]) 
+    print("starting adding interlayer nodes from sub2")
     add_nodes_adjacency_dict(adjacency_dict_interlayer, subgraphs_list[1])
+    print("starting adding interlayer edges")
     add_edges_to_adjacency_dict(adjacency_dict_interlayer, inter_layer_edges)
     # ignore nodes from dict which have no interlayer edges
     adjacency_dict_interlayer = {id:val for id, val in adjacency_dict_interlayer.items() if val != []}
@@ -1194,7 +1210,7 @@ def layer_assignment_dag(dfs_trees, acyclic_adjacency_dict, printing = False):
 # step 4: count crossings, see if there is improvement --> if not then stop, if yes then back to step 3
 
 
-def minimize_crossings(dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict, perform_crossing_minimization, minimization_method, buffer_limit = 2):
+def minimize_crossings(dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict, perform_crossing_minimization, minimization_method, buffer_limit = 0):
     
     number_of_layers = len(dummy_nodes_per_layer.keys())
     current_x_coords = copy.deepcopy(x_coords_dict)
@@ -1338,7 +1354,7 @@ def count_crossings(node_neighbours, x_coords_dict, self_printing_mode = printin
 
 
 
-def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter", self_printing_mode = False, offset_switch_threshold = 30):
+def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter", self_printing_mode = False, offset_switch_threshold = 30, offset_override = True, override_value = 2):
     
     #print("relative position in layer", relative_positions_in_layer)
     proposed_positions = queue.PriorityQueue()          # contains items in the form (relative location, node_id), .get() extracts node id with smallest location
@@ -1347,6 +1363,9 @@ def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter"
     # original values
     #barycenter_offset_value = 30
     #median_offset_value = 35
+    if offset_override:
+        barycenter_offset_value = override_value
+        median_offset_value = override_value
 
     if len(list(x_coords_dict.keys())) > offset_switch_threshold:       # if there are more nodes + dummy nodes than the given threshold, have a small median offset, otherwise large
     # for pro league network

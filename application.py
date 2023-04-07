@@ -17,7 +17,7 @@ import scipy.stats
 import main
 
 class Vertex(QGraphicsObject):
-    def __init__(self, window, id, x_coord, y_coord, radius = 25, subgraph = 0, displayed = False, id_visible = True) -> None:
+    def __init__(self, window, id, x_coord, y_coord, radius = 25, subgraph = 0, displayed = False, id_visible = False) -> None:
         super().__init__()
 
         self.window = window
@@ -774,8 +774,8 @@ class MainWindow(QMainWindow):
 
         # Window dimensions
         geometry = self.screen().availableSize()
-        self.screenwidth = geometry.width() * 0.9
-        self.screenheight = geometry.height() * 0.7
+        self.screenwidth = geometry.width() * 0.95
+        self.screenheight = geometry.height() * 0.9
         self.setFixedSize(self.screenwidth, self.screenheight)
         
         # random coordinates for now
@@ -1464,7 +1464,7 @@ class MainWindow(QMainWindow):
             print("scene width:", self.scene.width(), "scene height:", self.scene.height())
             print("view width:", self.view.width(), "view height:", self.view.height())
         
-    def edge_bundling(self, max_loops = 5, edge_objects = None, k=0.1, s_0 = 0.04, compat_threshold = 0.05):
+    def edge_bundling(self, max_loops = 2, edge_objects = None, k=0.1, s_0 = 0.04, compat_threshold = 0.05):
         if edge_objects == None:
             edge_objects = self.interlayer_edge_objects     #self.interlayer_edge_objects is the list af all edge objects that need to be bundled    
             
@@ -2109,7 +2109,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict_list, "random", default_radius=10)
+    window = MainWindow(main.adjacency_dict_list, "dag dfs median", default_radius=10)
     window.show()
 
     
