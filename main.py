@@ -18,8 +18,8 @@ subgraphs_included = False    #set to False when loading a graph without subgrap
 include_n = False          # set to True when loading layered layouts for pro league network and test network, False for small directed network
 
 #undirected graphs
-#G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
-G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
+G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
+#G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
 #directed graphs
@@ -1210,7 +1210,7 @@ def layer_assignment_dag(dfs_trees, acyclic_adjacency_dict, printing = False):
 # step 4: count crossings, see if there is improvement --> if not then stop, if yes then back to step 3
 
 
-def minimize_crossings(dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict, perform_crossing_minimization, minimization_method, buffer_limit = 0):
+def minimize_crossings(dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict, perform_crossing_minimization, minimization_method, buffer_limit = 2):
     
     number_of_layers = len(dummy_nodes_per_layer.keys())
     current_x_coords = copy.deepcopy(x_coords_dict)
@@ -1354,7 +1354,7 @@ def count_crossings(node_neighbours, x_coords_dict, self_printing_mode = printin
 
 
 
-def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter", self_printing_mode = False, offset_switch_threshold = 30, offset_override = True, override_value = 2):
+def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter", self_printing_mode = False, offset_switch_threshold = 30, offset_override = False, override_value = 2):
     
     #print("relative position in layer", relative_positions_in_layer)
     proposed_positions = queue.PriorityQueue()          # contains items in the form (relative location, node_id), .get() extracts node id with smallest location
@@ -1367,7 +1367,7 @@ def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter"
         barycenter_offset_value = override_value
         median_offset_value = override_value
 
-    if len(list(x_coords_dict.keys())) > offset_switch_threshold:       # if there are more nodes + dummy nodes than the given threshold, have a small median offset, otherwise large
+    elif len(list(x_coords_dict.keys())) > offset_switch_threshold:       # if there are more nodes + dummy nodes than the given threshold, have a small median offset, otherwise large
     # for pro league network
         barycenter_offset_value = 35
         median_offset_value = 10

@@ -354,6 +354,8 @@ class Edge(QGraphicsItem):
                     Qt.RoundJoin,
                 )
             )
+            #self.track_drawing =
+            workaround_mode = False          # this shows a segmented layout even when segmentation is turned off, to bypass a weird bug with QT paint
 
             if self.directed and self.segmented and (self.start.window.check_for_layered_layout() or main.subgraphs_included):                    # directed and segmented and layered
                 if self.curved == True:
@@ -392,23 +394,23 @@ class Edge(QGraphicsItem):
                         painter.drawLine(line)
 
 
-# # custom version to avoid the barycenter edge disappearance
-#             elif self.directed:
-#                 if self.track_drawing:
-#                     print("workaround mode engaged")
-#                 if self.curved == True:
-#                     painter.drawPath(self.path)
-#                     start = self.waypoints[len(self.waypoints)-2]
-#                     end = self.waypoints[len(self.waypoints)-1]
-#                     self.draw_arrow(painter, start, self.arrow_target(start,end), just_head = True)
-#                 else:
-#                     for line in self.lines:
-#                         if line == self.lines[len(self.lines)-1]:
-#                             start = self.waypoints[len(self.waypoints)-2]
-#                             end = self.waypoints[len(self.waypoints)-1]
-#                             self.draw_arrow(painter, start, self.arrow_target(start,end))
-#                         else:
-#                             painter.drawLine(line)        
+# custom version to avoid the barycenter edge disappearance
+            elif self.directed and workaround_mode:
+                if self.track_drawing:
+                    print("workaround mode engaged")
+                if self.curved == True:
+                    painter.drawPath(self.path)
+                    start = self.waypoints[len(self.waypoints)-2]
+                    end = self.waypoints[len(self.waypoints)-1]
+                    self.draw_arrow(painter, start, self.arrow_target(start,end), just_head = True)
+                else:
+                    for line in self.lines:
+                        if line == self.lines[len(self.lines)-1]:
+                            start = self.waypoints[len(self.waypoints)-2]
+                            end = self.waypoints[len(self.waypoints)-1]
+                            self.draw_arrow(painter, start, self.arrow_target(start,end))
+                        else:
+                            painter.drawLine(line)        
                         
 
 #correct version
@@ -419,14 +421,28 @@ class Edge(QGraphicsItem):
                 end = self.line.p2()
                 self.draw_arrow(painter, start, self.arrow_target(start,end))
 
-
+            elif workaround_mode:
+            #    print("starting workaround mode")
+                if self.curved == True:
+          #         print("non-directed, segmented, curved, workaround")
+                    if self.track_drawing:
+                        print("non-directed, segmented, curved")
+                        print(self.path)
+                    painter.drawPath(self.path)
+                else:
+              #      print("non-directed, segmented, not curved, workaround")
+                    if self.track_drawing:
+                        print("non-directed, segmented, not curved")
+                        print(self.lines)
+                    for line in self.lines:
+                        painter.drawLine(line)
 
             else:                                                   # neither directed nor segmented
                 if self.track_drawing:
                         print("not directed, not segmented")
                 painter.drawLine(self.line) 
 
-            if self.show_dummies and self.segmented:
+            if self.show_dummies and (self.segmented or workaround_mode):
                 for count in range(len(self.waypoints)):
                     if count not in [0, len(self.waypoints)-1]:
                         center_x = self.waypoints[count].x()
@@ -774,7 +790,7 @@ class MainWindow(QMainWindow):
 
         # Window dimensions
         geometry = self.screen().availableSize()
-        self.screenwidth = geometry.width() * 0.95
+        self.screenwidth = geometry.width() * 1.0
         self.screenheight = geometry.height() * 0.9
         self.setFixedSize(self.screenwidth, self.screenheight)
         
@@ -901,7 +917,7 @@ class MainWindow(QMainWindow):
 
         for i, first_edge in enumerate(list(self.all_edges.values())):
             if first_edge.segmented == True:
-                segmentation_off = True
+                segmentation_off = True                 # block on crossing counting during segmentation
                 break
             if first_edge.displayed:
                 for j in range(i, len(list(self.all_edges.values()))):
@@ -1304,7 +1320,7 @@ class MainWindow(QMainWindow):
             else:
                 if self.dfs_trees == []:
                     self.depth_first_search_exhaustive()
-                print("self.dfs_trees:",self.dfs_trees)
+                #print("self.dfs_trees:",self.dfs_trees)
                 self.coordinates[index], edge_waypoints = main.calc_DAG(width, height, self.dfs_trees, self.adjacency_dict[index], minimization_method="barycenter")
                 self.update_edge_waypoints(edge_waypoints)
             
@@ -2109,7 +2125,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict_list, "dag dfs median", default_radius=10)
+    window = MainWindow(main.adjacency_dict_list, "random", default_radius=10)
     window.show()
 
     
