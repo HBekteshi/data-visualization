@@ -948,12 +948,6 @@ def calc_DAG(width, height, dfs_trees, adjacency_dict, perform_crossing_minimiza
                 result = scipy.optimize.minimize(fun = dummies_distance_sum, x0 = dummy_x_coords, args = (straight_positions), bounds = boundaries)
 
                 dummy_x_coords = result.x
-
-                # if result.success == True:
-                #     dummy_x_coords = result.x
-                # else:
-                #     #raise ValueError ("scipy optimize failed, message:",result.message)
-                #     dummy_x_coords = result.x
             
             for i, point in enumerate(edge_waypoints[edge]):
                 if i == 0:
@@ -1694,7 +1688,7 @@ def get_tsne_coordinates(dist_matrix, index_node_dict):
 
 def get_isomap_coordinates(dist_matrix, index_node_dict):
     d_matrix = np.nan_to_num(dist_matrix, posinf=333333333333)
-    print((d_matrix==d_matrix.T).all())
+#    print((d_matrix==d_matrix.T).all())
     #delete last row and column of distance matrix such that the disconnected node is not taken into account
     projection = Isomap(n_components=2, n_neighbors=6).fit_transform(d_matrix[:-1,:-1])
     coordinates_proj = {}

@@ -616,7 +616,7 @@ class MainWindow(QMainWindow):
         id_visibility_action = QAction("Toggle Node ID Visibility", self)
         id_visibility_action.triggered.connect(self.vertices_toggle_id_visibility)
         id_visibility_action.setCheckable(True)
-        id_visibility_action.setChecked(True)
+        id_visibility_action.setChecked(False)
         self.actions_menu.addAction(id_visibility_action)
 
         if main.subgraphs_included:
