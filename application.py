@@ -5,15 +5,19 @@ from collections import deque
 from PySide6.QtCore import QRectF, Qt, QLineF, QPointF
 from PySide6.QtGui import QAction, QKeySequence, QPainter, QPen, QColor, QBrush, QPolygonF, QPainterPath, QPainterPathStroker
 from PySide6.QtWidgets import QMainWindow, QApplication, QGraphicsScene, QGraphicsView, QGraphicsObject, QGraphicsItem, QStyleOptionGraphicsItem, QWidget
+from sklearn.neighbors import NearestNeighbors
 
 import numpy as np
 import copy
 import math
+import matplotlib.pyplot as plt
+import scipy.stats 
+
 
 import main
 
 class Vertex(QGraphicsObject):
-    def __init__(self, window, id, x_coord, y_coord, radius = 25, subgraph = 0, displayed = False, id_visible = True) -> None:
+    def __init__(self, window, id, x_coord, y_coord, radius = 25, subgraph = 0, displayed = False, id_visible = False) -> None:
         super().__init__()
 
         self.window = window
@@ -145,8 +149,6 @@ class Vertex(QGraphicsObject):
     # recalculate edges after change in location
     def itemChange(self, change: QGraphicsItem.GraphicsItemChange, value):
         if change == QGraphicsItem.ItemPositionHasChanged:
-            # x = value.x()
-            # y = value.y()
         #    print("scenepos",self.scenePos(),"itemChange value", value, "x and y", x, y)
         #    print("scenerect",self.scene().sceneRect.x(),self.scene().sceneRect.y())
             self.update_edges()
@@ -155,7 +157,7 @@ class Vertex(QGraphicsObject):
         return super().itemChange(change, value)
 
 class Edge(QGraphicsItem):
-    def __init__(self, start: Vertex, end: Vertex, weight, displayed = False, segmented = False, directed = False, curved = True) -> None:
+    def __init__(self, start: Vertex, end: Vertex, weight, displayed = False, segmented = False, directed = False, curved = True, opacity = 0.5, show_dummies = True) -> None:
         super().__init__()
 
         self.__name__ = 'Edge'
@@ -164,6 +166,8 @@ class Edge(QGraphicsItem):
         self.segmented = segmented
         self.curved = curved
         self.track_drawing = False
+        self.opacity = opacity
+        self.show_dummies = show_dummies
         
         self.directed = directed
         if main.G.is_directed() == True:
@@ -177,6 +181,7 @@ class Edge(QGraphicsItem):
         self.end.addEdge((self, start))
 
         self.setZValue(-0.5)
+        self.setOpacity(self.opacity)
 
         self.line = QLineF()
         self.color = "black"
@@ -189,7 +194,7 @@ class Edge(QGraphicsItem):
         self.arrow_size = 10
 
         
-        # if self.start.id == "n154" and self.end.id == "n149":
+        # if self.start.id == "5" and self.end.id == "1":
         #     self.track_drawing = True
     
     def update_waypoints(self, waypoints_list, radius_change = 0, from_outside = True):
@@ -203,12 +208,20 @@ class Edge(QGraphicsItem):
                     else:
                         y_value = waypoint.y() #- radius_change
                     self.waypoints[count] = QPointF(x_value, y_value)
+        self.calculate_location(waypoint_update = True)
+        self.update()
 
+    def reset_waypoints(self):
+        self.waypoints = [self.start.pos() + self.start.boundingRect().center(), self.end.pos() + self.end.boundingRect().center()]
         self.calculate_location(waypoint_update = True)
         self.update()
         
     def toggle_segmentation(self):
         self.segmented = not self.segmented
+        self.calculate_location()
+
+    def toggle_dummy_display(self):
+        self.show_dummies = not self.show_dummies
         self.calculate_location()
 
     def toggle_curving(self):
@@ -244,14 +257,18 @@ class Edge(QGraphicsItem):
 
         self.buildPath()
 
+        self.update()
+        
         if len(self.waypoints)> 2 and self.track_drawing:
-            # print("for line between nodes",self.start.id,"and",self.end.id)
-            # print("self waypoints is:", self.waypoints)
-            # print ("self lines is:",self.lines)
+            print("for line between nodes",self.start.id,"and",self.end.id)
+            print("self waypoints is:", self.waypoints)
+            print ("self lines is:",self.lines)
             pass
         
     # function for building bezier curves, adapted from https://stackoverflow.com/questions/63016214/drawing-multi-point-curve-with-pyqt5   as there's no geometric library for bezier curves in QT
     def buildPath(self):
+        if self.track_drawing:
+            print("starting path building")        
         factor = 0.25
         waypoints_list = copy.deepcopy(self.waypoints)
         self.path = QPainterPath(waypoints_list[0])
@@ -287,14 +304,26 @@ class Edge(QGraphicsItem):
 
             # the final curve, that joins to the last point
             self.path.quadTo(cp1, waypoints_list[-1])
+
+            if self.track_drawing:
+                print("self.path is",self.path)
     
-    def boundingRect(self) -> QRectF:
+    def shape(self):
+        self.buildPath()
+        return self.path
+
+    def boundingRect(self, track = False) -> QRectF:
         if self.segmented == False:
+            if track:
+                print("edge not segmented, self.line is",self.line)
+
             return (
                 QRectF(self.line.p1(), self.line.p2())
                 .normalized()
             )
         else:
+            if track:
+                print("edge is segmented, self.lines is",self.lines)
             min_y = 9999
             max_y = -9999
             min_x = 9999
@@ -311,6 +340,8 @@ class Edge(QGraphicsItem):
 
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget=None):
+        if self.track_drawing:
+            print("starting edge drawing")
         if self.start and self.end and self.displayed:
             painter.setRenderHints(QPainter.Antialiasing)
 
@@ -323,19 +354,24 @@ class Edge(QGraphicsItem):
                     Qt.RoundJoin,
                 )
             )
-            
+            #self.track_drawing =
+            workaround_mode = False          # this shows a segmented layout even when segmentation is turned off, to bypass a weird bug with QT paint
 
             if self.directed and self.segmented and (self.start.window.check_for_layered_layout() or main.subgraphs_included):                    # directed and segmented and layered
                 if self.curved == True:
-                    # if self.track_drawing:
-                    #     print("directed, segmented, curved")
+                    if self.track_drawing:
+                        print("directed, segmented, curved")
+                        print(self.path)
                     painter.drawPath(self.path)
                     start = self.waypoints[len(self.waypoints)-2]
                     end = self.waypoints[len(self.waypoints)-1]
                     self.draw_arrow(painter, start, self.arrow_target(start,end), just_head = True)
+
+
                 else:
-                    # if self.track_drawing:
-                    #     print("directed, segmented, no curves")
+                    if self.track_drawing:
+                        print("directed, segmented, no curves")
+                        print(self.lines)
                     for line in self.lines:
                         if line == self.lines[len(self.lines)-1]:
                             start = self.waypoints[len(self.waypoints)-2]
@@ -343,20 +379,79 @@ class Edge(QGraphicsItem):
                             self.draw_arrow(painter, start, self.arrow_target(start,end))
                         else:
                             painter.drawLine(line)                    
+
             elif self.segmented and (self.start.window.check_for_layered_layout() or main.subgraphs_included):                                    # not directed and segmented and layered
                 if self.curved == True:
+                    if self.track_drawing:
+                        print("non-directed, segmented, curved")
+                        print(self.path)
                     painter.drawPath(self.path)
                 else:
+                    if self.track_drawing:
+                        print("non-directed, segmented, not curved")
+                        print(self.lines)
                     for line in self.lines:
                         painter.drawLine(line)
+
+
+# custom version to avoid the barycenter edge disappearance
+            elif self.directed and workaround_mode:
+                if self.track_drawing:
+                    print("workaround mode engaged")
+                if self.curved == True:
+                    painter.drawPath(self.path)
+                    start = self.waypoints[len(self.waypoints)-2]
+                    end = self.waypoints[len(self.waypoints)-1]
+                    self.draw_arrow(painter, start, self.arrow_target(start,end), just_head = True)
+                else:
+                    for line in self.lines:
+                        if line == self.lines[len(self.lines)-1]:
+                            start = self.waypoints[len(self.waypoints)-2]
+                            end = self.waypoints[len(self.waypoints)-1]
+                            self.draw_arrow(painter, start, self.arrow_target(start,end))
+                        else:
+                            painter.drawLine(line)        
+                        
+
+#correct version
             elif self.directed:                                     # directed and not segmented
+                if self.track_drawing:
+                        print("directed, not segmented")
                 start = self.line.p1()
                 end = self.line.p2()
                 self.draw_arrow(painter, start, self.arrow_target(start,end))
+
+            elif workaround_mode:
+            #    print("starting workaround mode")
+                if self.curved == True:
+          #         print("non-directed, segmented, curved, workaround")
+                    if self.track_drawing:
+                        print("non-directed, segmented, curved")
+                        print(self.path)
+                    painter.drawPath(self.path)
+                else:
+              #      print("non-directed, segmented, not curved, workaround")
+                    if self.track_drawing:
+                        print("non-directed, segmented, not curved")
+                        print(self.lines)
+                    for line in self.lines:
+                        painter.drawLine(line)
+
             else:                                                   # neither directed nor segmented
+                if self.track_drawing:
+                        print("not directed, not segmented")
                 painter.drawLine(self.line) 
 
-                
+            if self.show_dummies and (self.segmented or workaround_mode):
+                for count in range(len(self.waypoints)):
+                    if count not in [0, len(self.waypoints)-1]:
+                        center_x = self.waypoints[count].x()
+                        center_y = self.waypoints[count].y()
+                        dummy_bounding_rectangle = QRectF(center_x - self.start.radius, center_y - self.start.radius, self.start.radius * 2, self.start.radius*2)       # left, top, width, height
+                        painter.drawEllipse(dummy_bounding_rectangle)
+                        painter.setPen(QPen(QColor("black")))
+                        if self.start.id_visible:
+                            painter.drawText(dummy_bounding_rectangle, Qt.AlignCenter, self.start.id+"-"+self.end.id)
 
 # function adapted from the QT for Python documentation examples
     def draw_arrow(self, painter: QPainter, start: QPointF, end: QPointF, just_head = False):
@@ -398,45 +493,64 @@ class Edge(QGraphicsItem):
         return target
 
 class VertexBoxes(QGraphicsItem):
-    def __init__(self, window):
+    def __init__(self, window, display = False, include_dummies = True):
         super().__init__()
         self.path_list = []
         self.boxes = []
+        self.boxes_paths = []
         self.outlines = []
         self.window = window
+        self.display = display
         self.__name__ = "vertexbox object"
+        self.include_dummies = include_dummies
 
         # outline settings
         self.thickness = 2
         self.color = "brown"
-        
+    
+    def toggle_display(self):
+        self.display = not self.display
+
+    def area_over_length(self):
+        aol_list = []
+        for box in self.boxes:
+            area = box.height() * box.width()
+            length = min(box.height(),box.width())
+            aol_tuple = (area/length, area, length)
+            aol_list.append(aol_tuple)
+        return aol_list
+
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget=None):
-        painter.setRenderHints(QPainter.Antialiasing)
 
-        pen_fifteen = QPen(
-                QColor(self.color),
-                self.thickness,
-                Qt.SolidLine,
-                Qt.RoundCap,
-                Qt.RoundJoin,
-            )
+        if self.display:
 
-        painter.setPen(pen_fifteen)
+            painter.setRenderHints(QPainter.Antialiasing)
+
+            pen = QPen(
+                    QColor(self.color),
+                    self.thickness,
+                    Qt.SolidLine,
+                    Qt.RoundCap,
+                    Qt.RoundJoin,
+                )
+
+            painter.setPen(pen)
 
 
-        painter.setBrush(QBrush(QColor(self.color)))
-        self.update_path()
+            painter.setBrush(QBrush(QColor(self.color)))
+            self.update_path()
 
-        old_man = QPainterPathStroker(pen_fifteen)
+            pathstroker = QPainterPathStroker(pen)
 
-        for box in self.boxes:
-            outline = old_man.createStroke(box)
-            painter.drawPath(outline)
+            for box_path in self.boxes_paths:
+                outline = pathstroker.createStroke(box_path)
+                painter.drawPath(outline)
 
         
     def update_path(self):
         self.boxes = []
+        self.boxes_paths = []
         self.outlines = []
         self.path_list = []
         self.big_path = QPainterPath()
@@ -445,14 +559,25 @@ class VertexBoxes(QGraphicsItem):
             path = QPainterPath()
             for vertex_object in self.window.vertices[index].values():
                 path.addRect(vertex_object.physical_location())
+                #print("adding edges to box")
+                if self.include_dummies:
+                    for edge_tuple in vertex_object.edges:
+                        edge_object = edge_tuple[0]
+
+                        if edge_object.displayed:
+                            path.addPath(edge_object.path)
+                            #print("added edge path to box")
+
             self.path_list.append(path)
             self.big_path.addPath(path)
             
         for path in self.path_list:
             box = path.controlPointRect()
+            self.boxes.append(box)
+
             box_path = QPainterPath() 
             box_path.addRect(box)
-            self.boxes.append(box_path)
+            self.boxes_paths.append(box_path)
 
         
     def boundingRect(self):
@@ -471,6 +596,7 @@ class MainWindow(QMainWindow):
         self.file_menu = self.menu.addMenu("File")
         self.layouts_menu = self.menu.addMenu("Layout")
         self.actions_menu = self.menu.addMenu("Actions")
+        self.quality_menu = self.menu.addMenu("Quality Metrics")
         
 
         # Exit QAction
@@ -490,14 +616,32 @@ class MainWindow(QMainWindow):
         id_visibility_action = QAction("Toggle Node ID Visibility", self)
         id_visibility_action.triggered.connect(self.vertices_toggle_id_visibility)
         id_visibility_action.setCheckable(True)
-        id_visibility_action.setChecked(True)
+        id_visibility_action.setChecked(False)
         self.actions_menu.addAction(id_visibility_action)
+
+        if main.subgraphs_included:
+            bounding_box_toggle_action = QAction("Show Subgraph Boundary Box", self)
+            bounding_box_toggle_action.setCheckable(True)
+            bounding_box_toggle_action.setChecked(True)
+        else:
+            bounding_box_toggle_action = QAction("Show Boundary Box", self)
+            bounding_box_toggle_action.setCheckable(True)
+            bounding_box_toggle_action.setChecked(False)
+        bounding_box_toggle_action.triggered.connect(self.toggle_bounding_box_display)
+        self.actions_menu.addAction(bounding_box_toggle_action)
+        
 
         non_tree_edge_display_action = QAction("Show Non-Tree Edges", self)
         non_tree_edge_display_action.triggered.connect(self.toggle_nontree_edge_display)
         non_tree_edge_display_action.setCheckable(True)
         non_tree_edge_display_action.setChecked(False)
         self.actions_menu.addAction(non_tree_edge_display_action)
+
+        dummy_toggle_action = QAction("Show Dummy Nodes", self)
+        dummy_toggle_action.triggered.connect(self.toggle_dummy_nodes)
+        dummy_toggle_action.setCheckable(True)
+        dummy_toggle_action.setChecked(True)
+        self.actions_menu.addAction(dummy_toggle_action)
 
         segmentation_toggle_action = QAction("Toggle Edge Segmentation", self)
         segmentation_toggle_action.triggered.connect(self.toggle_edge_segmentation)
@@ -511,6 +655,14 @@ class MainWindow(QMainWindow):
         curved_segmentation_toggle_action.setCheckable(True)
         curved_segmentation_toggle_action.setChecked(True)
         self.actions_menu.addAction(curved_segmentation_toggle_action)
+
+        opacity_decrease_action = QAction("Increase Edge Transparency", self)
+        opacity_decrease_action.triggered.connect(self.edges_decrease_opacity)
+        self.actions_menu.addAction(opacity_decrease_action)
+
+        opacity_increase_action = QAction("Decrease Edge Transparency", self)
+        opacity_increase_action.triggered.connect(self.edges_increase_opacity)
+        self.actions_menu.addAction(opacity_increase_action)
 
         radius_increase_action = QAction("Increase Node Size",self)
         radius_increase_action.triggered.connect(self.vertices_increase_radius)
@@ -593,14 +745,53 @@ class MainWindow(QMainWindow):
         if main.subgraphs_included == False:
             self.layouts_menu.addAction(dag_dfs_median_regeneration_action)
 
+        tsne_regeneration_action = QAction("Generate TSNE projection", self)
+        tsne_regeneration_action.triggered.connect(self.regenerate_tsne)
+        if main.subgraphs_included == False:
+            self.layouts_menu.addAction(tsne_regeneration_action)
+
+        isomap_regeneration_action = QAction("Generate Isomap projection", self)
+        isomap_regeneration_action.triggered.connect(self.regenerate_isomap)
+        if main.subgraphs_included == False:
+            self.layouts_menu.addAction(isomap_regeneration_action)
+
+        
+        self.crossing_counting_action = QAction("Count crossings and angles", self)
+        self.crossing_counting_action.triggered.connect(self.count_current_crossings)
+        self.quality_menu.addAction(self.crossing_counting_action)
+
+        self.area_length_action = QAction("Area over length", self)
+        self.area_length_action.triggered.connect(self.calculate_area_over_length)
+        self.quality_menu.addAction(self.area_length_action)
+
+        self.general_stress_action = QAction("General stress",self)
+        self.general_stress_action.triggered.connect(self.general_stress)
+        self.quality_menu.addAction(self.general_stress_action)
+
+        self.normalized_stress_action = QAction("Normalized stress", self)
+        self.normalized_stress_action.triggered.connect(self.normalized_stress)
+        self.quality_menu.addAction(self.normalized_stress_action)
+
+        self.shepard_diagram_action = QAction("Shepard diagram", self)
+        self.shepard_diagram_action.triggered.connect(self.shepard_diagram)
+        self.quality_menu.addAction(self.shepard_diagram_action)
+
+        self.trustworthiness_action = QAction("Trustworthiness", self)
+        self.trustworthiness_action.triggered.connect(self.calc_trustworthiness)
+        self.quality_menu.addAction(self.trustworthiness_action)
+
+        self.continuity_action = QAction("Continuity", self)
+        self.continuity_action.triggered.connect(self.calc_continuity)
+        self.quality_menu.addAction(self.continuity_action)
+
          # Status Bar
         self.status = self.statusBar()
         self.status.showMessage("Graph loaded and displayed - layout: "+initial_layout)
 
         # Window dimensions
         geometry = self.screen().availableSize()
-        self.screenwidth = geometry.width() * 0.7
-        self.screenheight = geometry.height() * 0.7
+        self.screenwidth = geometry.width() * 1.0
+        self.screenheight = geometry.height() * 0.9
         self.setFixedSize(self.screenwidth, self.screenheight)
         
         # random coordinates for now
@@ -611,6 +802,7 @@ class MainWindow(QMainWindow):
         # Scene and view
         self.scene = QGraphicsScene()
         self.view = QGraphicsView(self.scene)
+        self.view.setViewportUpdateMode(QGraphicsView.FullViewportUpdate)
 
         #self.scene.setSceneRect(-self.screenwidth/2 + 25, -self.screenheight/2 + 50, self.screenwidth - 50, self.screenheight - 75)
 
@@ -618,7 +810,11 @@ class MainWindow(QMainWindow):
         self.vertices = []
         self.inter_layer_adjacency_dict = None
         self.interlayer_edge_objects = []
-        self.vertex_boxes = VertexBoxes(window = self)
+
+        if main.subgraphs_included:
+            self.vertex_boxes = VertexBoxes(window = self, display = True, include_dummies = False)
+        else:
+            self.vertex_boxes = VertexBoxes(window = self, display = False, include_dummies = True)
         
         if len(given_adjacency_dict_list) > 1:
             self.adjacency_dict = []
@@ -628,12 +824,13 @@ class MainWindow(QMainWindow):
                 else:
                     self.adjacency_dict.append(given_adjacency_dict_list[count])
                     self.vertices.append({})
-            self.vertex_boxes.update_path()
-            self.scene.addItem(self.vertex_boxes)
 
         else:
             self.adjacency_dict = given_adjacency_dict_list
             self.vertices.append({})
+        
+        self.vertex_boxes.update_path()
+        self.scene.addItem(self.vertex_boxes)
 
         # Coordinates
         self.dfs_list = []
@@ -644,6 +841,9 @@ class MainWindow(QMainWindow):
         self.tree = None
         self.treetype = None
         self.coordinates = []
+        self.dfs_trees = []
+        self.floyd_warshall_matrix = []
+        self.projection_matrix = []
         
         for count in range(len(self.vertices)):
             self.initialize_vertices(index = count)
@@ -662,7 +862,7 @@ class MainWindow(QMainWindow):
         self.display_non_tree_edges = False
         self.dynamic_forces = False
         self.strict_force_binding = True
-        self.edge_bundling_bool = True                   # todo: add layout option for toggling this is subgraphs are included
+        self.edge_bundling_bool = True                   # set this to false to speed up subgraphs, as edge bundling won't be calculated
         self.regenerate()
 
         assert (self.visibility(p_start = (0,0) ,p_end = (0,10), q_start = (10,0), q_end = (10,10), printing = False) == 1.0)
@@ -684,9 +884,308 @@ class MainWindow(QMainWindow):
         # graphics displayed in the center
         self.setCentralWidget(self.view)
 
+    def calculate_area_over_length(self):
+        aol_list = self.vertex_boxes.area_over_length()
+        if len(aol_list) == 1:
+            aol_tuple = aol_list[0]
+            aol = aol_tuple[0]
+            area = aol_tuple[1]
+            length = aol_tuple[2]
+            print("The area is",area,"and the length is",length)
+            print("The area over length value of the graph is",aol)
+            self.status.showMessage("The area over length value of the graph is "+str(aol))
+        else:
+            for index, aol_tuple in enumerate(aol_list):
+                aol = aol_tuple[0]
+                area = aol_tuple[1]
+                length = aol_tuple[2]
+                print("The area is",area,"and the length is",length)
+                print("The area over length of subgraph",index,"is",aol)
+
+        
+    def count_current_crossings(self):
+        edge_pairs = 0
+        edge_crossings = 0
+        crossing_angles = []
+        large_crossing_angles = []
+        crossing_angles_dict = {}
+        large_angle_threshold = 3       # crossings with angle higher than this (in degrees) are defined to be large angled crossings
+
+        segmentation_off = False
+        print("")
+        print("There are",len(list(self.all_edges.values())),"edges in the network")
+
+        for i, first_edge in enumerate(list(self.all_edges.values())):
+            if first_edge.segmented == True:
+                segmentation_off = True                 # block on crossing counting during segmentation
+                break
+            if first_edge.displayed:
+                for j in range(i, len(list(self.all_edges.values()))):
+                    second_edge = list(self.all_edges.values())[j]
+
+                    tracking = False
+                    # if first_edge.start.id == "5" and first_edge.end.id == "1" and second_edge.start.id == "22" and second_edge.end.id == "3":
+                    #     tracking = True
+
+                    if second_edge.displayed:
+                        edge_pairs += 1
+
+                        # if the two edges share a vertex, they can't be crossing
+                        if first_edge.start.id not in [second_edge.start.id, second_edge.end.id] and first_edge.end.id not in [second_edge.start.id, second_edge.end.id] :
+                            
+                            if tracking:
+                                print("checking collision of edge from",first_edge.start.id,"to",first_edge.end.id,"and edge from",second_edge.start.id,"to",second_edge.end.id)
+                                #print("bounding rects are",first_edge.boundingRect(track = True),"and",second_edge.boundingRect(track = True))
+                                print("shapes are",first_edge.shape(),"and",second_edge.shape())
+                            if first_edge.collidesWithItem(second_edge, mode = Qt.IntersectsItemShape):
+                                # if not self.check_on_line(first_edge,second_edge)[0]:
+                                #     print("min distance is", self.check_on_line(first_edge,second_edge)[1])    
+
+                                edge_crossings += 1
+                                if tracking:
+                                    print("edge from",first_edge.start.id,"to",first_edge.end.id,"collides with edge from",second_edge.start.id,"to",second_edge.end.id)
+                            #   print("edge from",first_edge.start.id,"to",first_edge.end.id,"collides with edge from",second_edge.start.id,"to",second_edge.end.id)
+                            #  print("their shapes are",first_edge.shape(),"and",second_edge.shape())
+                                
+                                angle = self.calculate_crossing_angle(first_edge, second_edge)                            
+                                # print("crossing angle is",angle)
+
+                                if angle != None:
+                                    angle = np.rad2deg(angle)
+                                    crossing_angles.append(angle)
+
+                                    if angle > large_angle_threshold:
+                                        large_crossing_angles.append(angle)
+                                    try:
+                                        crossing_angles_dict[angle] = (first_edge, second_edge)
+                                    except:
+                                        pass
+
+                            
+        if segmentation_off:
+            self.status.showMessage("ERROR: Turn off segmentation before counting crossings")
+            print("ERROR: Turn off segmentation before counting crossings")
+        else:
+            if crossing_angles == []:
+                print("There are no edge crossings.")
+                self.status.showMessage("There are no edge crossings.")
+            else:
+
+                crossing_angles.sort(reverse = True)
+             #   print(crossing_angles)
+                
+                crossing_resolution = min(crossing_angles)
+                average_angle = np.mean(crossing_angles)
+                edge1, edge2 = crossing_angles_dict[crossing_resolution]
+                self.status.showMessage("Out of "+str(edge_pairs)+" edge pairs with no shared vertices, "+str(edge_crossings)+" are edge crossings. The crossing resolution is "+str(crossing_resolution)+" degrees, between edges from "+edge1.start.id+" to "+edge1.end.id+" and "+edge2.start.id+" to "+edge2.end.id+". The average crossing angle is "+str(average_angle)+" degrees.")
+                print("Out of "+str(edge_pairs)+" edge pairs, "+str(edge_crossings)+" are edge crossings.")
+                print("The crossing resolution is",crossing_resolution,"degrees, the angle between edges from",edge1.start.id,"to",edge1.end.id,"and",edge2.start.id,"to",edge2.end.id)
+                print("The average crossing angle is",average_angle,"degrees")
+
+                if large_crossing_angles == []:
+                    print("There are no edge crossings with angle above",large_angle_threshold)
+                else:
+                    large_crossing_res = min(large_crossing_angles)
+                    large_avg_angle = np.mean(large_crossing_angles)
+                    l_edge1, l_edge2 = crossing_angles_dict[large_crossing_res]
+
+                    print("Out of "+str(edge_crossings)+" edge crossings, "+str(len(large_crossing_angles))+" are edge crossings with angle above the threshold of", large_angle_threshold,"degrees and there are",str(edge_crossings - len(large_crossing_angles)),"below the threshold")
+                    print("The crossing resolution for large angles only is",large_crossing_res,"degrees, the angle between edges from",l_edge1.start.id,"to",l_edge1.end.id,"and",l_edge2.start.id,"to",l_edge2.end.id)
+                    print("The average crossing angle for large angles only is",large_avg_angle,"degrees")
+
+            
+            
+
+    def calculate_crossing_angle(self, first_edge, second_edge, buffer = 0.0001):
+        first_x = first_edge.end.x_coord - first_edge.start.x_coord
+        first_y = first_edge.end.y_coord - first_edge.start.y_coord
+
+        second_x = second_edge.end.x_coord - second_edge.start.x_coord
+        second_y = second_edge.end.y_coord - second_edge.start.y_coord
+
+        vec_1 = np.array([first_x, first_y])
+        vec_2 = np.array([second_x, second_y])
+
+        len_1 = np.sqrt(first_x **2 + first_y **2)
+        len_2 = np.sqrt(second_x **2 + second_y **2)
+
+        cosine_value = np.dot(vec_1, vec_2) / (len_1 * len_2)
+
+        if cosine_value > 1 and cosine_value < (1 + buffer):            # buffer to combat floating point errors
+            cosine_value = 1
+        elif cosine_value < -1 and cosine_value > (-1 - buffer):
+            cosine_value = -1
+
+        if cosine_value > 1 or cosine_value < -1:
+            print("weird cosine value:", cosine_value)
+            print(first_edge.start.id, "to", first_edge.end.id,"and",second_edge.start.id,"to",second_edge.end.id)
+            return None
+
+        angle = np.arccos(cosine_value)
+
+        return min(angle, np.pi - angle)
+            
+    def general_stress(self):
+        
+        printing = False
+        alpha = 2
+
+        if main.subgraphs_included:
+            fw_matrix_list = []
+            in_dict_list = []
+            for index in range(len(self.coordinates)):
+                fw_matrix, in_dict = main.floyd_warshall_matrix(main.subgraphs_list[index])
+                fw_matrix_list.append(fw_matrix)
+                in_dict_list.append(in_dict)
+        else:
+            self.floyd_warshall_matrix, index_node_dict = main.floyd_warshall_matrix(main.G)
+
+        numerator = 0
+        denominator = 0
+
+        for index, subgraph_coordinates in enumerate(self.coordinates):
+
+            if main.subgraphs_included:
+                self.floyd_warshall_matrix = fw_matrix_list[index]
+                index_node_dict = in_dict_list[index]
+
+            generalized_stress = 0
+            for i, nodeid_i in enumerate(subgraph_coordinates):
+                for j in range(i, len(subgraph_coordinates)):               # here if we check i,j then we don't check j,i
+                    if i == j:
+                        continue
+                    nodeid_j = index_node_dict[j]
+                    
+                    #compute the distance in floyd warshall matrix
+                    floyd_warshall_dist = self.floyd_warshall_matrix[i][j]
+                    #compute distance in self.coordinates projection
+                    node_i = self.coordinates[index][nodeid_i]
+                    node_j = self.coordinates[index][nodeid_j]
+                    projection_dist = main.calc_eucl_dist(node_i[0], node_i[1], node_j[0], node_j[1])
+                    #square the floyd - projection and sum it to the numerator
+                    numerator = (floyd_warshall_dist - projection_dist) ** 2
+                    #sum the distance to the denominator
+                    denominator = floyd_warshall_dist ** 2
+                    if denominator == 0:
+                        print(i, j, nodeid_i, nodeid_j)
+                        raise ValueError("denominator is 0")
+                    if printing:     
+                        print(numerator, denominator, alpha, denominator ** alpha, numerator / (denominator ** alpha), generalized_stress)
+                        #raise ValueError("division went wrong")
+                    generalized_stress += numerator / (denominator ** alpha)
+                #    print(denominator, alpha, (denominator ** alpha))
+                  #  print(numerator, denominator, numerator / (denominator ** alpha), generalized_stress)
+
+            if len(self.coordinates) == 1:
+                print("The general stress of the layout is",generalized_stress)
+                self.status.showMessage("The general stress of the layout is "+str(generalized_stress))
+            else:
+                print("The subgraph",index,"has general stress",generalized_stress)
+                self.status.showMessage("The subgraph "+str(index)+" has general stress "+str(generalized_stress))
+
     
+    def normalized_stress(self):
+        numerator = 0
+        denominator = 0
+        index = 0
+
+        for i, nodeid_i in enumerate(self.coordinates[index]):
+            for j, nodeid_j in enumerate(self.coordinates[index]):
+                #compute the distance in floyd warshall matrix
+                floyd_warshall_dist = self.floyd_warshall_matrix[i][j]
+                #compute distance in self.coordinates projection
+                node_i = self.coordinates[index][nodeid_i]
+                node_j = self.coordinates[index][nodeid_j]
+                projection_dist = main.calc_eucl_dist(node_i[0], node_i[1], node_j[0], node_j[1])
+                #square the floyd - projection and sum it to the numerator
+                numerator += (floyd_warshall_dist - projection_dist) ** 2
+                #sum the distance to the denominator
+                denominator += floyd_warshall_dist ** 2
+
+        norm_stress = numerator / denominator
+
+        print("normalized stress is", norm_stress)
+        self.status.showMessage("The normalized stress is "+str(norm_stress))
+
+    
+    
+    def shepard_diagram(self, index = 0):
+        x = [] # floyd warshall is original distance matrix and belongs on the x-axis
+        y = [] # projected distance belongs on the y-axis
+
+        for i, nodeid_i in enumerate(self.coordinates[index]):
+            for j, nodeid_j in enumerate(self.coordinates[index]):
+                #compute distance in self.coordinates projection
+                node_i = self.coordinates[index][nodeid_i]
+                node_j = self.coordinates[index][nodeid_j]
+                projection_dist = main.calc_eucl_dist(node_i[0], node_i[1], node_j[0], node_j[1])
+                y.append(projection_dist)
+
+                #compute the distance in floyd warshall matrix
+                floyd_warshall_dist = self.floyd_warshall_matrix[i][j]
+                x.append(floyd_warshall_dist)
+            
+        spearmanrank = scipy.stats.spearmanr(x, y)[0]
+        print("spearman rank correlation: ", spearmanrank)
+        self.status.showMessage("The Spearman rank correlation is "+str(spearmanrank))
+
+        plt.scatter(x,y)
+        plt.title("Shepard diagram of " + str(self.layout))
+        plt.xlabel("Distance in the Floyd-Warshall distance matrix (input)")
+        plt.ylabel("Projected distance of " + str(self.layout) + " (output)")
+        plt.show()
+        
+
+
+    def calc_trustworthiness(self):
+        floyd_no_inf = np.nan_to_num(self.floyd_warshall_matrix, posinf=333333333333)
+        nr_nodes = len(self.floyd_warshall_matrix[0])
+        trust = 0
+        k = math.floor(math.sqrt(nr_nodes))
+        constant = 2 / ((nr_nodes * k) * (2*nr_nodes - 3*k - 1))
+        neigh_before = NearestNeighbors(n_neighbors=k, metric="precomputed").fit(floyd_no_inf) #check if this one adds up becaues it has a lot of the same nearest neighbors for each node
+        neigh_after = NearestNeighbors(n_neighbors=k).fit(self.projection_matrix)
+        knn_before = neigh_before.kneighbors(return_distance=False)
+        knn_after = neigh_after.kneighbors(return_distance=False)
+
+        for i in range(nr_nodes - 1):
+            false_neighbors = [x for x in knn_after[i] if x not in set(knn_before[i])]
+            for j in range(nr_nodes - 1):
+                if j in false_neighbors:
+                    trust += j - k
+
+        trustworthiness = 1 - (constant * trust)
+        print("trustworthiness", trustworthiness)
+        self.status.showMessage("The trustworthiness is "+str(trustworthiness))
+
+        return trustworthiness
+    
+    def calc_continuity(self):
+        cont = 0
+        floyd_no_inf = np.nan_to_num(self.floyd_warshall_matrix, posinf=333333333333)
+        nr_nodes = len(self.floyd_warshall_matrix[0])
+        k = math.floor(math.sqrt(nr_nodes))
+        neigh_before = NearestNeighbors(n_neighbors=k, metric="precomputed").fit(floyd_no_inf)
+        neigh_after = NearestNeighbors(n_neighbors=k).fit(self.projection_matrix)
+        constant = 2 / ((nr_nodes * k) * (2*nr_nodes - 3*k - 1))
+        knn_before = neigh_before.kneighbors(return_distance=False)
+        knn_after = neigh_after.kneighbors(return_distance=False)
+
+        for i in range(nr_nodes - 1):
+            missing_neighbors = [x for x in knn_before[i] if x not in set(knn_after[i])]
+            for j in range(nr_nodes - 1):
+                if j in missing_neighbors:
+                    cont += j - k
+
+        continuity = 1 - (constant * cont)
+        print("continuity", continuity)
+        self.status.showMessage("The continuity is "+str(continuity))
+
+        return continuity
+
+
     def update_status(self):
-        self.status.showMessage("Graph loaded and displayed - layout: "+self.layout)
+        self.status.showMessage("Graph with "+str(len(self.all_vertices.values()))+" nodes and "+str(len(self.all_edges.values()))+" edges loaded and displayed - layout: "+self.layout)
 
     def update_node_position(self, node_id, x, y, index = 0):
         self.coordinates[index][node_id] = (x,y)
@@ -706,6 +1205,12 @@ class MainWindow(QMainWindow):
             return True
         else:
             return False
+    
+    def check_for_projection_layout(self):
+        if self.layout in ["t-SNE", "ISOMAP"]:
+            return True
+        else:
+            return False
         
     def translate_coordinates(self, coordinates, xtrans = 0, ytrans = 0):
         """
@@ -722,7 +1227,7 @@ class MainWindow(QMainWindow):
         
         
  # layout selector             
-    def generate(self, layout, subgraph_distance = None, use_screen_attributes = True, width = None, height = None, index = 0, random_subgraph_shuffle = False):
+    def generate(self, layout, subgraph_distance = None, use_screen_attributes = True, width = None, height = None, index = 0, random_subgraph_shuffle = False, use_first_dfs = False):
         if use_screen_attributes:
             width = self.screenwidth - 50 - self.node_radius * 2
             height = self.screenheight - 75 - self.node_radius * 2
@@ -740,16 +1245,20 @@ class MainWindow(QMainWindow):
                 self.coordinates[index] = main.create_random_coordinates(width/2, height, self.adjacency_dict[index])
             else:
                 self.coordinates[index] = main.create_random_coordinates(width, height, self.adjacency_dict[index])
+            self.reset_edge_waypoints()
         elif self.layout == ("solar" or "solar random"):
             self.coordinates[index] = main.create_solar_coordinates(width, height, self.adjacency_dict[index], index = index)
+            self.reset_edge_waypoints()
         elif self.layout == "solar deterministic":
             self.coordinates[index] = main.create_solar_coordinates(width, height, self.adjacency_dict[index], index = index, deterministic = True)
+            self.reset_edge_waypoints()
         elif self.layout == "radial dfs":
             if self.dfs_list == []:
                 for count in range(len(self.vertices)):
                     self.depth_first_search(root=main.most_connected_node_id[count], index = count)
             self.treetype = "dfs"                
             self.coordinates[index] = main.create_radial_coordinates(width, height, self.dfs_list[index], self.node_radius)
+            self.reset_edge_waypoints()
         elif self.layout == "radial bfs":
             if self.bfs_list == []:
                 for count in range(len(self.vertices)):
@@ -757,12 +1266,14 @@ class MainWindow(QMainWindow):
                     
             self.treetype = "bfs"
             self.coordinates[index] = main.create_radial_coordinates(width, height, self.bfs_list[index], self.node_radius)
+            self.reset_edge_waypoints()
         elif self.layout == "radial prims":
             if self.prims_list == []:
                 for count in range(len(self.vertices)):
                     self.prims_algorithm(root=main.most_connected_node_id[count], index = count)
             self.treetype = "prims"
             self.coordinates[index] = main.create_radial_coordinates(width, height, self.prims_list[index], self.node_radius)
+            self.reset_edge_waypoints()
             
         elif self.layout == "force bfs":            # do not use this until bfs has been made exhaustive
             if self.bfs_list == []:
@@ -771,6 +1282,7 @@ class MainWindow(QMainWindow):
             bfs_coords = main.create_radial_coordinates(width, height, self.bfs_list[index], self.node_radius)
             print("calculating force bfs coordinates for index",index)
             self.coordinates[index] = main.create_force_layout_coordinates(width, height, bfs_coords, self.adjacency_dict[index], index = index)
+            self.reset_edge_waypoints()
 
         elif self.layout == "force random":
             
@@ -783,10 +1295,12 @@ class MainWindow(QMainWindow):
                     self.coordinates[index] = self.translate_coordinates(self.coordinates[index], subgraph_distance/2, 0)
 
                 self.coordinates[index] = main.create_force_layout_coordinates(width, height, self.coordinates[index], self.adjacency_dict[index], max_iterations = 50, index = index)       # extra iterations
+                self.reset_edge_waypoints()
 
             else:
                 random_coords = main.create_random_coordinates(width, height, self.adjacency_dict[index])
                 self.coordinates[index] = main.create_force_layout_coordinates(width, height, random_coords, self.adjacency_dict[index], index = index)
+                self.reset_edge_waypoints()
 
             
         elif self.layout == "force custom":
@@ -794,37 +1308,69 @@ class MainWindow(QMainWindow):
                 self.coordinates[index] = main.create_force_layout_coordinates(width, height, self.coordinates[index], self.adjacency_dict[index], max_iterations=50, index = index)
             else:
                 self.coordinates[index] = main.create_force_layout_coordinates(self.scene.width(), self.scene.height(), self.coordinates[index], self.adjacency_dict[index], max_iterations=50, index = index)
+            self.reset_edge_waypoints()
 
         elif self.layout == "dag dfs barycenter":
-            if self.dfs_list == []:
-                for count in range(len(self.vertices)):
-                    self.depth_first_search(root=main.most_connected_node_id[count], index = count)
-            self.coordinates[index], edge_waypoints = main.calc_DAG(width, height, self.dfs_list[index], self.adjacency_dict[index], minimization_method="barycenter")
-            self.update_edge_waypoints(edge_waypoints)
+            if use_first_dfs or main.subgraphs_included:
+                if self.dfs_list == []:
+                    for count in range(len(self.vertices)):
+                        self.depth_first_search(root=main.most_connected_node_id[count], index = count)
+                self.coordinates[index], edge_waypoints = main.calc_DAG(width, height, [self.dfs_list[index]], self.adjacency_dict[index], minimization_method="barycenter")
+                self.update_edge_waypoints(edge_waypoints)
+            else:
+                if self.dfs_trees == []:
+                    self.depth_first_search_exhaustive()
+                #print("self.dfs_trees:",self.dfs_trees)
+                self.coordinates[index], edge_waypoints = main.calc_DAG(width, height, self.dfs_trees, self.adjacency_dict[index], minimization_method="barycenter")
+                self.update_edge_waypoints(edge_waypoints)
             
         elif self.layout == "dag dfs median":
-            if self.dfs_list == []:
-                for count in range(len(self.vertices)):
-                    self.depth_first_search(root=main.most_connected_node_id[count], index = count)
-            self.coordinates[index], edge_waypoints = main.calc_DAG(width, height, self.dfs_list[index], self.adjacency_dict[index], minimization_method="median")
-            self.update_edge_waypoints(edge_waypoints)
+            if use_first_dfs or main.subgraphs_included:
+                if self.dfs_list == []:
+                    for count in range(len(self.vertices)):
+                        self.depth_first_search(root=main.most_connected_node_id[count], index = count)
+                self.coordinates[index], edge_waypoints = main.calc_DAG(width, height, [self.dfs_list[index]], self.adjacency_dict[index], minimization_method="median")
+                self.update_edge_waypoints(edge_waypoints)
+            else:
+                if self.dfs_trees == []:
+                    self.depth_first_search_exhaustive()
+                self.coordinates[index], edge_waypoints = main.calc_DAG(width, height, self.dfs_trees, self.adjacency_dict[index], minimization_method="median")
+                self.update_edge_waypoints(edge_waypoints)
+
+        elif self.layout == "t-SNE":
+            self.floyd_warshall_matrix, index_node_dict = main.floyd_warshall_matrix(main.G)
+            self.coordinates[index], self.projection_matrix = main.get_tsne_coordinates(self.floyd_warshall_matrix, index_node_dict) 
+            self.reset_edge_waypoints()
+
+        elif self.layout == "ISOMAP":
+            self.floyd_warshall_matrix, index_node_dict = main.floyd_warshall_matrix(main.G)
+            self.coordinates[index], self.projection_matrix = main.get_isomap_coordinates(self.floyd_warshall_matrix, index_node_dict)  
+            self.reset_edge_waypoints()
+
         else:
             print("asked for layout", layout)
             raise ValueError ("Unsupported layout "+layout+" requested")
         
 #        print("the resulting coordinates on index",index, "are for node",self.coordinates[index].keys())
 
+    def reset_edge_waypoints(self):
+        for edge_object in self.all_edges.values():
+            edge_object.reset_waypoints()
+        self.scene.update()
+
     def update_edge_waypoints(self, edge_waypoints):    # key: list of edges where edge is (start_node_id, end_node_id, weight); value: [coords of start, dummy, ..., end]
   #      print("self.all_edges.keys():", self.all_edges.keys())
 
-  #     print("waypoint items are:",edge_waypoints)
+        # print("waypoint items are:",edge_waypoints)
 
         for edge_triple, waypoints_list in edge_waypoints.items():
+            if edge_triple[0] == edge_triple[1]:
+                raise ValueError("Start and end of an edge is the same node, "+edge_triple[0])
    #         print("edge triple is",edge_triple,"; waypoints list is",waypoints_list)
             edge_object = self.all_edges[edge_triple]       # key: (start_node_id, end_node_id, weight); value: edge object
             edge_object.update_waypoints(waypoints_list)
 
-            print("edge from",edge_object.start.id,"to",edge_object.end.id,"gets waypoint coordinates of",waypoints_list)
+            # print("edge from",edge_object.start.id,"to",edge_object.end.id,"gets waypoint coordinates of",waypoints_list)
     #    print("edge waypoint updating complete")
             
         self.scene.update()
@@ -902,6 +1448,21 @@ class MainWindow(QMainWindow):
 
         self.update_status()               
 
+        if self.check_for_layered_layout():
+            self.crossing_counting_action.setEnabled(False)
+        else:
+            self.crossing_counting_action.setEnabled(True)
+        
+        if self.check_for_projection_layout():
+            self.normalized_stress_action.setEnabled(True)
+            self.shepard_diagram_action.setEnabled(True)
+            self.trustworthiness_action.setEnabled(True)
+            self.continuity_action.setEnabled(True)
+        else:
+            self.normalized_stress_action.setEnabled(False)
+            self.shepard_diagram_action.setEnabled(False)
+            self.trustworthiness_action.setEnabled(False)
+            self.continuity_action.setEnabled(False)
 
         if self.edge_bundling_bool and main.subgraphs_included:
             print("starting edge bundling")
@@ -919,7 +1480,7 @@ class MainWindow(QMainWindow):
             print("scene width:", self.scene.width(), "scene height:", self.scene.height())
             print("view width:", self.view.width(), "view height:", self.view.height())
         
-    def edge_bundling(self, max_loops = 6, edge_objects = None, k=0.1, s_0 = 0.04, compat_threshold = 0.05):
+    def edge_bundling(self, max_loops = 2, edge_objects = None, k=0.1, s_0 = 0.04, compat_threshold = 0.05):
         if edge_objects == None:
             edge_objects = self.interlayer_edge_objects     #self.interlayer_edge_objects is the list af all edge objects that need to be bundled    
             
@@ -1038,23 +1599,10 @@ class MainWindow(QMainWindow):
                 e.waypoints[k] = QPointF(e.waypoints[k].x() + x_modifications[e][k], e.waypoints[k].y() + y_modifications[e][k])
                     
 
-    # def bundle_edges(self, e1, e2, compat_value, scale):
-    #     force_values_e1 = []
-    #     force_values_e2 = []
-    #     for i in range(len(e1[0].waypoints)):
-    #         if i == 0 or i == len(e1[0].waypoints) - 1:
-    #             force_values_e1.append((0, 0))
-    #             force_values_e2.append((0, 0))
-    #             continue
-    #         f_e1, f_e2 = self.force_calculation(e1[0].waypoints[i], e2[0].waypoints[i], compat_value, scale)
-    #         force_values_e1.append(f_e1)
-    #         force_values_e2.append(f_e2)
-    #     return force_values_e1, force_values_e2
-
     def main_compat(self, e1, e2):
         # print("angle:", self.angle_compat(e1, e2), "scale:", self.scale_compat(e1, e2), "distance:", self.distance_compat(e1, e2), "visibility:", self.visibility_compat(e1, e2))
         # print("total compat without scale:",  self.angle_compat(e1, e2) * self.distance_compat(e1, e2) * self.visibility_compat(e1, e2)  )
-        return self.angle_compat(e1, e2) * self.distance_compat(e1, e2)  * self.visibility_compat(e1, e2)  # * self.scale_compat(e1, e2)
+        return self.angle_compat(e1, e2) * self.distance_compat(e1, e2)  * self.visibility_compat(e1, e2)  * self.scale_compat(e1, e2)
 
     def angle_compat(self, e1, e2):
         #print("e1", e1)
@@ -1073,11 +1621,21 @@ class MainWindow(QMainWindow):
         e2_vec = (e2.end.x_coord - e2.start.x_coord, e2.end.y_coord - e2.start.y_coord) 
         p_length = math.sqrt(e1_vec[0] * e1_vec[0] + e1_vec[1] * e1_vec[1])
         q_length = math.sqrt(e2_vec[0] * e2_vec[0] + e2_vec[1] * e2_vec[1])
-        l_avg = (p_length + q_length)/2
+        
+        #l_avg = (p_length + q_length)/2
+
         min_length = min(p_length, q_length)
-        max_length = max(p_length, q_length)
-        scale_compatibility = 2 / ((l_avg * min_length) + (max_length / l_avg))
-        #print("scale compatability between edges", e1_vec, "and", e2_vec, "is", scale_compatibility)
+        #max_length = max(p_length, q_length)
+
+        p_length_normal = p_length / min_length
+        q_length_normal = q_length / min_length
+
+        min_length_normal = min(p_length_normal, q_length_normal)
+        max_length_normal = max(p_length_normal, q_length_normal)
+        l_avg_normal = (p_length_normal + q_length_normal) / 2
+
+        scale_compatibility = 2 / ((l_avg_normal * min_length_normal) + (max_length_normal / l_avg_normal))
+     #   print("scale compatibility between edges", e1_vec, "and", e2_vec, "is", scale_compatibility)
         return scale_compatibility
 
     def distance_compat(self, e1, e2):
@@ -1156,7 +1714,6 @@ class MainWindow(QMainWindow):
 
 
     def force_calculation(self, e1, e2, compat_value, scale):
-        # TODO: calculate force on each waypoint of the two edges and return position modification of those waypoints
         k_stiff = 0.5 # global stiffness constant, the larger the less likely the edges will bundle
         #initialize force lists
         force_e1 = []
@@ -1235,11 +1792,8 @@ class MainWindow(QMainWindow):
 
                 force_waypoint = kp_e2 * (dist_prev_curr_waypoint_e2 + dist_curr_next_waypoint_e2) + force_electro
                 force_e2.append(force_waypoint)
-
     
         return force_e1, force_e2
-
-        return
 
     def regenerate_random(self):
         self.layout = "random"
@@ -1283,6 +1837,14 @@ class MainWindow(QMainWindow):
             
     def regenerate_dag_dfs_median(self):
         self.layout = "dag dfs median"
+        self.regenerate()
+    
+    def regenerate_tsne(self):
+        self.layout = "t-SNE"
+        self.regenerate()
+
+    def regenerate_isomap(self):
+        self.layout = "ISOMAP"
         self.regenerate()
 
 # part of graph initialization:
@@ -1328,7 +1890,20 @@ class MainWindow(QMainWindow):
                     if main.printing_mode:
                         print ("added interlayer edge from", start_id, "to", end_id,"with weight",weight)                    
 
-                    
+    def edges_increase_opacity(self):
+        for e in self.scene.items():
+            if e.__name__ == 'Edge':
+                e.opacity = min(1, e.opacity + 0.1)
+                e.setOpacity(e.opacity)
+        self.scene.update()                        
+    
+    def edges_decrease_opacity(self):
+        for e in self.scene.items():
+            if e.__name__ == 'Edge':
+                e.opacity = max(0, e.opacity - 0.1)
+                e.setOpacity(e.opacity)
+        self.scene.update()
+                        
     def vertices_decrease_radius(self):
         for vertices_list in self.vertices:
             for v in vertices_list.values():
@@ -1372,6 +1947,10 @@ class MainWindow(QMainWindow):
                 v.toggle_id_visibility()
         self.scene.update()
 
+    def toggle_bounding_box_display(self):
+        self.vertex_boxes.toggle_display()
+        self.scene.update()
+        
     def toggle_dynamic_forces(self):
         self.dynamic_forces = not self.dynamic_forces
 
@@ -1379,6 +1958,12 @@ class MainWindow(QMainWindow):
         self.display_non_tree_edges = not self.display_non_tree_edges
         if self.check_for_tree_layout() == True:
             self.regenerate(same_positions = True)
+
+    def toggle_dummy_nodes(self):
+        for e in self.scene.items():
+            if e.__name__ == 'Edge':
+                e.toggle_dummy_display()
+        self.scene.update()
 
     def toggle_edge_segmentation(self):
         for e in self.scene.items():
@@ -1412,10 +1997,10 @@ class MainWindow(QMainWindow):
         if given_root_id != None:
             root_id = given_root_id
         elif root == "most connected":
-            root_id = main.most_connected_node_id
+            root_id = main.most_connected_node_id[index]
         else:
             raise ValueError ("No root given for exhaustive dfs")
-        
+    #    print("root id becomes", root_id)
         if dfs_trees == None:
             dfs_trees = []
         self.dfs = [(root_id, root_id)]
@@ -1424,6 +2009,7 @@ class MainWindow(QMainWindow):
         else:
             visited.append(root_id)
             # print("appending",root_id,"to visited")
+      #  print("visited is",visited)
         self.depth_first_search_next(self.vertices[index][root_id], visited)
 
         dfs_trees.append(self.dfs)
@@ -1443,7 +2029,7 @@ class MainWindow(QMainWindow):
             #     print("exhaustive dfs order:",self.dfs_trees)
             self.dfs_trees = dfs_trees
             self.dfs = dfs_trees[0]
-            print("exhaustive dfs order:",self.dfs_trees)
+      #      print("exhaustive dfs order:",self.dfs_trees)
         return self.dfs_trees
     
     #global max_depth
@@ -1503,7 +2089,6 @@ class MainWindow(QMainWindow):
                 print("WARNING: There are",len(self.vertices[index].keys()) - len(self.prims),"nodes in the",self.layout, "graph that are not connected with the rest, these are currently not displayed")
                 break
                 #raise ValueError ("There are nodes in the graph that are not connected with the rest")
-                # TODO: handle this situation, maybe make a new tree with an unused node as new root
 
             min_dist = None
             min_node_id = None
@@ -1540,7 +2125,7 @@ if __name__ == "__main__":
     # Qt Application
     app = QApplication(sys.argv)
 
-    window = MainWindow(main.adjacency_dict_list, "force random", default_radius=10)
+    window = MainWindow(main.adjacency_dict_list, "random", default_radius=10)
     window.show()
 
     

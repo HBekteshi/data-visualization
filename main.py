@@ -9,58 +9,61 @@ import queue
 import statistics
 
 from PySide6.QtCore import QPointF
+from collections import defaultdict
+from sklearn.manifold import TSNE, Isomap, MDS
 
 # settings
 printing_mode = False
-subgraphs_included = True #set to False when loading a graph without subgraphs
+subgraphs_included = False    #set to False when loading a graph without subgraphs, True otherwise
+include_n = False          # set to True when loading layered layouts for pro league network and test network, False for small directed network
 
 #undirected graphs
-#G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
+G = networkx.Graph(networkx.nx_pydot.read_dot('data/LesMiserables.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/JazzNetwork.dot'))
 #G = networkx.Graph(networkx.nx_pydot.read_dot('data/rome.dot'))
 
 #directed graphs
-#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) #this is the small directed network
-#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot'))
+#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/noname.dot')) # this is the small directed network, set include_n = False for this one
+#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/LeagueNetwork.dot')) # need include_n = True for this one
+#G = networkx.DiGraph(networkx.nx_pydot.read_dot('data/testnetwork.dot'))
 
-A = pydot.graph_from_dot_file('data/devonshiredebate_withonlytwoclusters.dot')
+if subgraphs_included == True:
+    A = pydot.graph_from_dot_file('data/devonshiredebate_withonlytwoclusters.dot') 
+    #A = pydot.graph_from_dot_file('data/polblogs_subgraphed.dot')
 
-    
+    subgraphs = A[0].get_subgraphs()
 
-subgraphs = A[0].get_subgraphs()
-
-subgraph_youngest = subgraphs[0]
-subgraph_gap = subgraphs[1]
-all_edges = A[0].get_edge_list()
-inter_layer_edges = []
+    subgraph_youngest = subgraphs[0]
+    subgraph_gap = subgraphs[1]
+    all_edges = A[0].get_edge_list()
+    inter_layer_edges = []
 
 
-for edge in all_edges:
-    source = edge.get_source()
-    destination = edge.get_destination()
-    subgraph_youngest_nodes = subgraph_youngest.obj_dict["nodes"]
-    subgraph_gap_nodes = subgraph_gap.obj_dict["nodes"]
-    #print("source", source)
-    #print("destination", destination)
-    if source in subgraph_youngest_nodes and destination in subgraph_youngest_nodes:
-        subgraph_youngest.add_edge(edge)
-        #print("both nodes are in youngest")
-    elif source in subgraph_gap_nodes and destination in subgraph_gap_nodes:
-        subgraph_gap.add_edge(edge)
-        #print("both nodes are in gap")
-    else:
-        inter_layer_edges.append((source, destination))
-        #print("nodes are in gap and youngest")
+    for edge in all_edges:
+        source = edge.get_source()
+        destination = edge.get_destination()
+        subgraph_youngest_nodes = subgraph_youngest.obj_dict["nodes"]
+        subgraph_gap_nodes = subgraph_gap.obj_dict["nodes"]
+        #print("source", source)
+        #print("destination", destination)
+        if source in subgraph_youngest_nodes and destination in subgraph_youngest_nodes:
+            subgraph_youngest.add_edge(edge)
+            #print("both nodes are in youngest")
+        elif source in subgraph_gap_nodes and destination in subgraph_gap_nodes:
+            subgraph_gap.add_edge(edge)
+            #print("both nodes are in gap")
+        else:
+            inter_layer_edges.append((source, destination))
+            #print("nodes are in gap and youngest")
 
-#print("edges subgraph", subgraph_youngest.get_edges())
-#print("edges subgraph", subgraph_gap.get_edges())
+    #print("edges subgraph", subgraph_youngest.get_edges())
+    #print("edges subgraph", subgraph_gap.get_edges())
 
-G_parent = networkx.DiGraph(networkx.nx_pydot.from_pydot(A[0]))
-G_youngest = networkx.DiGraph(networkx.nx_pydot.from_pydot(subgraphs[0]))
-G_gap = networkx.DiGraph(networkx.nx_pydot.from_pydot(subgraphs[1]))
-subgraphs_list = [G_youngest, G_gap]
+    G_parent = networkx.DiGraph(networkx.nx_pydot.from_pydot(A[0]))
+    G_youngest = networkx.DiGraph(networkx.nx_pydot.from_pydot(subgraphs[0]))
+    G_gap = networkx.DiGraph(networkx.nx_pydot.from_pydot(subgraphs[1]))
+    subgraphs_list = [G_youngest, G_gap]
 
-if subgraphs_included:              # TODO: fix this temporary measure, so main.G.isdirected() call gets something decent
     G = G_youngest
 
 
@@ -83,18 +86,25 @@ def add_nodes_adjacency_dict(adjacency_dict, G):
     for n in G.nodes():
         if printing_mode:
             print(f"Added node with id {n}")
-        adjacency_dict[n] = []
-
+        if n != "\\n":
+            adjacency_dict[n] = []
+        elif include_n:
+            adjacency_dict[n] = []
 
 # the les miserables import has a node with id '\\n' and no connections
 
 # the first time an edge appears it is marked True, and it will be rendered
 # the second time the same edge appears it is marked False, so it will not be rendered
-def add_edges_to_adjacency_dict(adjacency_dict, edges):   
+def add_edges_to_adjacency_dict(adjacency_dict, edges):  
+    # print("adding edges:",edges) 
+    # print()
+    # print("to adj dict:",adjacency_dict)
     weightcheck = True
     weighted = True
     for e in edges:
         u, v = e
+        u = u.strip('"')
+        v = v.strip('"')
         if weightcheck:
             try:
                 weight = G[u][v]["weight"]
@@ -126,28 +136,38 @@ def create_adjacencies(adjacencies, adjacency_dict):
         adjacencies[id] = len(adj_nodes)
     return adjacencies
 
-if(subgraphs_included == False):
+if (subgraphs_included == False):
     add_nodes_adjacency_dict(adjacency_dict, G)
     add_edges_to_adjacency_dict(adjacency_dict, G.edges())
     adjacencies.append(create_adjacencies(adjacencies_sub1, adjacency_dict))
     most_connected_node_id.append(max(zip(adjacencies[0].values(), adjacencies[0].keys()))[1]) #retrieve id with max adjacency, add to list
     adjacency_dict_list.append(adjacency_dict)
 else:
+    print("starting adding nodes to sub1")
     add_nodes_adjacency_dict(adjacency_dict_sub1, subgraphs_list[0])
+    print("starting adding edges to sub1")
     add_edges_to_adjacency_dict(adjacency_dict_sub1, subgraphs_list[0].edges())
+    print("starting creating adjacencies to sub1")
     adjacencies.append(create_adjacencies(adjacencies_sub1, adjacency_dict_sub1))
     most_connected_node_id.append(max(zip(adjacencies_sub1.values(), adjacencies_sub1.keys()))[1]) #retrieve id with max adjacency, add to list
     adjacency_dict_list.append(adjacency_dict_sub1)
 
+    print("starting adding nodes to sub2")
     add_nodes_adjacency_dict(adjacency_dict_sub2, subgraphs_list[1])
+    print("starting adding edges to sub1")
     add_edges_to_adjacency_dict(adjacency_dict_sub2, subgraphs_list[1].edges())
+
+    print("starting creating adjacencies to sub2")
     adjacencies.append(create_adjacencies(adjacencies_sub2, adjacency_dict_sub2))
     most_connected_node_id.append(max(zip(adjacencies_sub2.values(), adjacencies_sub2.keys()))[1]) #retrieve id with max adjacency, add to list
     adjacency_dict_list.append(adjacency_dict_sub2)
 
     # add all nodes to dict to be able to add interlayer edges, and add the edges
+    print("starting adding interlayer nodes from sub1")
     add_nodes_adjacency_dict(adjacency_dict_interlayer, subgraphs_list[0]) 
+    print("starting adding interlayer nodes from sub2")
     add_nodes_adjacency_dict(adjacency_dict_interlayer, subgraphs_list[1])
+    print("starting adding interlayer edges")
     add_edges_to_adjacency_dict(adjacency_dict_interlayer, inter_layer_edges)
     # ignore nodes from dict which have no interlayer edges
     adjacency_dict_interlayer = {id:val for id, val in adjacency_dict_interlayer.items() if val != []}
@@ -470,7 +490,7 @@ def create_force_layout_coordinates(width, height, initial_coords, adjacency_dic
     nr_vertices = len(initial_coords.keys())
 
     while t_global > t_min and iteration_count < max_iterations: #change max iterations maybe
-        coords_dict = force_iteration(width, height, coords_dict, prev_force_dict, temp_dict, skew_gauge_dict, delta, area, nr_vertices, C, adjacency_dict, local_adjacencies = adjacencies[index])
+        coords_dict, temp_dict = force_iteration(width, height, coords_dict, prev_force_dict, temp_dict, skew_gauge_dict, delta, area, nr_vertices, C, adjacency_dict, local_adjacencies = adjacencies[index])
         t_global = sum(temp_dict.values()) / len(temp_dict) #update global temperature
         iteration_count += 1
 
@@ -497,6 +517,8 @@ def force_iteration(width, height, old_coordinates_dict, prev_force_dict, temp_d
         
         barycenter[0] = barycenter[0] / nr_vertices
         barycenter[1] = barycenter[1] / nr_vertices
+
+#        print("barycenter at first is",barycenter)
 
     
     if single_node_iteration == True:
@@ -543,7 +565,6 @@ def force_iteration(width, height, old_coordinates_dict, prev_force_dict, temp_d
                 # print("old coords dict keys is", old_coordinates_dict.keys())
                 # print("breaking node id is",id)
                 # raise ValueError("breaking node_id is",id)
-            #TODO: change global to local adjacencies
             force = calc_sum_force(id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter, local_adjacency_dict, local_adjacencies)
             prev_force = prev_force_dict[id]
 
@@ -571,8 +592,10 @@ def force_iteration(width, height, old_coordinates_dict, prev_force_dict, temp_d
                 force = (temp_dict[id] * (force[0] / force_magnitude), temp_dict[id] * (force[1] / force_magnitude))
                 new_x = old_coords_tuple[0] + delta_value * force[0]
                 new_y = old_coords_tuple[1] + delta_value * force[1]
-                barycenter[0] += force[0]
-                barycenter[1] += force[1]
+                # barycenter[0] += force[0] * delta_value
+                # barycenter[1] += force[1] * delta_value
+
+                # print("barycenter after change is",barycenter)
             
             if apply_boundaries == True:
                 if abs(new_x) > width/2:
@@ -591,7 +614,7 @@ def force_iteration(width, height, old_coordinates_dict, prev_force_dict, temp_d
             prev_force_dict[id] = force #store current force as previous force for next round
         # print("node",id,"gets a force push of",force)
 
-    return new_coordinates_dict
+    return new_coordinates_dict, temp_dict
 
 def calc_sum_force(current_id, old_coords_tuple, old_coordinates_dict, area, nr_vertices, C, use_barycenter, barycenter, local_adjacency_dict, local_adjacencies, use_mass = True):
     #adj_nodes = calc_direct_children() #to check again          # need node list and parent id  # this only works for a tree structure
@@ -787,18 +810,24 @@ def calc_attr_imp(length, chosen_node, node2, node_mass):
 
     return (attr_forcex, attr_forcey)
 
-def calc_DAG(width, height, dfs, adjacency_dict, perform_crossing_minimization = True, minimization_method = "median", straighten_edges = True):
+def calc_DAG(width, height, dfs_trees, adjacency_dict, perform_crossing_minimization = True, minimization_method = "median", straighten_edges = True, printing = False):
     #main function of DAG
 
     #first remove the cycles in the DAG
     vertex_sequence = create_vertex_seqeuence_eades(adjacency_dict)
-    #print("newly created vertex sequence is:", vertex_sequence)
+    if printing:
+        print("newly created vertex sequence is:", vertex_sequence)
+
     acyclic_adjacency_dict, reversed_list = reverse_edges(vertex_sequence, adjacency_dict)
-    #print("newly created reversed list is",reversed_list)
+
+    if printing:
+        print("newly created reversed list is",reversed_list)
 
     #assign vertices to layers --> still have to test this!! but doesn't break anything 
-    #print(acyclic_adjacency_dict)
-    layer_dict, nodes_per_layer = layer_assignment_dag(dfs, acyclic_adjacency_dict)         
+    if printing:
+        print("newly created acyclic adjacency dict:", acyclic_adjacency_dict)
+
+    layer_dict, nodes_per_layer = layer_assignment_dag(dfs_trees, acyclic_adjacency_dict)         
     # layer_dict[node_id] = # of layer of that node;  
     # nodes_per_layer[# of layer] = list of all nodes in that layer
 
@@ -807,8 +836,9 @@ def calc_DAG(width, height, dfs, adjacency_dict, perform_crossing_minimization =
     #print("dummy_nodes_per_layer:", dummy_nodes_per_layer)
     #print("dummy_adjacency_dict:", dummy_adjacency_dict)
 
+    if printing:
+        print("node_waypoints_ids.keys():", node_waypoints_ids.keys())
     
-
 
        # get y-coordinates and initial x-coordinates of vertices
     n_layers = len(dummy_nodes_per_layer)
@@ -918,12 +948,6 @@ def calc_DAG(width, height, dfs, adjacency_dict, perform_crossing_minimization =
                 result = scipy.optimize.minimize(fun = dummies_distance_sum, x0 = dummy_x_coords, args = (straight_positions), bounds = boundaries)
 
                 dummy_x_coords = result.x
-
-                # if result.success == True:
-                #     dummy_x_coords = result.x
-                # else:
-                #     #raise ValueError ("scipy optimize failed, message:",result.message)
-                #     dummy_x_coords = result.x
             
             for i, point in enumerate(edge_waypoints[edge]):
                 if i == 0:
@@ -1065,6 +1089,7 @@ def create_vertex_seqeuence_eades(adjacency_dict):
 def reverse_edges(vertex_sequence, adjacency_dict):
     reversed_list = [] #a list of (x,y) which indicate that the edge between xy has been reversed
     acyclic_adjacency_dict = copy.deepcopy(adjacency_dict)
+    #print("adjacency dict has edges of 16 be",adjacency_dict["16"])
     for index, vertex in enumerate(vertex_sequence):
         edges = acyclic_adjacency_dict[vertex]
         for edge in edges:
@@ -1092,7 +1117,7 @@ def reverse_edges(vertex_sequence, adjacency_dict):
                     acyclic_adjacency_dict[vertex] = new_edge_list
             #        print("add edge", new_edge_vu, "to adjacency dict from", edge[0])
                     acyclic_adjacency_dict[edge[0]].append(new_edge_vu)
-            
+#    print("acyclic adjacency dict has edges of 16 be",acyclic_adjacency_dict["16"])
         
 
     #loop through the vertex sequence
@@ -1103,37 +1128,57 @@ def reverse_edges(vertex_sequence, adjacency_dict):
 
     return acyclic_adjacency_dict, reversed_list
 
-def layer_assignment_dag(dfs, adjacency_dict):
+def vertex_assignment(start_vertex, acyclic_adjacency_dict, to_assign, layer_dict, printing = False):
+    for edge in acyclic_adjacency_dict[start_vertex]:
+        if printing:
+            print("testing vertex", edge[0], "with parent",start_vertex)
+        
+        if to_assign[edge[0]] == False:
+            if printing:
+                print("going to assign a layer to vertex",edge[0])
+            if edge[1] == True:
+                layer_nr = layer_dict[start_vertex] + 1
+                layer_dict[edge[0]] = layer_nr
+                if printing:
+                    print("vertex", edge[0], "with parent node", start_vertex, "is assigned a higher layer", layer_nr)
+            else:
+                layer_nr = layer_dict[start_vertex] - 1
+                layer_dict[edge[0]] = layer_nr
+                if printing:
+                    print("vertex", edge[0], "with parent node", start_vertex, "is assigned a lower layer", layer_nr)
+            to_assign[edge[0]] = True
+
+            if printing:                    
+                print("to assign of",edge[0],"has been set to",to_assign[edge[0]])
+                
+            acyclic_adjacency_dict, to_assign, layer_dict = vertex_assignment(edge[0], acyclic_adjacency_dict, to_assign, layer_dict, printing = printing)
+        else:
+            if printing:
+                print(edge[0], "is already assigned to layer", layer_dict[edge[0]])
+    
+    return acyclic_adjacency_dict, to_assign, layer_dict
+
+
+def layer_assignment_dag(dfs_trees, acyclic_adjacency_dict, printing = False):
     """input: the adjacency dict and a dfs list with tuples of (parent_id, node_id)"""
     #print("inside function with start vertex", vertex)
-    layer_dict = {key: 0 for key in list(adjacency_dict.keys())}
-    to_assign = {key: False for key in list(adjacency_dict.keys())}
+    layer_dict = {key: 0 for key in list(acyclic_adjacency_dict.keys())}
+    to_assign = {key: False for key in list(acyclic_adjacency_dict.keys())}
 
-    for tuple in dfs:
-        start_vertex = tuple[1]
-        #layer_dict[start_vertex] = 0
-  #      print("inside for with start vertex", start_vertex)
-        for edge in adjacency_dict[start_vertex]:
-   #         print("inside for with vertex", edge[0], "with start vertex", start_vertex)
-            if to_assign[edge[0]] == False:
-     #           print("inside if with start vertex", start_vertex)
-                if edge[1] == True:
-                    layer_nr = layer_dict[start_vertex] + 1
-                    layer_dict[edge[0]] = layer_nr
-     #               print("vertex", edge[0], "with parent node", start_vertex, "is assigned layer", layer_nr)
-                else:
-                    layer_nr = layer_dict[start_vertex] - 1
-                    layer_dict[edge[0]] = layer_nr
-      #              print("vertex", edge[0], "with previous adjacent node", start_vertex, "is assigned layer", layer_nr)
-                to_assign[start_vertex] = True
-                #layer_assignment_dag(dfs, adjacency_dict, to_assign, layer_dict, edge[0], layer_nr)
-            else:
-                if printing_mode:
-                    print(start_vertex, "is already assigned to layer", layer_dict[start_vertex])
+    for dfs in dfs_trees:
+   #     print("starting new tree")
+        start_vertex = dfs[0][1]
+        to_assign[start_vertex] = True
+        if printing:
+            print("root node",start_vertex,"has been assigned layer 0")
+        acyclic_adjacency_dict, to_assign, layer_dict = vertex_assignment(start_vertex, acyclic_adjacency_dict,to_assign, layer_dict, printing = printing)
 
     #ensure minimum value is 0, and increase all values with the difference
     # puts nodes in a dictionary that has all in the nodes in a list with a layer value as key           
 
+    if printing:
+        print("layer dict before abs change",layer_dict)
+                        
     minimum_val = min(layer_dict.values())
     for layer in layer_dict:
         layer_dict[layer] += abs(minimum_val)
@@ -1145,9 +1190,11 @@ def layer_assignment_dag(dfs, adjacency_dict):
         layer_value = layer_dict[node]
         nodes_per_layer[layer_value].append(node)
 
-    #print("to assign dict", to_assign)    
-    #print("layer dict", layer_dict)
-    #print("nodes per layer dict", nodes_per_layer)
+    
+    if printing:
+        #print("to assign dict", to_assign)    
+        print("layer dict", layer_dict)
+        print("nodes per layer dict", nodes_per_layer)
     return layer_dict, nodes_per_layer
 
 
@@ -1157,15 +1204,19 @@ def layer_assignment_dag(dfs, adjacency_dict):
 # step 4: count crossings, see if there is improvement --> if not then stop, if yes then back to step 3
 
 
-def minimize_crossings(dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict, perform_crossing_minimization, minimization_method):
+def minimize_crossings(dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict, perform_crossing_minimization, minimization_method, buffer_limit = 2):
     
     number_of_layers = len(dummy_nodes_per_layer.keys())
+    current_x_coords = copy.deepcopy(x_coords_dict)
+    buffer_count = 0
 
     # calculate direct layer neighbours of each sequential layer pair
     downwards_neighbours_set = []
     upwards_neighbours_set = []
     downwards_degrees = {}
     upwards_degrees = {}
+
+    best_crossings = None
         
     for layer in range(number_of_layers):
         if layer != 0:
@@ -1184,64 +1235,76 @@ def minimize_crossings(dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dic
     # print("downwards degrees are:",downwards_degrees)
 
     # initial crossings:
-    previous_crossings = 0
+    initial_crossings = 0
     for neighbours_set in upwards_neighbours_set:
-        previous_crossings += count_crossings(neighbours_set, x_coords_dict, self_printing_mode=False)
+        initial_crossings += count_crossings(neighbours_set, current_x_coords, self_printing_mode=False)
 
-    print("initial crossings count:",previous_crossings)
+    best_crossings = initial_crossings
+    best_x_coords = current_x_coords
+
+    print("initial crossings count:",initial_crossings)
+
+    if initial_crossings == 0:
+        perform_crossing_minimization = False
 
     while (perform_crossing_minimization == True):
-        previous_x_coords = x_coords_dict
 
-        if previous_crossings == 0:
-            break
-
+        improvement = False
+        
     # one downward pass:
         downwards_crossings = 0
         for neighbours_set in downwards_neighbours_set:
     #        relative_positions_in_layer = permute_layer(neighbours_set, downwards_degrees, relative_positions_in_layer)
-            x_coords_dict = permute_layer(neighbours_set, downwards_degrees, x_coords_dict, method = minimization_method)
-            downwards_crossings += count_crossings(neighbours_set, x_coords_dict, self_printing_mode = False)
+            current_x_coords = permute_layer(neighbours_set, downwards_degrees, current_x_coords, method = minimization_method)
+            downwards_crossings += count_crossings(neighbours_set, current_x_coords, self_printing_mode = False)
 
 
-        #print("after downwards pass, the x pos dict is:", x_coords_dict)
-        print("after downwards pass, there are",downwards_crossings,"crossings, down from", previous_crossings)
-        downwards_x_coords = x_coords_dict
+        print("after downwards pass, there are",downwards_crossings,"crossings, the previous best was", best_crossings)
+        downwards_x_coords = current_x_coords
         if downwards_crossings == 0:
-            new_crossings = downwards_crossings
+            best_crossings = 0
+            best_x_coords = copy.deepcopy(downwards_x_coords)
             break
+
+        if best_crossings > downwards_crossings:
+            best_crossings = downwards_crossings
+            best_x_coords = copy.deepcopy(downwards_x_coords)
+            improvement = True
 
         # one upward pass:
-        new_crossings = 0
+        upwards_crossings = 0
         for neighbours_set in upwards_neighbours_set:
     #     relative_positions_in_layer = permute_layer(neighbours_set, upwards_degrees, relative_positions_in_layer)
-            x_coords_dict = permute_layer(neighbours_set, upwards_degrees, x_coords_dict, method = minimization_method)
-            new_crossings += count_crossings(neighbours_set, x_coords_dict, self_printing_mode = False)
+            current_x_coords = permute_layer(neighbours_set, upwards_degrees, current_x_coords, method = minimization_method)
+            upwards_crossings += count_crossings(neighbours_set, current_x_coords, self_printing_mode = False)
 
-     #   print("after upwards pass, the x pos dict is:", x_coords_dict)
-        print("after upwards pass, there are",new_crossings,"crossings, down from",previous_crossings)
+        print("after upwards pass, there are",upwards_crossings,"crossings, the previous best was",best_crossings)
 
-        
-        # if the downwards half of the iteration is better, we keep that one
-        if downwards_crossings < new_crossings:
-            new_crossings = downwards_crossings
-            x_coords_dict = downwards_x_coords
-        
-        # if the iteration is perfect or results in no benefit stop iterating
-        if new_crossings == 0:
+        upwards_x_coords = current_x_coords
+        if upwards_crossings == 0:
+            best_crossings = 0
+            best_x_coords = copy.deepcopy(upwards_x_coords)
             break
-        elif new_crossings >= previous_crossings:
-            x_coords_dict = previous_x_coords
-            break
+
+        if best_crossings > upwards_crossings:
+            best_crossings = upwards_crossings
+            best_x_coords = copy.deepcopy(upwards_x_coords)
+            improvement = True
+
+        if improvement:
+            buffer_count = 0
         else:
-            previous_crossings = new_crossings
-            previous_x_coords = x_coords_dict
-    
+            buffer_count += 1
+
+        if buffer_count > buffer_limit:
+            break
+
     if perform_crossing_minimization:
-        print("the final crossings count is",new_crossings)
+       # print("the final crossings count is",new_crossings)
+        print("the final crossings count after",minimization_method,"minimization is",best_crossings)
     
 
-    return dummy_nodes_per_layer, dummy_adjacency_dict, x_coords_dict
+    return dummy_nodes_per_layer, dummy_adjacency_dict, best_x_coords
 
 
 def count_crossings(node_neighbours, x_coords_dict, self_printing_mode = printing_mode):      # counts current crossings between current layer and previous layer
@@ -1278,20 +1341,36 @@ def count_crossings(node_neighbours, x_coords_dict, self_printing_mode = printin
                         crossings += 1
                         if self_printing_mode:
                             print("there is a crossing between edges",current_node_id,"to",neighbour_node,"and",other_node_id,"to",other_neighbour_id)
+              #          print("there is a crossing between edges",current_node_id,"to",neighbour_node,"and",other_node_id,"to",other_neighbour_id)
 
     return crossings
 
 
 
 
-def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter", self_printing_mode = False):
+def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter", self_printing_mode = False, offset_switch_threshold = 30, offset_override = False, override_value = 2):
     
     #print("relative position in layer", relative_positions_in_layer)
     proposed_positions = queue.PriorityQueue()          # contains items in the form (relative location, node_id), .get() extracts node id with smallest location
     positions_set = set()
 
-    offset_value = 30
-    median_offset_value = 35
+    # original values
+    #barycenter_offset_value = 30
+    #median_offset_value = 35
+    if offset_override:
+        barycenter_offset_value = override_value
+        median_offset_value = override_value
+
+    elif len(list(x_coords_dict.keys())) > offset_switch_threshold:       # if there are more nodes + dummy nodes than the given threshold, have a small median offset, otherwise large
+    # for pro league network
+        barycenter_offset_value = 35
+        median_offset_value = 10
+    else:
+        # for small directed network
+        barycenter_offset_value = 35
+        median_offset_value = 100
+
+    #print("offsets set to",barycenter_offset_value,"and",median_offset_value)
     
     if method == "barycenter":
         for node_id, neighbours in node_neighbours.items():
@@ -1312,7 +1391,7 @@ def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter"
                     print("proposing node", node_id, "to be in position", proposed_position)
 
             
-                offset = offset_value                                      # introduce tiny gap in the event of equality
+                offset = barycenter_offset_value                                      # introduce tiny gap in the event of equality
                 while proposed_position in positions_set:
                     if (proposed_position + offset) not in positions_set:
                         proposed_position += offset
@@ -1323,7 +1402,7 @@ def permute_layer(node_neighbours, degrees, x_coords_dict, method = "barycenter"
                     else:
                         if self_printing_mode:
                             print("offsetting position of node", node_id)
-                        offset += offset_value
+                        offset += barycenter_offset_value
 
                 positions_set.add(proposed_position)
 
@@ -1401,7 +1480,7 @@ def get_layer_neighbours(dummy_adjacency_dict, previous_layer, current_layer, de
 
 
 
-def create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict, reversed_list):
+def create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict, reversed_list, printing = False):
 
   # the order of layer N is the list that is gotten by calling dummy_nodes_per_layer[N]
     
@@ -1411,49 +1490,100 @@ def create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict, reve
 
     node_waypoints_ids = {}             # key: list of edges where edge is (start_node_id, end_node_id, weight); value: [start_node_id, dummy_node1_id, dummy_node2_id, end_node_id]
 
-    #print("reversed list is", reversed_list)
+    if printing:
+        print("reversed list is", reversed_list)
 
     for start_node_id, edges in acyclic_adjacency_dict.items():
-        start_layer = layer_dict[start_node_id]
+        
+        original_start_node = copy.deepcopy(start_node_id)
+
         for edge in edges:                      # edge is (end_node_id, truth value, weight)
+            start_node_id = original_start_node
             end_node_id = edge[0]
-    
-            if (end_node_id, start_node_id) in reversed_list:           # swap truth values back for reversed edges
-                truth_value = not edge[1]
+
+            if ((start_node_id == "1" and end_node_id == "5") or (start_node_id == "5" and end_node_id == "1")) and printing:
+                track_creation = True
+                print("tracking edge from",start_node_id, "to",end_node_id)
+                print("edges:",edges,"starting from",start_node_id)
+            else:
+                track_creation = False
+
+            if ((end_node_id, start_node_id) in reversed_list):           # swap truth values back for reversed edges                
+                truth_value = True
                 reversed_list.remove((end_node_id, start_node_id))
+                if track_creation:
+                    print("reversing back, becomes",truth_value)
+                    print("before switching:",start_node_id, end_node_id)
+                    print("reversed list is now",reversed_list)
+                temp = copy.deepcopy(start_node_id)
+                start_node_id = copy.deepcopy(end_node_id)
+                end_node_id = copy.deepcopy(temp)
+                if track_creation:
+                    print("after switching:",start_node_id,end_node_id)
+                
             else:
                 truth_value = edge[1]
+                if track_creation:
+                    print((end_node_id, start_node_id),"not in reversed list")
+                    print("truth value is",truth_value)
 
             if truth_value == True:                 # we only look at edges that go from a lower layer to a higher layer
                 weight = edge[2]
-
+                if track_creation:
+                    print("just before node waypoints ids:",start_node_id,end_node_id)
                 node_waypoints_ids[(start_node_id, end_node_id, weight)] = [start_node_id]         
 
-                end_node_id = edge[0]
+                if start_node_id == end_node_id:
+                    raise ValueError("nodes are the same, "+start_node_id)
+
+                start_layer = layer_dict[start_node_id]
                 end_layer = layer_dict[end_node_id]
                 layer_difference = end_layer - start_layer
-                if layer_difference > 1:
-                    for count in range(layer_difference - 1):
 
-                        dummy_layer = start_layer  + count + 1
+                if track_creation:
+                    print("edge from",start_node_id,"to",end_node_id,"goes from layer",start_layer,"to",end_layer, "and the layer difference is",layer_difference)
+
+                if layer_difference > 1 or layer_difference < 1:
+                    if layer_difference > 1:
+                        upwards = True
+                    else:
+                        upwards = False
+
+                    layer_difference = np.abs(layer_difference)
+
+                    if track_creation:
+                        print("starting dummy node creation")
+
+                    for count in range(layer_difference - 1):
+                        
+                        if upwards:
+                            dummy_layer = start_layer  + count + 1
+                        else:
+                            dummy_layer = start_layer - count - 1
 
                         dummy_id = "dummy " + start_node_id + " to " + end_node_id + " in layer " + str(dummy_layer)
 
                         if count == (layer_difference - 2):
                             target_id = end_node_id
-                        else:
+                        elif upwards:
                             target_id = "dummy " + start_node_id + " to " + end_node_id + " in layer " + str(dummy_layer + 1)
+                        else:
+                            target_id = "dummy " + start_node_id + " to " + end_node_id + " in layer " + str(dummy_layer - 1)
 
-                        if printing_mode:
+                        if printing_mode or track_creation:
                             print("trying to create", dummy_id)
                             
                     
                         if dummy_id not in dummy_nodes_per_layer[dummy_layer]:
+                            if start_node_id == end_node_id:
+                                raise ValueError(start_node_id+" and "+end_node_id+" are equal")
+                            if track_creation:
+                                print("just before append:",start_node_id,end_node_id)
                             node_waypoints_ids[(start_node_id, end_node_id, weight)].append(dummy_id)
                             dummy_nodes_per_layer[dummy_layer].append(dummy_id)
                             dummy_layer_dict[dummy_id] = dummy_layer
 
-                            if printing_mode:
+                            if printing_mode or track_creation:
                                 print("successfully created", dummy_id)
                             
                             if dummy_adjacency_dict.get(dummy_id) == None:
@@ -1472,7 +1602,101 @@ def create_dummy_nodes(layer_dict, nodes_per_layer, acyclic_adjacency_dict, reve
 
 
                 node_waypoints_ids[(start_node_id, end_node_id, weight)].append(end_node_id)
-
-    #print("node_waypoints_ids:", node_waypoints_ids)
+    if printing:
+        print("node_waypoints_ids keys:", node_waypoints_ids.keys())
 
     return dummy_nodes_per_layer, dummy_adjacency_dict, node_waypoints_ids, dummy_layer_dict
+
+def floyd_warshall_matrix(graph):
+    """
+    input: a networkx graph
+    output: a default dictionary with the shortest distance from node to node
+    description: the floyd warshall algorithm to compute the shortest distance for weighted graphs
+    """
+    #default is set as inf if nodes are not connected
+    nr_vertices = graph.number_of_nodes()
+    distance = np.full((nr_vertices, nr_vertices), float('inf'))
+    index_node_dict = {}
+    node_index_dict = {}
+
+    # node connections with itself are 0
+    for index, node in enumerate(graph.nodes()):
+        distance[index][index] = 0
+        index_node_dict[index] = node
+        node_index_dict[node] = index
+
+    # retrieve the weight of the graph, set weight to 1 if it is an unweighted graph
+    try:
+        for e in graph.edges(data=True):
+            i, j, data = e
+            index_i = node_index_dict[i]
+            index_j = node_index_dict[j]
+            distance[index_i][index_j] = graph[i][j]['weight']
+            distance[index_j][index_i] = distance[index_i][index_j]
+            # print("weight", distance[index_i][index_j])
+    except:
+        for e in graph.edges(data=True):
+            i, j, data = e
+            index_i = node_index_dict[i]
+            index_j = node_index_dict[j]
+            distance[index_i][index_j] = 1
+            distance[index_j][index_i] = distance[index_i][index_j]
+            # print("weight", distance[index_i][index_j])
+
+    # compute the shortest distance
+    for k in range(nr_vertices):
+        for i in range(nr_vertices):
+            for j in range(nr_vertices):
+                if distance[i][j] > distance[i][k] + distance[k][j]:
+                    distance[i][j] = distance[i][k] + distance[k][j]
+
+    # distance = networkx.floyd_warshall_numpy(graph, weight='weight')
+
+    return distance, index_node_dict
+
+# random similarity measure, might look for a better one later one
+def similarity(node_i, node_j, distance_matrix):
+    return 1 / (1 + distance_matrix[node_i][node_j])
+
+def convert_to_similarity_matrix(distance_matrix):
+    distance_len = len(distance_matrix)
+    sim_matrix = np.zeros((distance_len, distance_len))
+    for i in range(distance_len):
+        for j in range(distance_len):
+            if distance_matrix[i][j] != float('inf'):
+                sim = similarity(i, j, distance_matrix)
+                sim_matrix[i][j] = sim
+    return sim_matrix
+
+def get_tsne_coordinates(dist_matrix, index_node_dict):
+    d_matrix = np.nan_to_num(dist_matrix, posinf=3333333333) 
+    coordinates_proj = {}
+    #print(d_matrix)
+    #delete last row and column of distance matrix such that the disconnected node is not taken into account
+    projection = TSNE(n_components=2, learning_rate='auto', init='pca', 
+                      perplexity=15, early_exaggeration=30, n_iter=1500).fit_transform(d_matrix[:-1, :-1])
+    # perplexity = 15 in slides, 30 looks nice
+    # other parameters..
+
+    for index in range(projection.shape[0]):
+        node_id = index_node_dict[index]
+        x_cor = projection[index][0]
+        y_cor = projection[index][1]
+        coordinates_proj[node_id] = (x_cor, y_cor)
+
+    return coordinates_proj, projection
+
+def get_isomap_coordinates(dist_matrix, index_node_dict):
+    d_matrix = np.nan_to_num(dist_matrix, posinf=333333333333)
+#    print((d_matrix==d_matrix.T).all())
+    #delete last row and column of distance matrix such that the disconnected node is not taken into account
+    projection = Isomap(n_components=2, n_neighbors=6).fit_transform(d_matrix[:-1,:-1])
+    coordinates_proj = {}
+
+    for index in range(projection.shape[0]):
+        node_id = index_node_dict[index]
+        x_cor = projection[index][0]
+        y_cor = projection[index][1]
+        coordinates_proj[node_id] = (x_cor, y_cor)
+
+    return coordinates_proj, projection
